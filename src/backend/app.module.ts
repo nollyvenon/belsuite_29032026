@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RbacModule } from './rbac/rbac.module';
+import { PaymentModule } from './payments/payment.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -13,9 +14,6 @@ import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionGuard } from './common/guards/permission.guard';
 
 // Placeholder modules (to be implemented in next phases)
-@Module({})
-class SubscriptionsModule {}
-
 @Module({})
 class ContentModule {}
 
@@ -46,7 +44,7 @@ class StorageModule {}
     RbacModule,
 
     // Business modules (Phase 2+)
-    SubscriptionsModule,
+    PaymentModule,  // Phase 2: Multi-payment gateway support
     ContentModule,
     AutomationModule,
     AnalyticsModule,
