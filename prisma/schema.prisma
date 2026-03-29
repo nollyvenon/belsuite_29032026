@@ -41,6 +41,14 @@ model User {
   notifications         Notification[]
   contentCreated        Content[] @relation("ContentCreator")
   savedContent          SavedContent[]
+  
+  // Authentication relations
+  oauthAccounts         OAuthAccount[]
+  twoFactor             TwoFactorSecret?
+  deviceSessions        DeviceSession[]
+  passwordHistory       PasswordHistory[]
+  emailVerifications    EmailVerificationToken[]
+  passwordResets        PasswordResetToken[]
 
   @@index([email])
   @@index([status])
@@ -64,9 +72,192 @@ model Session {
   ipAddress     String?
   userAgent     String?
   isRevoked     Boolean   @default(false)
+  
+  // Device tracking
+  deviceSessions  DeviceSession[]
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// OAuth Accounts (Google, Apple, Facebook)
+model OAuthAccount {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          OAuthProvider
+  providerUserId    String    @unique  // Google ID, Apple ID, etc.
+  email             String?
+  displayName       String?
+  avatar            String?   // Profile picture from OAuth provider
+  accessToken       String?   @db.Text // Encrypted
+  refreshToken      String?   @db.Text // Encrypted
+  expiresAt         DateTime?
+  scope             String?   // Space-separated scopes
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([userId, provider])
+  @@index([provider])
+  @@index([userId])
+}
+
+enum OAuthProvider {
+  GOOGLE
+  APPLE
+  FACEBOOK
+}
+
+// Two-Factor Authentication - TOTP (Authenticator Apps)
+model TwoFactorSecret {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret            String    @db.Text // Encrypted base32 secret
+  backupCodes       TwoFactorBackupCode[]
+  isEnabled         Boolean   @default(false)
+  enabledAt         DateTime?
+  method            TwoFactorMethod // TOTP or EMAIL
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+enum TwoFactorMethod {
+  TOTP              // Time-based One-Time Password (Authenticator apps)
+  EMAIL             // Email-based 2FA
+}
+
+// Two-Factor Backup Codes
+model TwoFactorBackupCode {
+  id                String    @id @default(cuid())
+  twoFactorId       String
+  twoFactor         TwoFactorSecret @relation(fields: [twoFactorId], references: [id], onDelete: Cascade)
+  code              String    @db.VarChar(16) // Hashed
+  used              Boolean   @default(false)
+  usedAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([twoFactorId])
+}
+
+// Device/Session Tracking for Security
+model DeviceSession {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId         String
+  session           Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  // Device Information
+  deviceName        String?   // User-friendly name (iPhone 12, MacBook Pro)
+  deviceType        DeviceType // MOBILE, DESKTOP, TABLET
+  osName            String?   // iOS, Android, Windows, macOS, Linux
+  osVersion         String?
+  browserName       String?   // Chrome, Safari, Firefox, etc.
+  browserVersion    String?
+  
+  // Network Information
+  ipAddress         String
+  country           String?
+  city              String?
+  userAgent         String    @db.Text
+  
+  // Trust & Security
+  isTrusted         Boolean   @default(false)
+  trustedAt         DateTime?
+  isVerified        Boolean   @default(false)
+  verifiedAt        DateTime?
+  
+  // Session lifecycle
+  lastActivityAt    DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  expiresAt         DateTime
+
+  @@unique([userId, ipAddress, userAgent])
+  @@index([userId])
+  @@index([sessionId])
+}
+
+enum DeviceType {
+  MOBILE
+  DESKTOP
+  TABLET
+  OTHER
+}
+
+// Password History for Security
+model PasswordHistory {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash      String
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Login Attempts for Rate Limiting & Security
+model LoginAttempt {
+  id                String    @id @default(cuid())
+  email             String    @db.VarChar(255)
+  ipAddress         String
+  success           Boolean   @default(false)
+  reason            String?   // Invalid password, account locked, etc.
+  userAgent         String?   @db.Text
+  timestamp         DateTime  @default(now())
+
+  @@index([email])
+  @@index([ipAddress])
+  @@index([timestamp])
+  @@index([success])
+}
+
+// Email Verification Tokens
+model EmailVerificationToken {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email             String    @db.VarChar(255) // Email to verify
+  token             String    @unique
+  expiresAt         DateTime
+  verifiedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Password Reset Tokens
+model PasswordResetToken {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token             String    @unique
+  expiresAt         DateTime
+  usedAt            DateTime?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Add relations to User model for new tables
+model User_Extended {
+  // This is just to document the new relations
+  // In actual User model add:
+  // oauthAccounts      OAuthAccount[]
+  // twoFactor          TwoFactorSecret?
+  // deviceSessions     DeviceSession[]
+  // passwordHistory    PasswordHistory[]
+  // emailVerifications EmailVerificationToken[]
+  // passwordResets     PasswordResetToken[]
+  // loginAttempts      LoginAttempt[] // Indexed by email
 }
 
 // ============================================================================
