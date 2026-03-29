@@ -38,6 +38,7 @@ model User {
   auditLogs             AuditLog[] @relation("UserAudit")
   invitations           Invitation[]
   notificationSettings  NotificationSettings?
+  notifications         Notification[]
   contentCreated        Content[] @relation("ContentCreator")
   savedContent          SavedContent[]
 
@@ -104,6 +105,11 @@ model Organization {
   apiKeys               APIKey[]
   analyticsEvents       AnalyticsEvent[]
   features              FeatureFlag[]
+  emailTemplates        EmailTemplate[]
+  emails                Email[]
+  notifications         Notification[]
+  emailLogs             EmailLog[]
+  emailSettings         AdminEmailSettings?
 
   @@index([slug])
   @@index([status])
@@ -767,4 +773,246 @@ model FeatureFlag {
 
   @@unique([organizationId, flag])
   @@index([organizationId])
+}
+
+// ============================================================================
+// EMAIL & NOTIFICATIONS (Phase 3)
+// ============================================================================
+
+model EmailTemplate {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name                  String    @db.VarChar(128) // e.g., "welcome", "payment_receipt"
+  subject               String    @db.VarChar(255)
+  htmlTemplate          String    @db.Text
+  textTemplate          String?   @db.Text
+  
+  variables             String[]  @default([]) // e.g., ["{{firstName}}", "{{amount}}"]
+  category              String    @db.VarChar(64) // auth, payment, notification, marketing
+  
+  isActive              Boolean   @default(true)
+  isSystem              Boolean   @default(false) // Cannot be deleted
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  usageCount            Int       @default(0)
+
+  emails                Email[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([category])
+}
+
+model Email {
+  id                    String    @id @default(cuid())
+  
+  // Recipient
+  toEmail               String    @db.VarChar(255)
+  toName                String?   @db.VarChar(255)
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Content
+  templateId            String?
+  template              EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  
+  subject               String    @db.VarChar(255)
+  htmlContent           String?   @db.Text
+  textContent           String?   @db.Text
+  
+  // Status tracking
+  status                EmailStatus @default(PENDING)
+  provider              EmailProvider @default(SENDGRID)
+  externalEmailId       String?   @unique // Provider's email ID
+  
+  // Metadata
+  relationType          String?   @db.VarChar(64) // "user", "payment", "subscription"
+  relationId            String?   // Related entity ID
+  
+  // Delivery
+  sentAt                DateTime?
+  deliveredAt           DateTime?
+  openedAt              DateTime?
+  clickedAt             DateTime?
+  bouncedAt             DateTime?
+  spamReportedAt        DateTime?
+  
+  // Retry logic
+  attemptNumber         Int       @default(1)
+  maxRetries            Int       @default(3)
+  nextRetryAt           DateTime?
+  failureReason         String?
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  logs                  EmailLog[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([provider])
+  @@index([toEmail])
+  @@index([createdAt])
+}
+
+enum EmailStatus {
+  PENDING
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  SPAM
+  OPENED
+}
+
+enum EmailProvider {
+  SENDGRID
+  MAILGUN
+  SES
+  POSTMARK
+  SENDMAIL
+  SMTP
+}
+
+model Notification {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId                String?
+  user                  User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type                  NotificationType
+  title                 String    @db.VarChar(255)
+  message               String    @db.Text
+  data                  String?   @db.Text // JSON
+  
+  // Delivery channels
+  emailSent             Boolean   @default(false)
+  pushSent              Boolean   @default(false)
+  inAppCreated          Boolean   @default(true)
+  
+  // Status
+  isRead                Boolean   @default(false)
+  readAt                DateTime?
+  
+  // Reference
+  relatedType           String?   @db.VarChar(64)
+  relatedId             String?
+  
+  createdAt             DateTime  @default(now())
+  expiresAt             DateTime? // Auto-delete old notifications
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  WELCOME
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_CANCELLED
+  SUBSCRIPTION_EXPIRING
+  CONTENT_PUBLISHED
+  SYSTEM_ALERT
+  MARKETING
+  CUSTOM
+}
+
+model EmailLog {
+  id                    String    @id @default(cuid())
+  emailId               String
+  email                 Email?    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  event                 String    @db.VarChar(64) // sent, delivered, open, click, bounce, spam
+  timestamp             DateTime
+  metadata              String?   @db.Text // JSON
+  
+  @@index([emailId])
+  @@index([organizationId])
+  @@index([event])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// ADMIN SETTINGS (Email & System Configuration)
+// ============================================================================
+
+model AdminEmailSettings {
+  id                    String    @id @default(cuid())
+  organizationId        String    @unique
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Primary Provider Configuration
+  primaryProvider       String    @db.VarChar(64) @default("sendgrid") // sendgrid, mailgun, ses, postmark, smtp, sendmail
+  
+  // SendGrid Config
+  sendgridApiKey        String?   @db.VarChar(1024) // Encrypted
+  sendgridWebhookSecret String?   @db.VarChar(1024) // Encrypted
+  sendgridDomain        String?   @db.VarChar(255)
+  
+  // Mailgun Config
+  mailgunApiKey         String?   @db.VarChar(1024) // Encrypted
+  mailgunDomain         String?   @db.VarChar(255)
+  
+  // AWS SES Config
+  awsAccessKeyId        String?   @db.VarChar(1024) // Encrypted
+  awsSecretAccessKey    String?   @db.VarChar(1024) // Encrypted
+  awsRegion             String?   @db.VarChar(64) @default("us-east-1")
+  
+  // Postmark Config
+  postmarkApiKey        String?   @db.VarChar(1024) // Encrypted
+  postmarkDomain        String?   @db.VarChar(255)
+  
+  // SMTP Config
+  smtpHost              String?   @db.VarChar(255)
+  smtpPort              Int?      @default(587)
+  smtpSecure            Boolean?  @default(false)
+  smtpUser              String?   @db.VarChar(255)
+  smtpPassword          String?   @db.VarChar(1024) // Encrypted
+  
+  // Sendmail Config
+  sendmailPath          String?   @db.VarChar(255) @default("/usr/sbin/sendmail")
+  
+  // General Email Settings
+  emailFrom             String    @db.VarChar(255) @default("noreply@belsuite.com")
+  emailFromName         String    @db.VarChar(255) @default("Belsuite")
+  replyTo               String?   @db.VarChar(255)
+  
+  // Failover Configuration
+  enableFailover        Boolean   @default(true)
+  fallbackProviders     String[]  @default(["mailgun", "seq", "postmark"]) // Order matters
+  maxRetries            Int       @default(3)
+  retryDelayMs          Int       @default(5000)
+  
+  // Rate Limiting
+  rateLimitPerMinute    Int       @default(100)
+  rateLimitPerHour      Int       @default(10000)
+  
+  // Features
+  trackingEnabled       Boolean   @default(true)
+  webhooksEnabled       Boolean   @default(true)
+  attachmentsEnabled    Boolean   @default(true)
+  
+  // Audit & Compliance
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  updatedBy             String?   // User ID who updated settings
+  lastTestedAt          DateTime?  // Last test email sent
+  testStatus            String?   // Success or error message
+
+  @@index([organizationId])
+  @@index([primaryProvider])
+  @@index([updatedAt])
 }
