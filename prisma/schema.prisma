@@ -1,0 +1,770 @@
+// Belsuite - Multi-Tenant SaaS Platform
+// Comprehensive database schema for enterprise features
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// AUTHENTICATION & USERS
+// ============================================================================
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique @db.VarChar(255)
+  emailVerified         DateTime?
+  passwordHash          String
+  firstName             String?
+  lastName              String?
+  avatar                String?   // URL to profile picture
+  phoneNumber           String?
+  timezone              String    @default("UTC")
+  preferredLanguage     String    @default("en")
+  status                UserStatus @default(ACTIVE)
+  lastLogin             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime? // Soft delete
+
+  // Relations
+  organizationMembers   OrganizationMember[]
+  apiKeys               APIKey[]
+  sessions              Session[]
+  auditLogs             AuditLog[] @relation("UserAudit")
+  invitations           Invitation[]
+  notificationSettings  NotificationSettings?
+  contentCreated        Content[] @relation("ContentCreator")
+  savedContent          SavedContent[]
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+  PENDING_VERIFICATION
+}
+
+model Session {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token         String    @unique
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  ipAddress     String?
+  userAgent     String?
+  isRevoked     Boolean   @default(false)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// ORGANIZATIONS & MULTI-TENANCY
+// ============================================================================
+
+model Organization {
+  id                    String    @id @default(cuid())
+  name                  String    @db.VarChar(255)
+  slug                  String    @unique @db.VarChar(128)
+  description           String?
+  logo                  String?
+  website               String?
+  status                OrgStatus @default(ACTIVE)
+  tier                  SubscriptionTier @default(FREE)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime? // Soft delete
+
+  // Billing & limits
+  maxMembers            Int       @default(5)
+  maxProjects           Int       @default(10)
+  maxStorageGB          Float     @default(5)
+  usedStorageGB         Float     @default(0)
+
+  // Relations
+  members               OrganizationMember[]
+  roles                 Role[]
+  subscriptions         Subscription[]
+  billingProfiles       BillingProfile[]
+  content               Content[]
+  workflows             Workflow[]
+  webhooks              Webhook[]
+  auditLogs             AuditLog[] @relation("OrgAudit")
+  invitations           Invitation[]
+  apiKeys               APIKey[]
+  analyticsEvents       AnalyticsEvent[]
+  features              FeatureFlag[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([tier])
+  @@index([createdAt])
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum SubscriptionTier {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model OrganizationMember {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId                String
+  role                  Role      @relation(fields: [roleId], references: [id])
+  joinedAt              DateTime  @default(now())
+  invitedBy             String?   // User ID who invited
+  status                MemberStatus @default(ACTIVE)
+
+  // Denormalized for performance
+  roleName              String?   // Cache role name
+  permissions           String[]  @default([]) // Cached permissions as JSON
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+  PENDING_ACCEPTANCE
+}
+
+model Invitation {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedEmail          String    @db.VarChar(255)
+  roleId                String
+  role                  Role      @relation(fields: [roleId], references: [id])
+  invitedBy             String
+  invitedByUser         User      @relation(fields: [invitedBy], references: [id])
+  status                InvitationStatus @default(PENDING)
+  token                 String    @unique
+  expiresAt             DateTime
+  acceptedAt            DateTime?
+  acceptedByUserId      String?
+  createdAt             DateTime  @default(now())
+
+  @@unique([organizationId, invitedEmail])
+  @@index([organizationId])
+  @@index([invitedEmail])
+  @@index([token])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+// ============================================================================
+// RBAC (ROLE-BASED ACCESS CONTROL)
+// ============================================================================
+
+model Role {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                  String    @db.VarChar(128)
+  description           String?
+  isSystem              Boolean   @default(false) // Cannot be deleted if true
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  permissions           Permission[]
+  members               OrganizationMember[]
+  invitations           Invitation[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Permission {
+  id                    String    @id @default(cuid())
+  roleId                String
+  role                  Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  action                String    @db.VarChar(128) // e.g., "create:content", "delete:user"
+  resource              String    @db.VarChar(128) // e.g., "content", "organization"
+  createdAt             DateTime  @default(now())
+
+  @@unique([roleId, action, resource])
+  @@index([roleId])
+}
+
+// ============================================================================
+// SUBSCRIPTIONS & BILLING
+// ============================================================================
+
+model Subscription {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan                  BillingPlan?
+  planId                String?
+  status                SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelledAt           DateTime?
+  
+  // Payment provider IDs (external references)
+  stripeSubscriptionId  String?   @unique
+  paystackSubscriptionId String?
+  flutterSubscriptionId String?
+  paypalSubscriptionId  String?
+  sofortSubscriptionId  String?
+  
+  // Primary payment method
+  primaryPaymentMethod  PaymentProvider @default(STRIPE)
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  invoices              Invoice[]
+  payments              Payment[]
+
+  @@unique([organizationId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  PAST_DUE
+  TRIAL
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYSTACK
+  FLUTTERWAVE
+  PAYPAL
+  SOFORT
+}
+
+model BillingPlan {
+  id                    String    @id @default(cuid())
+  name                  String    @db.VarChar(128)
+  tier                  SubscriptionTier @unique
+  description           String?
+  pricePerMonth         Float
+  pricePerYear          Float?
+  maxMembers            Int
+  maxProjects           Int
+  maxStorageGB          Float
+  features              String[]  @default([]) // JSON array of feature strings
+  createdAt             DateTime  @default(now())
+
+  subscriptions         Subscription[]
+
+  @@index([tier])
+}
+
+model BillingProfile {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Stripe
+  stripeCustomerId      String?
+  
+  // Paystack
+  paystackCustomerId    String?
+  paystackAuthCode      String?
+  
+  // Flutterwave
+  flutterwaveCustomerId String?
+  
+  // PayPal
+  paypalCustomerId      String?
+  
+  // Sofort
+  sofortCustomerId      String?
+  
+  // Common billing info
+  cardLast4             String?
+  cardBrand             String?
+  billingEmail          String
+  billingName           String?
+  billingAddress        String?
+  billingCity           String?
+  billingState          String?
+  billingZip            String?
+  billingCountry        String?
+  taxId                 String?
+  
+  // Payment methods
+  paymentMethods        PaymentMethod[]
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  invoices              Invoice[]
+
+  @@unique([organizationId])
+  @@index([organizationId])
+}
+
+model Invoice {
+  id                    String    @id @default(cuid())
+  subscriptionId        String
+  subscription          Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  billingProfileId      String
+  billingProfile        BillingProfile @relation(fields: [billingProfileId], references: [id])
+  stripeInvoiceId       String?
+  amount                Float
+  currency              String    @default("USD")
+  status                InvoiceStatus @default(PENDING)
+  issuedAt              DateTime
+  dueAt                 DateTime
+  paidAt                DateTime?
+  pdfUrl                String?
+  createdAt             DateTime  @default(now())
+
+  @@index([subscriptionId])
+  @@index([billingProfileId])
+  @@index([status])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  FAILED
+}
+
+// ============================================================================
+// CONTENT MANAGEMENT
+// ============================================================================
+
+model Content {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type                  ContentType
+  title                 String    @db.VarChar(255)
+  description           String?   @db.Text
+  slug                  String    @db.VarChar(255)
+  content               String?   @db.Text // Main content/body
+  creatorId             String
+  creator               User      @relation("ContentCreator", fields: [creatorId], references: [id])
+  status                ContentStatus @default(DRAFT)
+  tags                  String[]  @default([])
+  thumbnail             String?
+  views                 Int       @default(0)
+  likes                 Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  publishedAt           DateTime?
+  scheduledAt           DateTime?
+  expiresAt             DateTime?
+
+  // Relations
+  media                 Media[]
+  savedBy               SavedContent[]
+  workflow              Workflow?
+  analyticsEvents       AnalyticsEvent[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@fulltext([title, description]) // MySQL only, use alternative for PostgreSQL
+}
+
+enum ContentType {
+  TEXT
+  IMAGE
+  VIDEO
+  CAROUSEL
+  STORY
+  REELS
+  AUTOMATION_TEMPLATE
+}
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+  DELETED
+}
+
+model Media {
+  id                    String    @id @default(cuid())
+  contentId             String
+  content               Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  organizationId        String
+  type                  MediaType
+  fileName              String
+  fileSize              BigInt
+  mimeType              String
+  url                   String    @db.Text // S3 URL
+  duration              Int?      // For videos (seconds)
+  width                 Int?      // Image/video
+  height                Int?      // Image/video
+  metadata              String?   @db.Text // JSON
+  uploadedAt            DateTime  @default(now())
+
+  @@index([contentId])
+  @@index([organizationId])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  THUMBNAIL
+}
+
+model SavedContent {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentId             String
+  content               Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  folder                String?   @default("saved")
+  savedAt               DateTime  @default(now())
+
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@index([contentId])
+}
+
+// ============================================================================
+// MARKETING AUTOMATION
+// ============================================================================
+
+model Workflow {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                  String    @db.VarChar(255)
+  description           String?
+  type                  WorkflowType
+  trigger               String    @db.Text // JSON: Configuration for trigger
+  actions               WorkflowAction[]
+  isActive              Boolean   @default(false)
+  contentId             String?
+  content               Content?  @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  executionCount        Int       @default(0)
+  lastExecutedAt        DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([organizationId])
+  @@index([type])
+}
+
+enum WorkflowType {
+  SCHEDULING
+  CONDITIONAL
+  SEQUENCE
+  TRIGGER_BASED
+  WEBHOOK
+}
+
+model WorkflowAction {
+  id                    String    @id @default(cuid())
+  workflowId            String
+  workflow              Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  order                 Int
+  actionType            String    // e.g., "publish", "email", "webhook"
+  config                String    @db.Text // JSON configuration
+  createdAt             DateTime  @default(now())
+
+  @@index([workflowId])
+}
+
+// ============================================================================
+// ANALYTICS & TRACKING
+// ============================================================================
+
+model AnalyticsEvent {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contentId             String?
+  content               Content?  @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  eventType             String    @db.VarChar(128) // view, like, share, comment, etc.
+  userId                String?   // Nullable for anonymous events
+  properties            String?   @db.Text // JSON: Custom event properties
+  timestamp             DateTime  @default(now())
+
+  @@index([organizationId])
+  @@index([contentId])
+  @@index([eventType])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// API & WEBHOOKS
+// ============================================================================
+
+model APIKey {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String    @db.VarChar(255)
+  key                   String    @unique @db.Text // Hashed
+  lastUsedAt            DateTime?
+  expiresAt             DateTime?
+  createdAt             DateTime  @default(now())
+  revokedAt             DateTime?
+
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model Webhook {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  url                   String    @db.Text
+  events                String[]  @default([]) // Events to subscribe to
+  isActive              Boolean   @default(true)
+  secret                String
+  failureCount          Int       @default(0)
+  lastFailedAt          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([organizationId])
+}
+
+// ============================================================================
+// PAYMENTS & TRANSACTIONS (Phase 2)
+// ============================================================================
+
+model PaymentMethod {
+  id                    String    @id @default(cuid())
+  billingProfileId      String
+  billingProfile        BillingProfile @relation(fields: [billingProfileId], references: [id], onDelete: Cascade)
+  provider              PaymentProvider
+  
+  // External references
+  stripePaymentMethodId String?
+  paystackAuthCode      String?
+  flutterwaveTokenId    String?
+  paypalTokenId         String?
+  sofortToken           String?
+  
+  // Card details
+  last4                 String?
+  brand                 String?
+  expiryMonth           Int?
+  expiryYear            Int?
+  
+  // Bank/Account details
+  accountHolderName     String?
+  accountLast4          String?
+  bankCode              String?
+  
+  // Status
+  isDefault             Boolean   @default(false)
+  isActive              Boolean   @default(true)
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([billingProfileId])
+  @@index([provider])
+}
+
+model Payment {
+  id                    String    @id @default(cuid())
+  subscriptionId        String
+  subscription          Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  invoiceId             String?
+  
+  // Payment details
+  provider              PaymentProvider
+  externalPaymentId     String?   // Stripe charge ID, Paystack reference, etc.
+  amount                Float
+  currency              String    @default("USD")
+  status                PaymentStatus @default(PENDING)
+  
+  // Metadata for each provider
+  providerResponse      String?   @db.Text // JSON response from provider
+  
+  // Retry logic
+  attemptNumber         Int       @default(1)
+  maxRetries            Int       @default(3)
+  nextRetryAt           DateTime?
+  failureReason         String?
+  
+  // Refund
+  refunds               PaymentRefund[]
+  refundedAmount        Float     @default(0)
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  paidAt                DateTime?
+
+  @@unique([externalPaymentId])
+  @@index([subscriptionId])
+  @@index([provider])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model PaymentRefund {
+  id                    String    @id @default(cuid())
+  paymentId             String
+  payment               Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  provider              PaymentProvider
+  externalRefundId      String?   // Refund ID from provider
+  amount                Float
+  currency              String    @default("USD")
+  status                RefundStatus @default(PENDING)
+  reason                String?   @db.Text
+  
+  providerResponse      String?   @db.Text // JSON response
+  
+  createdAt             DateTime  @default(now())
+  completedAt           DateTime?
+
+  @@index([paymentId])
+  @@index([status])
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model PaymentWebhook {
+  id                    String    @id @default(cuid())
+  provider              PaymentProvider
+  externalWebhookId     String?   @unique
+  eventType             String    @db.VarChar(128) // payment.completed, payment.failed, etc.
+  subscriptionId        String?
+  paymentId             String?
+  data                  String    @db.Text // Raw JSON webhook data
+  status                WebhookStatus @default(RECEIVED)
+  processedAt           DateTime?
+  errorMessage          String?
+  
+  createdAt             DateTime  @default(now())
+
+  @@index([provider])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+// ============================================================================
+// AUDIT LOGGING & COMPLIANCE
+// ============================================================================
+
+model AuditLog {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation("OrgAudit", fields: [organizationId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation("UserAudit", fields: [userId], references: [id])
+  action                String    @db.VarChar(128) // e.g., "created", "updated", "deleted"
+  resource              String    @db.VarChar(128) // e.g., "content", "user"
+  resourceId            String?
+  changes               String?   @db.Text // JSON: Before/after values
+  ipAddress             String?
+  userAgent             String?
+  createdAt             DateTime  @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// NOTIFICATIONS & USER PREFERENCES
+// ============================================================================
+
+model NotificationSettings {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotifications    Boolean   @default(true)
+  pushNotifications     Boolean   @default(true)
+  inAppNotifications    Boolean   @default(true)
+  weeklyDigest          Boolean   @default(true)
+  marketingEmails       Boolean   @default(false)
+  updatedAt             DateTime  @updatedAt
+}
+
+// ============================================================================
+// FEATURE FLAGS (for A/B testing & gradual rollouts)
+// ============================================================================
+
+model FeatureFlag {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  flag                  String    @db.VarChar(128) // e.g., "new_video_editor"
+  enabled               Boolean   @default(false)
+  rolloutPercentage     Int       @default(0) // 0-100
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([organizationId, flag])
+  @@index([organizationId])
+}
