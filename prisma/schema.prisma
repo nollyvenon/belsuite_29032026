@@ -110,6 +110,14 @@ model Organization {
   notifications         Notification[]
   emailLogs             EmailLog[]
   emailSettings         AdminEmailSettings?
+  
+  // Multi-tenant relations
+  tenantDomains         DomainMapping[] @relation("TenantDomains")
+  tenantUsage           TenantUsage[] @relation("TenantUsage")
+  tenantRateLimits      TenantRateLimitQuota? @relation("TenantRateLimits")
+  tenantRateLimitUsage  TenantRateLimitUsage[] @relation("TenantRateLimitUsage")
+  tenantOnboarding      TenantOnboarding? @relation("TenantOnboarding")
+  apiRateLimitState     ApiRateLimitState[] @relation("ApiRateLimitState")
 
   @@index([slug])
   @@index([status])
@@ -1016,3 +1024,297 @@ model AdminEmailSettings {
   @@index([primaryProvider])
   @@index([updatedAt])
 }
+
+// ============================================================================
+// MULTI-TENANT ARCHITECTURE - DOMAIN MAPPING & TENANT MANAGEMENT
+// ============================================================================
+
+/**
+ * Domain Mapping System
+ * Maps subdomains and custom domains to tenants (Organizations)
+ * 
+ * Examples:
+ * - acme.belsuite.com → Organization(id="org_acme", slug="acme")
+ * - www.acme-corp.com → Organization(id="org_acme", slug="acme")
+ * - staging.acme.belsuite.com → Organization(id="org_acme_staging")
+ */
+model DomainMapping {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation("TenantDomains", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Domain information
+  domain                String    @unique @db.VarChar(255) // Full domain (acme.belsuite.com or acme-corp.com)
+  domainType            DomainType @default(SUBDOMAIN) // SUBDOMAIN or CUSTOM
+  subdomain             String?   @unique @db.VarChar(128) // For subdomains: "acme"
+  baseDomain            String?   @db.VarChar(255) // For custom domains: the base configured domain
+  
+  // SSL/TLS Configuration
+  sslCertificate        String?   @db.Text // Encrypted SSL cert
+  sslPrivateKey         String?   @db.Text // Encrypted private key
+  sslExpiresAt          DateTime?
+  certificateProvider   String    @db.VarChar(64) @default("letsencrypt") // letsencrypt, manual, etc.
+  
+  // DNS Verification (for custom domains)
+  dnsCnameRecord        String?   @db.VarChar(255)
+  dnsVerified           Boolean   @default(false)
+  dnsVerifiedAt         DateTime?
+  
+  // Status & Lifecycle
+  isActive              Boolean   @default(true)
+  isPrimary             Boolean   @default(false) // Primary domain for the tenant
+  
+  // Redirects
+  redirectTo            String?   @db.VarChar(255) // Redirect to another domain
+  
+  // Audit & Compliance
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  verifiedBy            String?   // User who verified
+  verifiedAt            DateTime?
+
+  @@unique([organizationId, domainType, subdomain])
+  @@index([organizationId])
+  @@index([domain])
+  @@index([subdomain])
+  @@index([isActive])
+  @@index([isPrimary])
+}
+
+enum DomainType {
+  SUBDOMAIN    // tenant.belsuite.com
+  CUSTOM       // tenant.com or www.tenant.com
+}
+
+/**
+ * Tenant Usage Tracking
+ * Tracks per-tenant consumption of resources
+ * Used for billing, quotas, and analytics
+ */
+model TenantUsage {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation("TenantUsage", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Time period tracking
+  period                String    @db.VarChar(10) // YYYY-MM (monthly breakdown)
+  startDate             DateTime
+  endDate               DateTime
+  
+  // AI Usage
+  aiTokensUsed          Int       @default(0)
+  aiRequestsCount       Int       @default(0)
+  
+  // Storage Usage
+  storageUsedBytes      BigInt    @default(0)
+  
+  // API Usage
+  apiCallsCount         Int       @default(0)
+  apiErrorCount         Int       @default(0)
+  
+  // Email Usage
+  emailsSent            Int       @default(0)
+  emailsDelivered       Int       @default(0)
+  emailsBounced         Int       @default(0)
+  emailsOpened          Int       @default(0)
+  emailsClicked         Int       @default(0)
+  
+  // Content/Features Usage
+  contentCount          Int       @default(0)
+  activeUsers           Int       @default(0)
+  
+  // Cost Calculation
+  estimatedCost         Float     @default(0) // In USD
+  
+  // Metadata
+  metadata              String?   @db.Text // JSON for additional metrics
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([organizationId, period])
+  @@index([organizationId])
+  @@index([period])
+  @@index([startDate])
+}
+
+/**
+ * Tenant Rate Limit Quotas
+ * Defines and tracks rate limits per tenant
+ */
+model TenantRateLimitQuota {
+  id                    String    @id @default(cuid())
+  organizationId        String    @unique
+  organization          Organization @relation("TenantRateLimits", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // API Rate Limits
+  apiRequestsPerMinute  Int       @default(100)
+  apiRequestsPerHour    Int       @default(10000)
+  apiRequestsPerDay     Int       @default(1000000)
+  
+  // Email Rate Limits
+  emailsPerMinute       Int       @default(100)
+  emailsPerHour         Int       @default(10000)
+  emailsPerDay          Int       @default(1000000)
+  
+  // AI/ML Rate Limits
+  aiTokensPerMinute     Int       @default(5000)
+  aiTokensPerHour       Int       @default(500000)
+  aiTokensPerDay        Int       @default(10000000)
+  
+  // Storage Limits (in GB)
+  maxStorageGB          Float     @default(10)
+  
+  // Concurrent Connections
+  maxConcurrentRequests Int       @default(100)
+  maxConcurrentUploads  Int       @default(10)
+  
+  // Custom Limits
+  customLimits          String?   @db.Text // JSON for additional limits
+  
+  // Enforcement
+  enforceRateLimits     Boolean   @default(true)
+  softLimitNotifyAt     Int       @default(80) // Notify at 80% of limit
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  effectiveFrom         DateTime  @default(now())
+  effectiveUntil        DateTime? // Null = indefinite
+
+  @@index([organizationId])
+  @@index([effectiveFrom])
+}
+
+/**
+ * Tenant Rate Limit Current Usage
+ * Real-time tracking of current period usage
+ */
+model TenantRateLimitUsage {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation("TenantRateLimitUsage", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Period tracking
+  period                String    @db.VarChar(20) // "MINUTE", "HOUR", "DAY"
+  periodStart           DateTime
+  periodEnd             DateTime
+  
+  // Current usage
+  apiRequestsUsed       Int       @default(0)
+  emailsUsed            Int       @default(0)
+  aiTokensUsed          Int       @default(0)
+  storageUsedGB         Float     @default(0)
+  concurrentRequests    Int       @default(0)
+  concurrentUploads     Int       @default(0)
+  
+  // Violation tracking
+  limitExceededCount    Int       @default(0)
+  lastExceededAt        DateTime?
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([organizationId, period, periodStart])
+  @@index([organizationId])
+  @@index([periodStart])
+  @@index([period])
+}
+
+/**
+ * Tenant Onboarding State
+ * Tracks the onboarding progress of new tenants
+ */
+model TenantOnboarding {
+  id                    String    @id @default(cuid())
+  organizationId        String    @unique
+  organization          Organization @relation("TenantOnboarding", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Onboarding Steps
+  step                  OnboardingStep @default(WELCOME)
+  completed             Boolean   @default(false)
+  completedAt           DateTime?
+  
+  // Information Collected
+  companyName           String?
+  companyWebsite        String?
+  companyLogo           String?   // URL
+  industry              String?
+  
+  // Domain Setup
+  subdomainChosen       String?
+  customDomainChosen    String?
+  
+  // Initial Settings
+  defaultLanguage       String    @default("en")
+  defaultTimezone       String    @default("UTC")
+  
+  // Payment Setup
+  billingMethodAdded    Boolean   @default(false)
+  paymentMethodId       String?
+  
+  // Team Invitation
+  teamMembersInvited    Boolean   @default(false)
+  invitedMembersCount   Int       @default(0)
+  
+  // Feature Activation
+  featurePreferences    String?   @db.Text // JSON
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  startedAt             DateTime  @default(now())
+  abandonedAt           DateTime?
+
+  @@index([organizationId])
+  @@index([step])
+  @@index([completed])
+}
+
+enum OnboardingStep {
+  WELCOME
+  COMPANY_INFO
+  DOMAIN_SETUP
+  TEAM_SETUP
+  PAYMENT_SETUP
+  FEATURE_SELECTION
+  COMPLETED
+}
+
+/**
+ * API Rate Limit State (Real-time tracking)
+ * Tracks current requests in flight for rate limiting
+ */
+model ApiRateLimitState {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation("ApiRateLimitState", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Request tracking
+  requestCount          Int       @default(0) // Current requests in this minute
+  requestTimestamp      DateTime
+  
+  // Violation tracking
+  violationCount        Int       @default(0)
+  blockedUntil          DateTime?
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([organizationId, requestTimestamp])
+  @@index([organizationId])
+  @@index([requestTimestamp])
+  @@index([blockedUntil])
+}
+
+// ============================================================================
+// UPDATE ORGANIZATION MODEL WITH TENANT FIELDS
+// ============================================================================
+
+// Note: The Organization model has been enhanced with these fields already:
+// - Tenant-related fields for multi-tenancy support
+// - Relations: TenantDomains, TenantUsage, TenantRateLimits, TenantRateLimitUsage, TenantOnboarding, ApiRateLimitState
+// - See Organization model above for full details
