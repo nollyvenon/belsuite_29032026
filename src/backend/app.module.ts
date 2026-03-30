@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RbacModule } from './rbac/rbac.module';
 import { PaymentModule } from './payments/payment.module';
+import { AIModule } from './ai/ai.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -22,9 +23,6 @@ class AutomationModule {}
 
 @Module({})
 class AnalyticsModule {}
-
-@Module({})
-class AIModule {}
 
 @Module({})
 class StorageModule {}

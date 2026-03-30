@@ -42,6 +42,10 @@ model User {
   contentCreated        Content[] @relation("ContentCreator")
   savedContent          SavedContent[]
   
+  // AI features
+  aiUsages              AIUsage[]
+  promptTemplates       PromptTemplate[]
+  
   // Authentication relations
   oauthAccounts         OAuthAccount[]
   twoFactor             TwoFactorSecret?
@@ -301,6 +305,10 @@ model Organization {
   notifications         Notification[]
   emailLogs             EmailLog[]
   emailSettings         AdminEmailSettings?
+  
+  // AI features
+  aiUsages              AIUsage[]
+  promptTemplates       PromptTemplate[]
   
   // Multi-tenant relations
   tenantDomains         DomainMapping[] @relation("TenantDomains")
@@ -1498,6 +1506,102 @@ model ApiRateLimitState {
   @@unique([organizationId, requestTimestamp])
   @@index([organizationId])
   @@index([requestTimestamp])
+}
+
+// ============================================================================
+// AI FEATURES
+// ============================================================================
+
+/**
+ * AI Usage Tracking
+ * Tracks AI generation requests, tokens, and costs per user
+ */
+model AIUsage {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Model & Provider
+  model                 String    @db.VarChar(128) // e.g., "gpt-4-turbo", "claude-3-opus"
+  provider              String    @db.VarChar(64)  // e.g., "openai", "anthropic", "local"
+  
+  // Usage metrics
+  inputTokens           Int       @default(0)
+  outputTokens          Int       @default(0)
+  totalTokens           Int       @default(0)
+  cost                  Float     @default(0)      // USD
+  
+  // Content type
+  contentType           String?   @db.VarChar(128) // e.g., "blog_post", "social_post", "image"
+  promptTemplateId      String?
+  promptTemplate        PromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  
+  // Cache info
+  usedCache             Boolean   @default(false)
+  cacheHitTimestamp     DateTime?
+  
+  // Response metrics
+  responseTime          Int?      // milliseconds
+  success               Boolean   @default(true)
+  errorMessage          String?
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  
+  @@index([organizationId])
+  @@index([userId])
+  @@index([model])
+  @@index([provider])
+  @@index([contentType])
+  @@index([createdAt])
+}
+
+/**
+ * AI Prompt Templates
+ * Custom and built-in prompt templates for content generation
+ */
+model PromptTemplate {
+  id                    String    @id @default(cuid())
+  organizationId        String?
+  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name                  String    @db.VarChar(255)
+  description           String?   @db.Text
+  category              String    @db.VarChar(128) // e.g., "blog", "social", "email"
+  
+  // Template content
+  prompt                String    @db.Text
+  variables             String[]  @default([]) // JSON array of variable names
+  
+  // System metadata
+  isBuiltIn             Boolean   @default(false)  // Built-in vs user-created
+  createdBy             String?
+  user                  User?     @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  
+  // Usage & optimization
+  usageCount            Int       @default(0)
+  averageTokens         Int?
+  averageCost           Float?
+  
+  // Status
+  isActive              Boolean   @default(true)
+  isPublic              Boolean   @default(false)  // Org-wide template
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Relations
+  usages                AIUsage[]
+  
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([category])
+  @@index([isBuiltIn])
+  @@index([createdAt])
+}
   @@index([blockedUntil])
 }
 
