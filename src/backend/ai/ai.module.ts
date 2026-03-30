@@ -14,6 +14,7 @@ import { LocalModelProvider } from './providers/local.provider';
 import { PromptTemplateService } from './services/prompt-template.service';
 import { ContentGenerationService } from './services/content-generation.service';
 import { AIUsageLimitService } from './services/ai-usage-limit.service';
+import { AIMonitoringService } from './services/ai-monitoring.service';
 import { DatabaseModule } from '../database/database.module';
 
 @Module({
@@ -33,8 +34,15 @@ import { DatabaseModule } from '../database/database.module';
     PromptTemplateService,
     ContentGenerationService,
     AIUsageLimitService,
+    AIMonitoringService,
   ],
   controllers: [AIController],
-  exports: [AIService, ContentGenerationService, PromptTemplateService, AIUsageLimitService],
+  exports: [
+    AIService,
+    ContentGenerationService,
+    PromptTemplateService,
+    AIUsageLimitService,
+    AIMonitoringService,
+  ],
 })
 export class AIModule {}
