@@ -15,23 +15,16 @@ import {
   UseGuards,
   InternalServerErrorException,
   Logger,
-  Request,
 } from '@nestjs/common';
 import { TenantService, CreateTenantDto, UpdateTenantDto } from '../services/tenant.service';
 import { DomainMappingService, AddDomainDto } from '../services/domain-mapping.service';
 import { TenantOnboardingService, OnboardingStepData } from '../services/tenant-onboarding.service';
 import { RateLimitService } from '../services/rate-limit.service';
 import { UsageTrackingService } from '../services/usage-tracking.service';
+import { JwtAuthGuard } from '../../common/guards/jwt.guard';
+import { TenantRateLimitGuard } from '../../common/guards/tenant-rate-limit.guard';
 
-/**
- * Admin guard - would verify user is admin
- * For demo, just a placeholder
- */
-const AdminGuard = (): any =>
-  (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
-    return descriptor;
-  };
-
+@UseGuards(JwtAuthGuard, TenantRateLimitGuard)
 @Controller('api/tenants')
 export class TenantController {
   private readonly logger = new Logger(TenantController.name);
@@ -49,7 +42,6 @@ export class TenantController {
    * List all tenants (admin only)
    */
   @Get()
-  @AdminGuard()
   async listTenants(@Query('skip') skip = 0, @Query('take') take = 20) {
     try {
       return await this.tenantService.listTenants(skip, take);
@@ -115,7 +107,6 @@ export class TenantController {
    * Delete tenant
    */
   @Delete(':id')
-  @AdminGuard()
   async deleteTenant(@Param('id') id: string) {
     try {
       await this.tenantService.deleteTenant(id);
@@ -184,7 +175,6 @@ export class TenantController {
    * Update rate limits
    */
   @Put(':id/rate-limits')
-  @AdminGuard()
   async updateRateLimits(@Param('id') id: string, @Body() dto: any) {
     try {
       return await this.rateLimitService.updateQuotas(id, dto);
@@ -344,7 +334,6 @@ export class TenantController {
    * Get onboarding analytics (admin only)
    */
   @Get('analytics/onboarding')
-  @AdminGuard()
   async getOnboardingAnalytics() {
     try {
       return await this.onboardingService.getOnboardingAnalytics();

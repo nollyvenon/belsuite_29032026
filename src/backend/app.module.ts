@@ -7,10 +7,10 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { RbacModule } from './rbac/rbac.module';
 import { PaymentModule } from './payments/payment.module';
 import { AIModule } from './ai/ai.module';
+import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
-import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionGuard } from './common/guards/permission.guard';
 
@@ -35,6 +35,9 @@ class StorageModule {}
       envFilePath: '.env',
     }),
 
+    // Multi-tenant infrastructure (global — must be before feature modules)
+    MultiTenantModule,
+
     // Core modules
     AuthModule,
     UsersModule,
@@ -42,7 +45,7 @@ class StorageModule {}
     RbacModule,
 
     // Business modules (Phase 2+)
-    PaymentModule,  // Phase 2: Multi-payment gateway support
+    PaymentModule,
     ContentModule,
     AutomationModule,
     AnalyticsModule,
@@ -66,12 +69,12 @@ class StorageModule {}
 export class AppModule {
   constructor(private prisma: PrismaService) {}
 
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantMiddleware).forRoutes('*');
+  // TenantMiddleware is applied inside MultiTenantModule.configure()
+  configure(_consumer: MiddlewareConsumer) {
+    // Intentionally empty — middleware wired in MultiTenantModule
   }
 
   async onModuleInit() {
-    // Shutdown hooks for graceful termination
     process.on('SIGINT', async () => {
       await this.prisma.$disconnect();
       process.exit(0);

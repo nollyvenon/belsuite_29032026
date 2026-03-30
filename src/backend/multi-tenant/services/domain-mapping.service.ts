@@ -12,20 +12,20 @@ export interface AddDomainDto {
   subdomain?: string;
   domainType: 'SUBDOMAIN' | 'CUSTOM';
   sslCertificate?: string;
-  sslKey?: string;
+  sslPrivateKey?: string;
 }
 
 export interface DomainMappingResult {
   id: string;
-  domain?: string;
-  subdomain?: string;
+  domain?: string | null;
+  subdomain?: string | null;
   domainType: string;
   isPrimary: boolean;
   isActive: boolean;
   sslVerified: boolean;
-  dnsVerificationToken?: string;
-  dnsVerificationRecord?: string;
-  redirectUrl?: string;
+  dnsVerificationToken?: string | null;
+  dnsVerificationRecord?: string | null;
+  redirectUrl?: string | null;
   createdAt: Date;
 }
 
@@ -95,10 +95,12 @@ export class DomainMappingService {
       throw new ConflictException(`Subdomain "${subdomain}" is already taken.`);
     }
 
+    const fullDomain = `${subdomain}.${this.baseDomain}`;
     const domain = await this.prisma.domainMapping.create({
       data: {
         organizationId,
         subdomain,
+        domain: fullDomain,
         domainType: DomainType.SUBDOMAIN,
         isActive: true,
         isPrimary: false,
@@ -150,7 +152,7 @@ export class DomainMappingService {
         dnsVerificationToken,
         dnsVerificationRecord,
         sslCertificate: dto.sslCertificate,
-        sslKey: dto.sslKey,
+        sslPrivateKey: dto.sslPrivateKey,
         sslVerified: !!dto.sslCertificate, // Mark as verified if cert provided
       },
     });
@@ -386,10 +388,10 @@ export class DomainMappingService {
       domainType: domain.domainType,
       isPrimary: domain.isPrimary,
       isActive: domain.isActive,
-      sslVerified: domain.sslVerified,
+      sslVerified: domain.sslVerified ?? domain.dnsVerified ?? false,
       dnsVerificationToken: domain.dnsVerificationToken,
-      dnsVerificationRecord: domain.dnsVerificationRecord,
-      redirectUrl: domain.redirectUrl,
+      dnsVerificationRecord: domain.dnsVerificationRecord ?? domain.dnsCnameRecord,
+      redirectUrl: domain.redirectUrl ?? domain.redirectTo,
       createdAt: domain.createdAt,
     };
   }

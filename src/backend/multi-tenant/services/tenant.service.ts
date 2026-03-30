@@ -55,7 +55,7 @@ export class TenantService {
           name: dto.name,
           slug: dto.slug,
           email: dto.email,
-          tier: dto.tier || 'starter',
+          tier: (dto.tier?.toUpperCase() as any) || 'STARTER',
           encryptionKey: this.generateEncryptionKey(),
           tenantOnboarding: {
             create: {
@@ -89,11 +89,13 @@ export class TenantService {
         },
       });
 
-      // Create auto-generated subdomain mapping
+      // Create auto-generated subdomain mapping (full domain = slug.belsuite.com)
+      const baseDomain = process.env.BELSUITE_BASE_DOMAIN || 'belsuite.com';
       await this.prisma.domainMapping.create({
         data: {
           organizationId: organization.id,
           subdomain: dto.slug,
+          domain: `${dto.slug}.${baseDomain}`,
           domainType: 'SUBDOMAIN',
           isPrimary: true,
           isActive: true,

@@ -272,11 +272,16 @@ model Organization {
   id                    String    @id @default(cuid())
   name                  String    @db.VarChar(255)
   slug                  String    @unique @db.VarChar(128)
+  email                 String?   @db.VarChar(255)    // Primary contact email
   description           String?
   logo                  String?
   website               String?
   status                OrgStatus @default(ACTIVE)
+  isActive              Boolean   @default(true)      // Quick active check
   tier                  SubscriptionTier @default(FREE)
+  encryptionKey         String?   @db.VarChar(128)    // Per-tenant encryption key
+  metadata              String?   @db.Text            // JSON additional metadata
+  onboardingCompletedAt DateTime?                     // When onboarding was completed
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   deletedAt             DateTime? // Soft delete
@@ -1243,7 +1248,7 @@ model DomainMapping {
   organization          Organization @relation("TenantDomains", fields: [organizationId], references: [id], onDelete: Cascade)
   
   // Domain information
-  domain                String    @unique @db.VarChar(255) // Full domain (acme.belsuite.com or acme-corp.com)
+  domain                String?   @unique @db.VarChar(255) // Full domain (acme.belsuite.com or acme-corp.com)
   domainType            DomainType @default(SUBDOMAIN) // SUBDOMAIN or CUSTOM
   subdomain             String?   @unique @db.VarChar(128) // For subdomains: "acme"
   baseDomain            String?   @db.VarChar(255) // For custom domains: the base configured domain
@@ -1255,16 +1260,20 @@ model DomainMapping {
   certificateProvider   String    @db.VarChar(64) @default("letsencrypt") // letsencrypt, manual, etc.
   
   // DNS Verification (for custom domains)
-  dnsCnameRecord        String?   @db.VarChar(255)
+  dnsCnameRecord        String?   @db.VarChar(255)   // CNAME target to point at
+  dnsVerificationToken  String?   @db.VarChar(128)   // Token placed in TXT record
+  dnsVerificationRecord String?   @db.VarChar(255)   // Full TXT record value
   dnsVerified           Boolean   @default(false)
   dnsVerifiedAt         DateTime?
-  
+  sslVerified           Boolean   @default(false)    // SSL/TLS provisioned & valid
+
   // Status & Lifecycle
   isActive              Boolean   @default(true)
   isPrimary             Boolean   @default(false) // Primary domain for the tenant
-  
+
   // Redirects
   redirectTo            String?   @db.VarChar(255) // Redirect to another domain
+  redirectUrl           String?   @db.VarChar(255) // Alias for redirectTo
   
   // Audit & Compliance
   createdAt             DateTime  @default(now())

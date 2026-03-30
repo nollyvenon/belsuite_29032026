@@ -388,7 +388,7 @@ export class TenantOnboardingService {
       case OnboardingStep.COMPANY_INFO:
         return {
           companyName: data.companyName,
-          website: data.website,
+          companyWebsite: data.website,
           industry: data.industry,
         };
 
