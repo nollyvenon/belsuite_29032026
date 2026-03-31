@@ -2,15 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AppConfig } from '../config/app.config';
-import { JwtPayload } from './dto/auth.dto';
+import { JwtPayload } from '../services/jwt.service';
 
-/**
- * JWT Strategy for Passport
- * Validates JWT tokens and adds user to request
- */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private config: AppConfig) {
+  constructor(config: AppConfig) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -18,12 +14,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload): Promise<{
+    id: string;
+    email: string;
+    orgId: string;
+    permissions: string[];
+    sessionId: string | undefined;
+  }> {
     return {
       id: payload.sub,
       email: payload.email,
       orgId: payload.orgId,
-      permissions: payload.permissions,
+      permissions: payload.permissions ?? [],
+      sessionId: payload.sessionId,
     };
   }
 }

@@ -6,6 +6,7 @@
 import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { JwtTokenService } from './jwt.service';
+import { SessionService } from './session.service';
 import { OAuthProvider, User } from '@prisma/client';
 
 export interface OAuthProfile {
@@ -17,6 +18,8 @@ export interface OAuthProfile {
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: Date;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 export interface OAuthLoginResponse {
@@ -33,6 +36,7 @@ export class OAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtTokenService,
+    private readonly sessions: SessionService,
   ) {}
 
   /**
@@ -138,16 +142,38 @@ export class OAuthService {
         data: { lastLogin: new Date() },
       });
 
-      // Generate tokens
-      const tokens = this.jwtService.generateTokenPair({
-        sub: user.id,
-        email: user.email,
+      // Load org + permissions
+      const member = await this.prisma.organizationMember.findFirst({
+        where: { userId: user.id, status: 'ACTIVE' },
+        orderBy: { joinedAt: 'asc' },
+        include: { role: { include: { permissions: true } } },
+      });
+      const orgId = member?.organizationId ?? '';
+      const permissions = member?.role?.permissions?.map((p: { action: string; resource: string }) => `${p.action}:${p.resource}`) ?? [];
+
+      // Create session + issue tokens
+      const refreshExpiry = 7 * 24 * 60 * 60 * 1000;
+      const expiresAt = new Date(Date.now() + refreshExpiry);
+      const { refreshToken } = this.jwtService.generateTokenPair({ sub: user.id, email: user.email, orgId, permissions });
+
+      const sessionId = await this.sessions.createSession({
+        userId: user.id,
+        organizationId: orgId,
+        rawRefreshToken: refreshToken,
+        expiresAt,
+        ipAddress: profile.ipAddress,
+        userAgent: profile.userAgent,
+      });
+
+      const accessToken = this.jwtService.generateAccessToken({
+        sub: user.id, email: user.email, orgId, permissions, sessionId,
       });
 
       this.logger.log(`OAuth login: ${profile.provider} - ${user.email}`);
 
       return {
-        ...tokens,
+        accessToken,
+        refreshToken,
         user: this.sanitizeUser(user),
         isNewUser,
       };

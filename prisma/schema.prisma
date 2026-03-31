@@ -67,21 +67,26 @@ enum UserStatus {
 }
 
 model Session {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token         String    @unique
-  expiresAt     DateTime
-  createdAt     DateTime  @default(now())
-  ipAddress     String?
-  userAgent     String?
-  isRevoked     Boolean   @default(false)
-  
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String?   // Which org context this session is for
+  refreshTokenHash String    @unique @db.VarChar(128) // SHA-256 hash of refresh token
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+  ipAddress        String?
+  userAgent        String?   @db.Text
+  isRevoked        Boolean   @default(false)
+  revokedAt        DateTime?
+  revokedReason    String?   @db.VarChar(64)  // logout, password_change, admin, suspicious
+
   // Device tracking
   deviceSessions  DeviceSession[]
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([isRevoked])
 }
 
 // OAuth Accounts (Google, Apple, Facebook)
@@ -251,18 +256,7 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
-// Add relations to User model for new tables
-model User_Extended {
-  // This is just to document the new relations
-  // In actual User model add:
-  // oauthAccounts      OAuthAccount[]
-  // twoFactor          TwoFactorSecret?
-  // deviceSessions     DeviceSession[]
-  // passwordHistory    PasswordHistory[]
-  // emailVerifications EmailVerificationToken[]
-  // passwordResets     PasswordResetToken[]
-  // loginAttempts      LoginAttempt[] // Indexed by email
-}
+// (User_Extended removed - relations already added to the User model above)
 
 // ============================================================================
 // ORGANIZATIONS & MULTI-TENANCY
@@ -443,7 +437,7 @@ model Subscription {
   id                    String    @id @default(cuid())
   organizationId        String
   organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  plan                  BillingPlan?
+  plan                  BillingPlan?  @relation(fields: [planId], references: [id])
   planId                String?
   status                SubscriptionStatus @default(ACTIVE)
   currentPeriodStart    DateTime
@@ -619,7 +613,6 @@ model Content {
   @@index([status])
   @@index([type])
   @@index([createdAt])
-  @@fulltext([title, description]) // MySQL only, use alternative for PostgreSQL
 }
 
 enum ContentType {
@@ -697,7 +690,7 @@ model Workflow {
   trigger               String    @db.Text // JSON: Configuration for trigger
   actions               WorkflowAction[]
   isActive              Boolean   @default(false)
-  contentId             String?
+  contentId             String?   @unique
   content               Content?  @relation(fields: [contentId], references: [id], onDelete: SetNull)
   executionCount        Int       @default(0)
   lastExecutedAt        DateTime?
@@ -1233,15 +1226,7 @@ model AdminEmailSettings {
 // MULTI-TENANT ARCHITECTURE - DOMAIN MAPPING & TENANT MANAGEMENT
 // ============================================================================
 
-/**
- * Domain Mapping System
- * Maps subdomains and custom domains to tenants (Organizations)
- * 
- * Examples:
- * - acme.belsuite.com → Organization(id="org_acme", slug="acme")
- * - www.acme-corp.com → Organization(id="org_acme", slug="acme")
- * - staging.acme.belsuite.com → Organization(id="org_acme_staging")
- */
+
 model DomainMapping {
   id                    String    @id @default(cuid())
   organizationId        String
@@ -1294,11 +1279,7 @@ enum DomainType {
   CUSTOM       // tenant.com or www.tenant.com
 }
 
-/**
- * Tenant Usage Tracking
- * Tracks per-tenant consumption of resources
- * Used for billing, quotas, and analytics
- */
+
 model TenantUsage {
   id                    String    @id @default(cuid())
   organizationId        String
@@ -1347,10 +1328,7 @@ model TenantUsage {
   @@index([startDate])
 }
 
-/**
- * Tenant Rate Limit Quotas
- * Defines and tracks rate limits per tenant
- */
+
 model TenantRateLimitQuota {
   id                    String    @id @default(cuid())
   organizationId        String    @unique
@@ -1395,10 +1373,7 @@ model TenantRateLimitQuota {
   @@index([effectiveFrom])
 }
 
-/**
- * Tenant Rate Limit Current Usage
- * Real-time tracking of current period usage
- */
+
 model TenantRateLimitUsage {
   id                    String    @id @default(cuid())
   organizationId        String
@@ -1431,10 +1406,7 @@ model TenantRateLimitUsage {
   @@index([period])
 }
 
-/**
- * Tenant Onboarding State
- * Tracks the onboarding progress of new tenants
- */
+
 model TenantOnboarding {
   id                    String    @id @default(cuid())
   organizationId        String    @unique
@@ -1491,10 +1463,7 @@ enum OnboardingStep {
   COMPLETED
 }
 
-/**
- * API Rate Limit State (Real-time tracking)
- * Tracks current requests in flight for rate limiting
- */
+
 model ApiRateLimitState {
   id                    String    @id @default(cuid())
   organizationId        String
@@ -1521,10 +1490,7 @@ model ApiRateLimitState {
 // AI FEATURES
 // ============================================================================
 
-/**
- * AI Usage Tracking
- * Tracks AI generation requests, tokens, and costs per user
- */
+
 model AIUsage {
   id                    String    @id @default(cuid())
   organizationId        String
@@ -1567,10 +1533,7 @@ model AIUsage {
   @@index([createdAt])
 }
 
-/**
- * AI Prompt Templates
- * Custom and built-in prompt templates for content generation
- */
+
 model PromptTemplate {
   id                    String    @id @default(cuid())
   organizationId        String?
@@ -1610,8 +1573,6 @@ model PromptTemplate {
   @@index([category])
   @@index([isBuiltIn])
   @@index([createdAt])
-}
-  @@index([blockedUntil])
 }
 
 // ============================================================================

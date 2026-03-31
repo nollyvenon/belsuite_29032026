@@ -242,7 +242,7 @@ export class TenantOnboardingService {
     const stepInfo: Record<string, any> = {
       [OnboardingStep.WELCOME]: {
         title: 'Welcome to BelSuite',
-        description: 'Welcome! Let\\'s get your account set up.',
+        description: "Welcome! Let's get your account set up.",
         duration: '2 minutes',
         required: ['organizationCreated'],
         optional: [],
@@ -287,7 +287,7 @@ export class TenantOnboardingService {
       },
       [OnboardingStep.COMPLETED]: {
         title: 'All Set!',
-        description: 'You\\'re ready to use BelSuite',
+        description: "You're ready to use BelSuite",
         duration: '0 minutes',
         required: [],
         optional: [],

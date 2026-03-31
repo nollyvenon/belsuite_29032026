@@ -1,292 +1,372 @@
-import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, BadRequestException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import axios } from 'axios';
+/**
+ * Auth Controller
+ * Handles all authentication endpoints: register, login, OAuth, 2FA, tokens,
+ * password management, email verification, and session management.
+ */
+
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+  Req,
+  Logger,
+} from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
-import { OAuthService } from './services/oauth.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { OAuthService, OAuthProfile } from './services/oauth.service';
+import { TwoFactorService } from './services/two-factor.service';
+import {
+  RegisterDto,
+  LoginDto,
+  TwoFactorDto,
+  RefreshTokenDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
+  ChangePasswordDto,
+  VerifyEmailDto,
+} from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
+import * as https from 'https';
+import * as http from 'http';
+
+/** Minimal typed user shape returned by JwtStrategy.validate */
+interface AuthUser {
+  id: string;
+  email: string;
+  orgId: string;
+  permissions: string[];
+  sessionId?: string;
+}
+
+// ── tiny HTTP helper (avoids adding axios as a dep) ──────────────────────────
+function httpGet(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? https : http;
+    lib.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => resolve(data));
+    }).on('error', reject);
+  });
+}
+
+function httpPost(url: string, body: Record<string, string>, headers: Record<string, string> = {}): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const payload = new URLSearchParams(body).toString();
+    const parsed  = new URL(url);
+    const options = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(payload),
+        ...headers,
+      },
+    };
+    const lib = url.startsWith('https') ? https : http;
+    const req = lib.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => resolve(data));
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Controller('api/auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(
-    private authService: AuthService,
-    private oauthService: OAuthService,
-    private configService: ConfigService,
+    private readonly authService: AuthService,
+    private readonly oauthService: OAuthService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
-  /**
-   * POST /api/auth/register
-   * Register new user
-   */
+  // ── Registration / login ───────────────────────────────────────────────────
+
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto, this.meta(req));
   }
 
-  /**
-   * POST /api/auth/login
-   * Authenticate user and return tokens
-   */
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.authService.login(dto, this.meta(req));
   }
 
-  /**
-   * POST /api/auth/refresh
-   * Refresh access token using refresh token
-   */
+  // ── Token refresh ──────────────────────────────────────────────────────────
+
   @Post('refresh')
-  async refresh(@Body() body: { refreshToken: string }) {
-    return this.authService.refreshToken(body.refreshToken);
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
+    return this.authService.refreshToken(dto.refreshToken, this.meta(req));
   }
 
-  /**
-   * GET /api/auth/me
-   * Get current user profile (requires authentication)
-   */
+  // ── Logout ─────────────────────────────────────────────────────────────────
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async logout(@CurrentUser() user: AuthUser) {
+    if (user.sessionId) {
+      await this.authService.logout(user.sessionId);
+    }
+  }
+
+  @Post('logout/all')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async logoutAll(@CurrentUser() user: AuthUser) {
+    await this.authService.logoutAll(user.id);
+  }
+
+  // ── Current user ───────────────────────────────────────────────────────────
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getCurrentUser(@CurrentUser() user) {
+  async getCurrentUser(@CurrentUser() user: AuthUser) {
     return user;
   }
 
-  /**
-   * POST /api/auth/oauth/google
-   * Authenticate with Google OAuth
-   */
+  // ── Two-Factor Authentication ──────────────────────────────────────────────
+
+  @Post('2fa/setup')
+  @UseGuards(JwtAuthGuard)
+  async setup2FA(@CurrentUser() user: AuthUser) {
+    return this.twoFactorService.setupTOTP(user.id, user.email);
+  }
+
+  @Post('2fa/verify-setup')
+  @UseGuards(JwtAuthGuard)
+  async verifySetup2FA(@CurrentUser() user: AuthUser, @Body() body: { code: string }) {
+    if (!body.code) throw new BadRequestException('code required');
+    return this.twoFactorService.verifyTOTPSetup(user.id, body.code);
+  }
+
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  async complete2FA(@Body() dto: TwoFactorDto, @Req() req: Request) {
+    return this.authService.completeTwoFactorLogin(dto.twoFactorToken, dto.code, this.meta(req));
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async disable2FA(@CurrentUser() user: AuthUser) {
+    await this.twoFactorService.disableTwoFactor(user.id);
+  }
+
+  @Get('2fa/backup-codes')
+  @UseGuards(JwtAuthGuard)
+  async getBackupCodes(@CurrentUser() user: AuthUser) {
+    const remaining = await this.twoFactorService.getBackupCodes(user.id);
+    return { remaining: remaining.length };
+  }
+
+  // ── Password management ────────────────────────────────────────────────────
+
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async forgotPassword(@Body() dto: RequestPasswordResetDto) {
+    await this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('password/reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  @Post('password/change')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
+    await this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  // ── Email verification ─────────────────────────────────────────────────────
+
+  @Post('email/verify')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    await this.authService.verifyEmail(dto.token);
+  }
+
+  @Post('email/resend-verification')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async resendVerification(@CurrentUser() user: AuthUser) {
+    await this.authService.sendEmailVerification(user.id);
+  }
+
+  // ── Session management ─────────────────────────────────────────────────────
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  async listSessions(@CurrentUser() user: AuthUser) {
+    return this.authService.listSessions(user.id, user.sessionId);
+  }
+
+  @Delete('sessions/:sessionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async revokeSession(@CurrentUser() user: AuthUser, @Param('sessionId') sessionId: string) {
+    await this.authService.revokeSession(sessionId, user.id);
+  }
+
+  // ── OAuth ──────────────────────────────────────────────────────────────────
+
   @Post('oauth/google')
   @HttpCode(HttpStatus.OK)
-  async authenticateGoogle(@Body() body: { code: string }) {
-    const { code } = body;
-
-    if (!code) {
-      throw new BadRequestException('Authorization code required');
-    }
-
+  async authenticateGoogle(@Body() body: { code: string }, @Req() req: Request) {
+    if (!body.code) throw new BadRequestException('Authorization code required');
     try {
-      const profile = await this.exchangeGoogleCode(code);
-      const result = await this.oauthService.authenticateOAuth(profile);
-
+      const profile = await this.exchangeGoogleCode(body.code, req);
+      const result  = await this.oauthService.authenticateOAuth(profile);
       this.logger.log(`Google OAuth login: ${profile.email}`);
-
-      return {
-        success: true,
-        user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        isNewUser: result.isNewUser,
-      };
-    } catch (error) {
-      this.logger.error(`Google OAuth failed: ${error.message}`);
+      return result;
+    } catch (error: unknown) {
+      this.logger.error(`Google OAuth failed: ${(error as Error).message}`);
       throw new BadRequestException('Google authentication failed');
     }
   }
 
-  /**
-   * POST /api/auth/oauth/apple
-   * Authenticate with Apple OAuth
-   */
   @Post('oauth/apple')
   @HttpCode(HttpStatus.OK)
-  async authenticateApple(@Body() body: { code: string; idToken?: string }) {
-    const { code, idToken } = body;
-
-    if (!code && !idToken) {
-      throw new BadRequestException('Authorization code or ID token required');
-    }
-
+  async authenticateApple(@Body() body: { code: string; idToken?: string }, @Req() req: Request) {
+    if (!body.code && !body.idToken) throw new BadRequestException('Authorization code or ID token required');
     try {
-      const profile = await this.exchangeAppleCode(code, idToken);
-      const result = await this.oauthService.authenticateOAuth(profile);
-
+      const profile = await this.exchangeAppleCode(body.code, body.idToken, req);
+      const result  = await this.oauthService.authenticateOAuth(profile);
       this.logger.log(`Apple OAuth login: ${profile.email}`);
-
-      return {
-        success: true,
-        user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        isNewUser: result.isNewUser,
-      };
-    } catch (error) {
-      this.logger.error(`Apple OAuth failed: ${error.message}`);
+      return result;
+    } catch (error: unknown) {
+      this.logger.error(`Apple OAuth failed: ${(error as Error).message}`);
       throw new BadRequestException('Apple authentication failed');
     }
   }
 
-  /**
-   * POST /api/auth/oauth/facebook
-   * Authenticate with Facebook OAuth
-   */
   @Post('oauth/facebook')
   @HttpCode(HttpStatus.OK)
-  async authenticateFacebook(@Body() body: { code: string }) {
-    const { code } = body;
-
-    if (!code) {
-      throw new BadRequestException('Authorization code required');
-    }
-
+  async authenticateFacebook(@Body() body: { code: string }, @Req() req: Request) {
+    if (!body.code) throw new BadRequestException('Authorization code required');
     try {
-      const profile = await this.exchangeFacebookCode(code);
-      const result = await this.oauthService.authenticateOAuth(profile);
-
+      const profile = await this.exchangeFacebookCode(body.code, req);
+      const result  = await this.oauthService.authenticateOAuth(profile);
       this.logger.log(`Facebook OAuth login: ${profile.email}`);
-
-      return {
-        success: true,
-        user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        isNewUser: result.isNewUser,
-      };
-    } catch (error) {
-      this.logger.error(`Facebook OAuth failed: ${error.message}`);
+      return result;
+    } catch (error: unknown) {
+      this.logger.error(`Facebook OAuth failed: ${(error as Error).message}`);
       throw new BadRequestException('Facebook authentication failed');
     }
   }
 
-  /**
-   * Exchange Google authorization code for tokens
-   */
-  private async exchangeGoogleCode(code: string) {
-    try {
-      const clientId = this.configService.get('GOOGLE_CLIENT_ID');
-      const clientSecret = this.configService.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = this.configService.get('GOOGLE_REDIRECT_URI');
+  // ── Private: OAuth code exchange ───────────────────────────────────────────
 
-      const response = await axios.post('https://oauth2.googleapis.com/token', {
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      });
+  private async exchangeGoogleCode(code: string, req: Request): Promise<OAuthProfile> {
+    const body = await httpPost('https://oauth2.googleapis.com/token', {
+      code,
+      client_id:     process.env['GOOGLE_CLIENT_ID']     ?? '',
+      client_secret: process.env['GOOGLE_CLIENT_SECRET'] ?? '',
+      redirect_uri:  process.env['GOOGLE_REDIRECT_URI']  ?? '',
+      grant_type:    'authorization_code',
+    });
+    const { access_token } = JSON.parse(body);
 
-      const { access_token, id_token } = response.data;
-
-      // Get user info from Google
-      const userResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+    const userResp = await new Promise<string>((resolve, reject) => {
+      https.get('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${access_token}` },
-      });
+      } as any, (res) => {
+        let d = '';
+        res.on('data', (c) => (d += c));
+        res.on('end', () => resolve(d));
+      }).on('error', reject);
+    });
 
-      const { id, email, name, picture } = userResponse.data;
-
-      return {
-        id,
-        email,
-        displayName: name,
-        avatar: picture,
-        provider: 'GOOGLE',
-        accessToken: access_token,
-        expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
-      };
-    } catch (error) {
-      this.logger.error(`Google code exchange failed: ${error.message}`);
-      throw new BadRequestException('Failed to authenticate with Google');
-    }
+    const { id, email, name, picture } = JSON.parse(userResp);
+    return {
+      id, email, displayName: name, avatar: picture,
+      provider: 'GOOGLE' as any, accessToken: access_token,
+      expiresAt: new Date(Date.now() + 3600 * 1000),
+      ...this.meta(req),
+    };
   }
 
-  /**
-   * Exchange Apple authorization code for tokens
-   */
-  private async exchangeAppleCode(code: string, idToken?: string) {
-    try {
-      const clientId = this.configService.get('APPLE_CLIENT_ID');
-      const teamId = this.configService.get('APPLE_TEAM_ID');
-      const keyId = this.configService.get('APPLE_KEY_ID');
-      const privateKey = this.configService.get('APPLE_PRIVATE_KEY');
+  private async exchangeAppleCode(code: string, idToken: string | undefined, req: Request): Promise<OAuthProfile> {
+    const jwt = require('jsonwebtoken') as typeof import('jsonwebtoken');
+    const teamId     = process.env['APPLE_TEAM_ID']     ?? '';
+    const keyId      = process.env['APPLE_KEY_ID']      ?? '';
+    const clientId   = process.env['APPLE_CLIENT_ID']   ?? '';
+    const privateKey = process.env['APPLE_PRIVATE_KEY'] ?? '';
 
-      // Generate client secret (JWT)
-      const jwt = require('jsonwebtoken');
-      const secret = jwt.sign(
-        {
-          iss: teamId,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 3600,
-          aud: 'https://appleid.apple.com',
-          sub: clientId,
-        },
-        privateKey,
-        { algorithm: 'ES256', keyid: keyId },
-      );
+    const secret = jwt.sign(
+      { iss: teamId, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600,
+        aud: 'https://appleid.apple.com', sub: clientId },
+      privateKey,
+      { algorithm: 'ES256', keyid: keyId },
+    );
 
-      const response = await axios.post('https://appleid.apple.com/auth/token', {
-        code,
-        client_id: clientId,
-        client_secret: secret,
-        grant_type: 'authorization_code',
-      });
+    const body = await httpPost('https://appleid.apple.com/auth/token', {
+      code,
+      client_id: clientId, client_secret: secret,
+      grant_type: 'authorization_code',
+    });
+    const { id_token } = JSON.parse(body);
+    const token   = id_token || idToken;
+    const decoded = jwt.decode(token) as { sub: string; email: string };
 
-      const { access_token, id_token: newIdToken } = response.data;
-      const token = newIdToken || idToken;
-
-      // Decode ID token to get user info
-      const decoded = jwt.decode(token);
-      const { sub, email } = decoded;
-
-      return {
-        id: sub,
-        email: email || '',
-        displayName: '',
-        avatar: '',
-        provider: 'APPLE',
-        accessToken: access_token,
-        expiresAt: new Date(Date.now() + 3600 * 1000),
-      };
-    } catch (error) {
-      this.logger.error(`Apple code exchange failed: ${error.message}`);
-      throw new BadRequestException('Failed to authenticate with Apple');
-    }
+    return {
+      id: decoded.sub, email: decoded.email ?? '', displayName: '',
+      provider: 'APPLE' as any,
+      expiresAt: new Date(Date.now() + 3600 * 1000),
+      ...this.meta(req),
+    };
   }
 
-  /**
-   * Exchange Facebook authorization code for tokens
-   */
-  private async exchangeFacebookCode(code: string) {
-    try {
-      const appId = this.configService.get('FACEBOOK_APP_ID');
-      const appSecret = this.configService.get('FACEBOOK_APP_SECRET');
-      const redirectUri = this.configService.get('FACEBOOK_REDIRECT_URI');
+  private async exchangeFacebookCode(code: string, req: Request): Promise<OAuthProfile> {
+    const appId       = process.env['FACEBOOK_APP_ID']       ?? '';
+    const appSecret   = process.env['FACEBOOK_APP_SECRET']   ?? '';
+    const redirectUri = process.env['FACEBOOK_REDIRECT_URI'] ?? '';
 
-      // Get access token
-      const tokenResponse = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
-        params: {
-          client_id: appId,
-          client_secret: appSecret,
-          redirect_uri: redirectUri,
-          code,
-        },
-      });
+    const tokenRaw = await httpGet(
+      `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`,
+    );
+    const { access_token } = JSON.parse(tokenRaw);
 
-      const { access_token } = tokenResponse.data;
+    const userRaw = await httpGet(
+      `https://graph.facebook.com/v18.0/me?fields=id,email,name,picture.width(200).height(200)&access_token=${access_token}`,
+    );
+    const { id, email, name, picture } = JSON.parse(userRaw);
 
-      // Get user info
-      const userResponse = await axios.get('https://graph.facebook.com/v18.0/me', {
-        params: {
-          fields: 'id,email,name,picture.width(200).height(200)',
-          access_token,
-        },
-      });
+    return {
+      id, email, displayName: name, avatar: picture?.data?.url,
+      provider: 'FACEBOOK' as any, accessToken: access_token,
+      expiresAt: new Date(Date.now() + 3600 * 1000),
+      ...this.meta(req),
+    };
+  }
 
-      const { id, email, name, picture } = userResponse.data;
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-      return {
-        id,
-        email,
-        displayName: name,
-        avatar: picture?.data?.url,
-        provider: 'FACEBOOK',
-        accessToken: access_token,
-        expiresAt: new Date(Date.now() + 3600 * 1000),
-      };
-    } catch (error) {
-      this.logger.error(`Facebook code exchange failed: ${error.message}`);
-      throw new BadRequestException('Failed to authenticate with Facebook');
-    }
+  private meta(req: Request) {
+    return {
+      ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.socket?.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    };
   }
 }

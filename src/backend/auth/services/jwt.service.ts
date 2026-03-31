@@ -8,12 +8,14 @@ import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
 export interface JwtPayload {
-  sub: string; // User ID
+  sub: string;           // User ID
   email: string;
-  organizationId?: string;
+  orgId: string;         // Active organization ID
+  permissions: string[]; // Cached permission strings e.g. ["create:content"]
+  sessionId?: string;    // Session reference (access tokens)
   iat?: number;
   exp?: number;
-  type?: 'access' | 'refresh';
+  type?: 'access' | 'refresh' | '2fa_pending';
 }
 
 @Injectable()
@@ -74,13 +76,21 @@ export class JwtTokenService {
   }
 
   /**
-   * Generate both access and refresh tokens
+   * Generate both access and refresh tokens (full payload with orgId + permissions)
    */
   generateTokenPair(payload: Omit<JwtPayload, 'iat' | 'exp' | 'type'>) {
     return {
       accessToken: this.generateAccessToken(payload),
       refreshToken: this.generateRefreshToken(payload),
     };
+  }
+
+  /**
+   * Generate a short-lived token for 2FA pending state
+   * Contains no permissions — only used to complete 2FA flow
+   */
+  generate2faPendingToken(userId: string, email: string): string {
+    return this.generateAccessToken({ sub: userId, email, orgId: '', permissions: [] }, '5m');
   }
 
   /**

@@ -327,19 +327,35 @@ export class TwoFactorService {
     return crypto.createHash('sha256').update(code).digest('hex');
   }
 
-  /**
-   * Encrypt secret
-   */
-  private encryptSecret(secret: string): string {
-    // In production, use proper encryption
-    return Buffer.from(secret).toString('base64');
+  // ── AES-256-GCM encryption for TOTP secrets ───────────────────────────────
+
+  private getEncryptionKey(): Buffer {
+    const raw = process.env.TOTP_ENCRYPTION_KEY;
+    if (!raw || raw.length < 32) {
+      throw new Error('TOTP_ENCRYPTION_KEY env var must be at least 32 characters');
+    }
+    // Derive exactly 32 bytes via SHA-256 so any string length works
+    return crypto.createHash('sha256').update(raw).digest();
   }
 
-  /**
-   * Decrypt secret
-   */
-  private decryptSecret(encrypted: string): string {
-    // In production, use proper decryption
-    return Buffer.from(encrypted, 'base64').toString('utf-8');
+  private encryptSecret(plaintext: string): string {
+    const key = this.getEncryptionKey();
+    const iv  = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    // Store as: iv(12) + tag(16) + ciphertext — all hex-encoded
+    return Buffer.concat([iv, tag, encrypted]).toString('hex');
+  }
+
+  private decryptSecret(hexBlob: string): string {
+    const buf  = Buffer.from(hexBlob, 'hex');
+    const iv   = buf.subarray(0, 12);
+    const tag  = buf.subarray(12, 28);
+    const data = buf.subarray(28);
+    const key  = this.getEncryptionKey();
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return decipher.update(data) + decipher.final('utf8');
   }
 }
