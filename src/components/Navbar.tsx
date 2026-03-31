@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { Sun, Moon, Zap, Video } from 'lucide-react';
+import { Sun, Moon, Zap, Video, Clapperboard, Megaphone } from 'lucide-react';
 import { LoginModal } from './LoginModal';
 
 export const Navbar = () => {
@@ -32,6 +32,12 @@ export const Navbar = () => {
             <a href="/demo" className="text-sm font-bold text-primary transition-colors hover:underline">Live Demo</a>
             <a href="/video" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
               <Video className="w-3.5 h-3.5" /> Video Studio
+            </a>
+            <a href="/ugc" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+              <Clapperboard className="w-3.5 h-3.5" /> UGC Creator
+            </a>
+            <a href="/marketing" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+              <Megaphone className="w-3.5 h-3.5" /> Marketing
             </a>
           </div>
 

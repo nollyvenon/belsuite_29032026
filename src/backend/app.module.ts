@@ -11,6 +11,7 @@ import { AIModule } from './ai/ai.module';
 import { VideoModule } from './video/video.module';
 import { SocialModule } from './social/social.module';
 import { MarketingModule } from './marketing/marketing.module';
+import { UGCModule } from './ugc/ugc.module';
 import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
@@ -73,6 +74,9 @@ class StorageModule {}
 
     // Marketing engine
     MarketingModule,
+
+    // UGC creator engine
+    UGCModule,
   ],
   providers: [
     DatabaseConfig,

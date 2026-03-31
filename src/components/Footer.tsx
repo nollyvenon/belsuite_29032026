@@ -20,10 +20,11 @@ export const Footer = () => {
           <div>
             <h4 className="mb-6 text-sm font-bold uppercase tracking-widest">Product</h4>
             <ul className="space-y-4 text-sm text-gray-500">
-              <li><a href="#" className="hover:text-primary transition-colors">Features</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">AI Video</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Ad Engine</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Pricing</a></li>
+              <li><a href="#features" className="hover:text-primary transition-colors">Features</a></li>
+              <li><a href="/video" className="hover:text-primary transition-colors">AI Video</a></li>
+              <li><a href="/ugc" className="hover:text-primary transition-colors">UGC Creator</a></li>
+              <li><a href="/marketing" className="hover:text-primary transition-colors">Ad Engine</a></li>
+              <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
             </ul>
           </div>
 

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
 import { Plus, Trash2, RefreshCw, Loader2, CheckCircle2, AlertCircle, ExternalLink, Users,
 } from 'lucide-react';
 import type { SocialAccount, SocialPlatform } from '@/hooks/useSocial';

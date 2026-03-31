@@ -54,6 +54,9 @@ model User {
   socialAccounts        SocialAccount[]
   scheduledPosts        ScheduledPost[]
 
+  // UGC Content Generator
+  ugcProjects           UGCProject[]   @relation("UserUGCProjects")
+
   // Authentication relations
   oauthAccounts         OAuthAccount[]
   twoFactor             TwoFactorSecret?
@@ -340,6 +343,11 @@ model Organization {
   tenantRateLimitUsage  TenantRateLimitUsage[] @relation("TenantRateLimitUsage")
   tenantOnboarding      TenantOnboarding? @relation("TenantOnboarding")
   apiRateLimitState     ApiRateLimitState[] @relation("ApiRateLimitState")
+
+  // UGC Content Generator
+  ugcAvatars            UGCAvatar[]    @relation("OrgUGCAvatars")
+  voiceClones           VoiceClone[]   @relation("OrgVoiceClones")
+  ugcProjects           UGCProject[]   @relation("OrgUGCProjects")
 
   @@index([slug])
   @@index([status])
@@ -2432,4 +2440,231 @@ model OptimalPostingTime {
 
   @@unique([organizationId, platform, dayOfWeek, hour])
   @@index([organizationId, platform])
+}
+
+// ============================================================================
+// UGC CONTENT GENERATOR - AI Avatar Videos, Voice Cloning, Script-to-Video
+// ============================================================================
+
+enum UGCProjectStatus {
+  DRAFT
+  SCRIPTING
+  RENDERING
+  READY
+  PUBLISHED
+  FAILED
+}
+
+enum AvatarStyle {
+  INFLUENCER
+  PROFESSIONAL
+  CASUAL
+  PRESENTER
+  NARRATOR
+}
+
+enum AvatarProvider {
+  HEYGEN
+  DID
+  TAVUS
+  SYNTHESIA
+  MOCK
+}
+
+enum VoiceGender {
+  MALE
+  FEMALE
+  NEUTRAL
+}
+
+enum RenderStatus {
+  QUEUED
+  PROCESSING
+  COMPLETE
+  FAILED
+}
+
+// --- UGC Avatar ---------------------------------------------------------------
+
+model UGCAvatar {
+  id              String         @id @default(cuid())
+  organizationId  String?
+  organization    Organization?  @relation("OrgUGCAvatars", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name            String         @db.VarChar(255)
+  description     String?        @db.Text
+  style           AvatarStyle    @default(INFLUENCER)
+  provider        AvatarProvider @default(HEYGEN)
+  externalId      String?        @db.VarChar(255)   // HeyGen/D-ID avatar ID
+  thumbnailUrl    String?        @db.Text
+  previewVideoUrl String?        @db.Text
+
+  gender          VoiceGender    @default(FEMALE)
+  ethnicityHint   String?        @db.VarChar(128)
+  ageRange        String?        @db.VarChar(64)    // e.g. "25-35"
+
+  isActive        Boolean        @default(true)
+  isSystem        Boolean        @default(false)    // Built-in system avatar
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  projects        UGCProject[]
+
+  @@index([organizationId])
+  @@index([style])
+  @@index([provider])
+  @@index([isSystem])
+}
+
+// --- Voice Clone --------------------------------------------------------------
+
+model VoiceClone {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation("OrgVoiceClones", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name            String       @db.VarChar(255)
+  description     String?      @db.Text
+
+  // ElevenLabs / provider ref
+  provider        String       @db.VarChar(64) @default("elevenlabs")
+  externalVoiceId String?      @db.VarChar(255)
+
+  // Sample audio used for cloning
+  sampleAudioUrl  String?      @db.Text
+
+  gender          VoiceGender  @default(FEMALE)
+  language        String       @db.VarChar(16) @default("en")
+  accent          String?      @db.VarChar(64)
+
+  // Playback settings
+  stability       Float        @default(0.5)
+  similarityBoost Float        @default(0.75)
+  styleExaggeration Float      @default(0.0)
+
+  isActive        Boolean      @default(true)
+  isDefault       Boolean      @default(false)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  projects        UGCProject[]
+
+  @@index([organizationId])
+  @@index([provider])
+  @@index([isDefault])
+}
+
+// --- UGC Project -------------------------------------------------------------
+
+model UGCProject {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation("OrgUGCProjects", fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User             @relation("UserUGCProjects", fields: [createdById], references: [id])
+
+  title           String           @db.VarChar(255)
+  description     String?          @db.Text
+
+  // Brand voice context (JSON: tone, personality, keywords, cta, etc.)
+  brandContext    String?          @db.Text
+
+  // Avatar
+  avatarId        String?
+  avatar          UGCAvatar?       @relation(fields: [avatarId], references: [id], onDelete: SetNull)
+
+  // Voice clone
+  voiceCloneId    String?
+  voiceClone      VoiceClone?      @relation(fields: [voiceCloneId], references: [id], onDelete: SetNull)
+
+  status          UGCProjectStatus @default(DRAFT)
+
+  // Script
+  script          UGCScript?
+
+  // Renders
+  renders         UGCRender[]
+
+  // Output settings
+  aspectRatio     String           @db.VarChar(16) @default("9:16")
+  durationSeconds Int?
+  platform        String?          @db.VarChar(64)   // tiktok, instagram, youtube, etc.
+
+  // Final output
+  outputUrl       String?          @db.Text
+  thumbnailUrl    String?          @db.Text
+
+  publishedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// --- UGC Script ---------------------------------------------------------------
+
+model UGCScript {
+  id              String     @id @default(cuid())
+  projectId       String     @unique
+  project         UGCProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  content         String     @db.Text
+
+  // AI generation info
+  aiGenerated     Boolean    @default(false)
+  prompt          String?    @db.Text
+  model           String?    @db.VarChar(128)
+
+  // Scene breakdown (JSON array of { text, durationHint, visualNote })
+  scenesJson      String?    @db.Text
+
+  wordCount       Int?
+  estimatedSecs   Int?
+  version         Int        @default(1)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([projectId])
+}
+
+// --- UGC Render ---------------------------------------------------------------
+
+model UGCRender {
+  id              String      @id @default(cuid())
+  projectId       String
+  project         UGCProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  status          RenderStatus @default(QUEUED)
+
+  // Provider job tracking
+  provider        String      @db.VarChar(64) @default("heygen")
+  externalJobId   String?     @db.VarChar(255)
+
+  // Progress
+  progress        Int         @default(0)  // 0-100
+
+  // Output
+  videoUrl        String?     @db.Text
+  thumbnailUrl    String?     @db.Text
+  durationSeconds Float?
+  fileSizeBytes   BigInt?
+
+  // Render config snapshot
+  settingsJson    String?     @db.Text
+
+  errorMessage    String?     @db.Text
+
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime    @default(now())
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
 }
