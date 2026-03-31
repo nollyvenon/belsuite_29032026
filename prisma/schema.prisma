@@ -327,6 +327,12 @@ model Organization {
   bulkBatches           BulkBatch[]
   optimalPostingTimes   OptimalPostingTime[]
 
+  // Marketing engine
+  adPlatformAccounts    AdPlatformAccount[]  @relation("OrgAdAccounts")
+  marketingCampaigns    MarketingCampaign[]  @relation("OrgCampaigns")
+  conversionEvents      ConversionEvent[]    @relation("OrgConversions")
+  funnels               Funnel[]             @relation("OrgFunnels")
+
   // Multi-tenant relations
   tenantDomains         DomainMapping[] @relation("TenantDomains")
   tenantUsage           TenantUsage[] @relation("TenantUsage")
@@ -1757,8 +1763,459 @@ model SubtitleTrack {
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+}
 
-  @@index([videoProjectId])
+// ============================================================================
+// MARKETING ENGINE — AI Ad Generation, Campaigns, A/B Tests, Funnels
+// ============================================================================
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum CampaignObjective {
+  AWARENESS       // Reach / impressions
+  TRAFFIC         // Clicks to website
+  ENGAGEMENT      // Likes, comments, shares
+  LEADS           // Lead generation form
+  CONVERSIONS     // Purchase / sign-up
+  APP_INSTALLS    // Mobile app installs
+  VIDEO_VIEWS     // Video play events
+}
+
+enum AdPlatform {
+  FACEBOOK
+  INSTAGRAM
+  GOOGLE_SEARCH
+  GOOGLE_DISPLAY
+  GOOGLE_YOUTUBE
+  TIKTOK_ADS
+  LINKEDIN_ADS
+  TWITTER_ADS
+}
+
+enum AdFormat {
+  SINGLE_IMAGE
+  CAROUSEL
+  VIDEO
+  COLLECTION
+  STORY
+  RESPONSIVE_SEARCH    // Google RSA
+  RESPONSIVE_DISPLAY   // Google GDN
+}
+
+enum AdStatus {
+  DRAFT
+  IN_REVIEW
+  ACTIVE
+  PAUSED
+  REJECTED
+  COMPLETED
+}
+
+enum ABTestStatus {
+  DRAFT
+  RUNNING
+  CONCLUDED
+  ARCHIVED
+}
+
+enum FunnelStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ConversionEventType {
+  PAGE_VIEW
+  CLICK
+  FORM_SUBMIT
+  PURCHASE
+  SIGNUP
+  DOWNLOAD
+  PHONE_CALL
+  VIDEO_PLAY
+  CUSTOM
+}
+
+// ─── Ad Platform Accounts (Facebook Ads Manager, Google Ads) ─────────────────
+
+model AdPlatformAccount {
+  id               String      @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation("OrgAdAccounts", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  platform         AdPlatform
+  accountId        String      @db.VarChar(128)  // platform's account ID
+  accountName      String      @db.VarChar(255)
+  currencyCode     String      @default("USD") @db.VarChar(8)
+  timezone         String      @default("UTC")
+
+  // Encrypted OAuth tokens
+  accessToken      String      @db.Text
+  refreshToken     String?     @db.Text
+  tokenExpiresAt   DateTime?
+
+  isActive         Boolean     @default(true)
+  syncedAt         DateTime?
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  campaigns        MarketingCampaign[]
+
+  @@unique([organizationId, platform, accountId])
+  @@index([organizationId])
+  @@index([platform])
+}
+
+// ─── Marketing Campaign ───────────────────────────────────────────────────────
+
+model MarketingCampaign {
+  id               String            @id @default(cuid())
+  organizationId   String
+  organization     Organization      @relation("OrgCampaigns", fields: [organizationId], references: [id], onDelete: Cascade)
+  adAccountId      String?
+  adAccount        AdPlatformAccount? @relation(fields: [adAccountId], references: [id], onDelete: SetNull)
+
+  name             String            @db.VarChar(255)
+  description      String?           @db.Text
+  objective        CampaignObjective
+  status           CampaignStatus    @default(DRAFT)
+
+  // Budget
+  dailyBudget      Float?            // USD
+  totalBudget      Float?            // USD
+  spentBudget      Float             @default(0)
+
+  // Schedule
+  startDate        DateTime?
+  endDate          DateTime?
+
+  // Target audience (JSON blob: age, gender, interests, locations, lookalike)
+  audienceJson     String?           @db.Text
+
+  // Platform campaign ID (set after sync)
+  platformCampaignId String?         @db.VarChar(255)
+
+  // AI metadata
+  aiGenerated      Boolean           @default(false)
+  aiNotes          String?           @db.Text
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  ads              Ad[]
+  abTests          ABTest[]
+  performanceSnapshots CampaignPerformance[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([startDate])
+}
+
+// ─── Ad ──────────────────────────────────────────────────────────────────────
+
+model Ad {
+  id               String            @id @default(cuid())
+  campaignId       String
+  campaign         MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name             String            @db.VarChar(255)
+  format           AdFormat
+  status           AdStatus          @default(DRAFT)
+
+  // Copy
+  headline         String?           @db.VarChar(512)
+  body             String?           @db.Text
+  callToAction     String?           @db.VarChar(64)  // "Shop Now", "Learn More"
+  destinationUrl   String?           @db.Text
+
+  // Creative assets (JSON array of URLs / storage keys)
+  creativeAssets   String?           @db.Text  // JSON: [{type, url, altText}]
+
+  // AI generation
+  aiGenerated      Boolean           @default(false)
+  aiPrompt         String?           @db.Text
+  aiScore          Float?            // AI-predicted quality score 0-100
+
+  // Platform ad ID (set after sync)
+  platformAdId     String?           @db.VarChar(255)
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  variants         AdVariant[]
+  impressions      AdPerformance[]
+  conversions      ConversionEvent[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+// ─── Ad Variant (A/B test copy variant) ──────────────────────────────────────
+
+model AdVariant {
+  id               String    @id @default(cuid())
+  adId             String
+  ad               Ad        @relation(fields: [adId], references: [id], onDelete: Cascade)
+  abTestId         String?
+  abTest           ABTest?   @relation(fields: [abTestId], references: [id], onDelete: SetNull)
+
+  label            String    @db.VarChar(64)  // "A", "B", "C"
+  headline         String?   @db.VarChar(512)
+  body             String?   @db.Text
+  callToAction     String?   @db.VarChar(64)
+  creativeAssets   String?   @db.Text  // JSON array
+
+  // Metrics (live aggregated)
+  impressions      Int       @default(0)
+  clicks           Int       @default(0)
+  conversions      Int       @default(0)
+  spend            Float     @default(0)
+
+  isWinner         Boolean   @default(false)
+  isControl        Boolean   @default(false)  // The baseline variant
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([adId])
+  @@index([abTestId])
+}
+
+// ─── A/B Test ─────────────────────────────────────────────────────────────────
+
+model ABTest {
+  id               String           @id @default(cuid())
+  campaignId       String
+  campaign         MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name             String           @db.VarChar(255)
+  hypothesis       String?          @db.Text
+  metric           String           @db.VarChar(64)  // "ctr", "cpc", "cvr", "roas"
+  status           ABTestStatus     @default(DRAFT)
+
+  // Statistical parameters
+  confidenceLevel  Float            @default(0.95)   // 95%
+  minimumSampleSize Int             @default(1000)
+  trafficSplit     String           @db.Text          // JSON: {"A": 50, "B": 50}
+
+  // Results
+  winnerVariantId  String?
+  pValue           Float?
+  statisticalPower Float?
+  conclusionNotes  String?          @db.Text
+
+  startedAt        DateTime?
+  concludedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  variants         AdVariant[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+// ─── Campaign Performance Snapshot ───────────────────────────────────────────
+
+model CampaignPerformance {
+  id               String            @id @default(cuid())
+  campaignId       String
+  campaign         MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  date             DateTime          @db.Date     // Daily snapshot date
+  impressions      Int               @default(0)
+  clicks           Int               @default(0)
+  conversions      Int               @default(0)
+  spend            Float             @default(0)
+  revenue          Float             @default(0)
+
+  // Derived (computed on write)
+  ctr              Float             @default(0)  // clicks/impressions
+  cpc              Float             @default(0)  // spend/clicks
+  cpa              Float             @default(0)  // spend/conversions
+  roas             Float             @default(0)  // revenue/spend
+
+  // Breakdown by platform (JSON: {FACEBOOK: {...}, GOOGLE: {...}})
+  platformBreakdown String?          @db.Text
+
+  createdAt        DateTime          @default(now())
+
+  @@unique([campaignId, date])
+  @@index([campaignId])
+  @@index([date])
+}
+
+// ─── Ad Performance (per-ad per-day) ─────────────────────────────────────────
+
+model AdPerformance {
+  id               String    @id @default(cuid())
+  adId             String
+  ad               Ad        @relation(fields: [adId], references: [id], onDelete: Cascade)
+  date             DateTime  @db.Date
+
+  impressions      Int       @default(0)
+  clicks           Int       @default(0)
+  conversions      Int       @default(0)
+  spend            Float     @default(0)
+  revenue          Float     @default(0)
+  frequency        Float     @default(0)  // avg times shown per user
+
+  createdAt        DateTime  @default(now())
+
+  @@unique([adId, date])
+  @@index([adId])
+  @@index([date])
+}
+
+// ─── Conversion Event ─────────────────────────────────────────────────────────
+
+model ConversionEvent {
+  id               String              @id @default(cuid())
+  organizationId   String
+  organization     Organization        @relation("OrgConversions", fields: [organizationId], references: [id], onDelete: Cascade)
+  adId             String?
+  ad               Ad?                 @relation(fields: [adId], references: [id], onDelete: SetNull)
+
+  eventType        ConversionEventType
+  eventName        String?             @db.VarChar(128)  // Custom event name
+  funnelPageId     String?
+
+  // Attribution
+  utmSource        String?             @db.VarChar(128)
+  utmMedium        String?             @db.VarChar(128)
+  utmCampaign      String?             @db.VarChar(255)
+  utmContent       String?             @db.VarChar(255)
+  utmTerm          String?             @db.VarChar(255)
+  clickId          String?             @db.VarChar(255)  // fbclid / gclid
+
+  // Session / visitor
+  sessionId        String?             @db.VarChar(255)
+  visitorId        String?             @db.VarChar(255)  // anonymous fingerprint
+  ipAddress        String?             @db.VarChar(64)
+  userAgent        String?             @db.Text
+  referrer         String?             @db.Text
+  pageUrl          String?             @db.Text
+
+  // Value
+  value            Float?              // monetary conversion value
+  currency         String?             @db.VarChar(8)
+
+  // Raw payload for custom events
+  metadataJson     String?             @db.Text
+
+  occurredAt       DateTime            @default(now())
+
+  @@index([organizationId])
+  @@index([adId])
+  @@index([eventType])
+  @@index([occurredAt])
+  @@index([utmCampaign])
+}
+
+// ─── Funnel ───────────────────────────────────────────────────────────────────
+
+model Funnel {
+  id               String        @id @default(cuid())
+  organizationId   String
+  organization     Organization  @relation("OrgFunnels", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name             String        @db.VarChar(255)
+  description      String?       @db.Text
+  status           FunnelStatus  @default(DRAFT)
+
+  // Custom domain / slug
+  slug             String        @db.VarChar(128)
+  domain           String?       @db.VarChar(255)
+
+  // Global styles (JSON: colors, fonts, borders)
+  themeJson        String?       @db.Text
+
+  aiGenerated      Boolean       @default(false)
+
+  publishedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  pages            FunnelPage[]
+  metrics          FunnelMetrics[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([status])
+}
+
+// ─── Funnel Page ──────────────────────────────────────────────────────────────
+
+model FunnelPage {
+  id               String    @id @default(cuid())
+  funnelId         String
+  funnel           Funnel    @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  order            Int                   // Step number (0 = opt-in, 1 = upsell, etc.)
+  pageType         String    @db.VarChar(64)  // "optin", "salespage", "upsell", "thankyou"
+  title            String    @db.VarChar(255)
+  slug             String    @db.VarChar(128)
+
+  // Page content as block-based JSON (similar to Notion blocks)
+  blocksJson       String?   @db.Text
+
+  // Conversion element
+  ctaText          String?   @db.VarChar(128)
+  ctaUrl           String?   @db.Text
+  nextPageId       String?   @db.VarChar(255) // nextStep within funnel
+
+  // Tracking
+  views            Int       @default(0)
+  conversions      Int       @default(0)
+
+  // SEO
+  metaTitle        String?   @db.VarChar(255)
+  metaDescription  String?   @db.Text
+
+  aiGenerated      Boolean   @default(false)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([funnelId, slug])
+  @@index([funnelId])
+  @@index([order])
+}
+
+// ─── Funnel Metrics (event stream) ───────────────────────────────────────────
+
+model FunnelMetrics {
+  id               String    @id @default(cuid())
+  funnelId         String
+  funnel           Funnel    @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  date             DateTime  @db.Date
+  pageId           String?   @db.VarChar(255)
+
+  views            Int       @default(0)
+  uniqueVisitors   Int       @default(0)
+  conversions      Int       @default(0)
+  exits            Int       @default(0)
+  bounces          Int       @default(0)
+  avgTimeOnPage    Float     @default(0)  // seconds
+
+  createdAt        DateTime  @default(now())
+
+  @@unique([funnelId, date, pageId])
+  @@index([funnelId])
+  @@index([date])
 }
 
 // Background processing job for video operations

@@ -10,6 +10,7 @@ import { PaymentModule } from './payments/payment.module';
 import { AIModule } from './ai/ai.module';
 import { VideoModule } from './video/video.module';
 import { SocialModule } from './social/social.module';
+import { MarketingModule } from './marketing/marketing.module';
 import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
@@ -69,6 +70,9 @@ class StorageModule {}
 
     // Social media scheduler
     SocialModule,
+
+    // Marketing engine
+    MarketingModule,
   ],
   providers: [
     DatabaseConfig,
