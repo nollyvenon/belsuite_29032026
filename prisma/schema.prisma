@@ -50,6 +50,10 @@ model User {
   videoProjects         VideoProject[]  @relation("UserVideos")
   mediaAssets           MediaAsset[]    @relation("UserMedia")
 
+  // Social media scheduler
+  socialAccounts        SocialAccount[]
+  scheduledPosts        ScheduledPost[]
+
   // Authentication relations
   oauthAccounts         OAuthAccount[]
   twoFactor             TwoFactorSecret?
@@ -316,6 +320,12 @@ model Organization {
   // Video engine
   videoProjects         VideoProject[]  @relation("OrgVideos")
   mediaAssets           MediaAsset[]    @relation("OrgMedia")
+
+  // Social media scheduler
+  socialAccounts        SocialAccount[]
+  scheduledPosts        ScheduledPost[]
+  bulkBatches           BulkBatch[]
+  optimalPostingTimes   OptimalPostingTime[]
 
   // Multi-tenant relations
   tenantDomains         DomainMapping[] @relation("TenantDomains")
@@ -1775,4 +1785,194 @@ model VideoJob {
   @@index([status])
   @@index([jobType])
   @@index([createdAt])
+}
+
+// ============================================================================
+// SOCIAL MEDIA SCHEDULER
+// ============================================================================
+
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  TWITTER
+  LINKEDIN
+  PINTEREST
+  WHATSAPP
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum PublishStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RETRYING
+}
+
+enum BulkBatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+// Connected social media account (one per platform per user per org)
+model SocialAccount {
+  id               String         @id @default(cuid())
+  organizationId   String
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform         SocialPlatform
+  platformUserId   String
+  platformUsername String?
+  displayName      String?
+  avatar           String?
+  accessToken      String         @db.Text // AES-256-GCM encrypted
+  refreshToken     String?        @db.Text // AES-256-GCM encrypted
+  tokenExpiresAt   DateTime?
+  scope            String?
+  pageId           String?        // Facebook/Instagram page ID
+  pageName         String?
+  isActive         Boolean        @default(true)
+  metadata         Json?          // Extra platform-specific data (e.g., WhatsApp recipients list)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  posts            ScheduledPostAccount[]
+  publishResults   PostPublishResult[]
+
+  @@unique([organizationId, platform, platformUserId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([platform])
+}
+
+// A scheduled (or published) social post
+model ScheduledPost {
+  id                  String         @id @default(cuid())
+  organizationId      String
+  organization        Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById         String
+  createdBy           User           @relation(fields: [createdById], references: [id])
+  content             String         @db.Text
+  mediaUrls           String[]       @default([]) // CDN URLs
+  mediaKeys           String[]       @default([]) // S3 keys
+  link                String?
+  hashtags            String[]       @default([])
+  status              PostStatus     @default(DRAFT)
+  scheduledAt         DateTime?
+  publishedAt         DateTime?
+
+  // AI creation metadata
+  aiGenerated         Boolean        @default(false)
+  aiPrompt            String?        @db.Text
+  optimalTimeUsed     Boolean        @default(false)
+
+  // Auto-repost settings
+  autoRepostEnabled   Boolean        @default(false)
+  repostIntervalDays  Int?
+  maxReposts          Int?           @default(0)
+  repostCount         Int            @default(0)
+  nextRepostAt        DateTime?
+  parentPostId        String?
+  parentPost          ScheduledPost? @relation("PostReposts", fields: [parentPostId], references: [id])
+  reposts             ScheduledPost[] @relation("PostReposts")
+
+  // Bulk batch
+  bulkBatchId         String?
+  bulkBatch           BulkBatch?     @relation(fields: [bulkBatchId], references: [id])
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  accounts            ScheduledPostAccount[]
+  publishResults      PostPublishResult[]
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([nextRepostAt])
+  @@index([bulkBatchId])
+}
+
+// Many-to-many: ScheduledPost <-> SocialAccount
+model ScheduledPostAccount {
+  postId    String
+  post      ScheduledPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  accountId String
+  account   SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@id([postId, accountId])
+}
+
+// Per-account publish result for a post
+model PostPublishResult {
+  id              String         @id @default(cuid())
+  postId          String
+  post            ScheduledPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  accountId       String
+  account         SocialAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  platform        SocialPlatform
+  status          PublishStatus  @default(PENDING)
+  platformPostId  String?        // ID returned by the platform
+  platformUrl     String?        // Public URL of the post
+  errorMessage    String?        @db.Text
+  attemptCount    Int            @default(0)
+  nextRetryAt     DateTime?
+  publishedAt     DateTime?
+  dismissedAt     DateTime?      // set when user acknowledges a failure
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([postId])
+  @@index([accountId])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@index([dismissedAt])
+}
+
+// Bulk posting batch
+model BulkBatch {
+  id              String          @id @default(cuid())
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String          @db.VarChar(255)
+  totalPosts      Int             @default(0)
+  scheduledPosts  Int             @default(0)
+  publishedPosts  Int             @default(0)
+  failedPosts     Int             @default(0)
+  status          BulkBatchStatus @default(PENDING)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  posts           ScheduledPost[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+// Learned optimal posting times per org per platform
+model OptimalPostingTime {
+  id              String         @id @default(cuid())
+  organizationId  String
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  platform        SocialPlatform
+  dayOfWeek       Int            // 0=Sun, 6=Sat
+  hour            Int            // 0-23 UTC
+  score           Float          @default(0.5) // 0-1 engagement score
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([organizationId, platform, dayOfWeek, hour])
+  @@index([organizationId, platform])
 }
