@@ -5,7 +5,8 @@
 
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import * as zxcvbn from 'zxcvbn';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const zxcvbn: (password: string, userInputs?: string[]) => { score: number; feedback: { warning: string; suggestions: string[] } } = require('zxcvbn');
 
 export interface PasswordStrength {
   score: number; // 0-4 (0=very weak, 4=very strong)
@@ -27,8 +28,8 @@ export class PasswordService {
   async hashPassword(password: string): Promise<string> {
     try {
       return await bcrypt.hash(password, this.SALT_ROUNDS);
-    } catch (error) {
-      this.logger.error(`Failed to hash password: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to hash password: ${(error as Error).message}`, (error as Error).stack);
       throw new BadRequestException('Failed to process password');
     }
   }
@@ -39,8 +40,8 @@ export class PasswordService {
   async comparePasswords(plainPassword: string, hashPassword: string): Promise<boolean> {
     try {
       return await bcrypt.compare(plainPassword, hashPassword);
-    } catch (error) {
-      this.logger.error(`Password comparison failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Password comparison failed: ${(error as Error).message}`, (error as Error).stack);
       return false;
     }
   }

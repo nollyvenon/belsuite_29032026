@@ -45,7 +45,11 @@ model User {
   // AI features
   aiUsages              AIUsage[]
   promptTemplates       PromptTemplate[]
-  
+
+  // Video engine
+  videoProjects         VideoProject[]  @relation("UserVideos")
+  mediaAssets           MediaAsset[]    @relation("UserMedia")
+
   // Authentication relations
   oauthAccounts         OAuthAccount[]
   twoFactor             TwoFactorSecret?
@@ -309,6 +313,10 @@ model Organization {
   aiUsages              AIUsage[]
   promptTemplates       PromptTemplate[]
   
+  // Video engine
+  videoProjects         VideoProject[]  @relation("OrgVideos")
+  mediaAssets           MediaAsset[]    @relation("OrgMedia")
+
   // Multi-tenant relations
   tenantDomains         DomainMapping[] @relation("TenantDomains")
   tenantUsage           TenantUsage[] @relation("TenantUsage")
@@ -1583,3 +1591,188 @@ model PromptTemplate {
 // - Tenant-related fields for multi-tenancy support
 // - Relations: TenantDomains, TenantUsage, TenantRateLimits, TenantRateLimitUsage, TenantOnboarding, ApiRateLimitState
 // - See Organization model above for full details
+
+// ============================================================================
+// VIDEO ENGINE - AI Video Creation & Editing (CapCut-style)
+// ============================================================================
+
+enum VideoStatus {
+  DRAFT
+  PROCESSING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+enum VideoJobType {
+  RENDER          // Full render from timeline
+  GENERATE_SCENE  // AI scene generation
+  GENERATE_AUDIO  // TTS voiceover
+  GENERATE_SUBS   // Auto-subtitle extraction
+  TRANSCODE       // Format conversion
+  THUMBNAIL       // Thumbnail generation
+}
+
+enum VideoJobStatus {
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum VideoMediaType {
+  VIDEO_CLIP
+  AUDIO_CLIP
+  IMAGE
+  SUBTITLE_TRACK
+  VOICEOVER
+  BACKGROUND_MUSIC
+}
+
+// A video project (the main unit of work)
+model VideoProject {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation("OrgVideos", fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User         @relation("UserVideos", fields: [createdById], references: [id])
+
+  title           String       @db.VarChar(255)
+  description     String?      @db.Text
+  script          String?      @db.Text   // Raw script used for generation
+  status          VideoStatus  @default(DRAFT)
+
+  // Output file details (set when render completes)
+  outputUrl       String?      @db.Text
+  thumbnailUrl    String?      @db.Text
+  durationMs      Int?                    // milliseconds
+  fileSizeBytes   BigInt?
+
+  // Timeline state — stored as JSON blob
+  timelineJson    String?      @db.Text   // serialised TimelineState
+
+  // Resolution / format
+  width           Int          @default(1920)
+  height          Int          @default(1080)
+  fps             Int          @default(30)
+  format          String       @default("mp4") @db.VarChar(16)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  mediaAssets     MediaAsset[]
+  processingJobs  VideoJob[]
+  scenes          VideoScene[]
+  subtitleTracks  SubtitleTrack[]
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Individual media asset (clip, image, audio) in the library
+model MediaAsset {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation("OrgMedia", fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedById    String
+  uploadedBy      User         @relation("UserMedia", fields: [uploadedById], references: [id])
+  videoProjectId  String?
+  videoProject    VideoProject? @relation(fields: [videoProjectId], references: [id], onDelete: SetNull)
+
+  name            String       @db.VarChar(255)
+  mediaType       VideoMediaType
+  mimeType        String       @db.VarChar(128)
+  storageKey      String       @db.Text   // S3/storage path
+  publicUrl       String?      @db.Text
+  fileSizeBytes   BigInt?
+  durationMs      Int?                    // audio/video only
+  width           Int?                    // video/image
+  height          Int?
+
+  // AI generation metadata
+  aiGenerated     Boolean      @default(false)
+  aiPrompt        String?      @db.Text
+
+  createdAt       DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([videoProjectId])
+  @@index([mediaType])
+}
+
+// A scene in the video (maps to a section of the timeline)
+model VideoScene {
+  id              String       @id @default(cuid())
+  videoProjectId  String
+  videoProject    VideoProject @relation(fields: [videoProjectId], references: [id], onDelete: Cascade)
+
+  order           Int                     // Scene order (0-based)
+  scriptSegment   String?      @db.Text   // Script text for this scene
+  durationMs      Int          @default(5000)
+
+  // Visual
+  backgroundUrl   String?      @db.Text
+  aiImagePrompt   String?      @db.Text   // Prompt used to generate background
+
+  // Voiceover
+  voiceoverUrl    String?      @db.Text
+  voiceoverText   String?      @db.Text
+  ttsVoiceId      String?      @db.VarChar(128)  // ElevenLabs / OpenAI voice id
+
+  // Overlays / text stored as JSON
+  overlaysJson    String?      @db.Text
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([videoProjectId])
+  @@index([order])
+}
+
+// Subtitle track for a project
+model SubtitleTrack {
+  id              String       @id @default(cuid())
+  videoProjectId  String
+  videoProject    VideoProject @relation(fields: [videoProjectId], references: [id], onDelete: Cascade)
+
+  language        String       @default("en") @db.VarChar(16)
+  srtContent      String?      @db.Text   // Full SRT file content
+  vttContent      String?      @db.Text   // WebVTT content
+  storageKey      String?      @db.Text   // path to stored file
+
+  autoGenerated   Boolean      @default(false)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([videoProjectId])
+}
+
+// Background processing job for video operations
+model VideoJob {
+  id              String          @id @default(cuid())
+  videoProjectId  String
+  videoProject    VideoProject    @relation(fields: [videoProjectId], references: [id], onDelete: Cascade)
+
+  jobType         VideoJobType
+  status          VideoJobStatus  @default(QUEUED)
+  bullJobId       String?         @db.VarChar(255)  // BullMQ job id
+  progress        Int             @default(0)       // 0-100
+
+  // Input/output stored as JSON
+  inputJson       String?         @db.Text
+  outputJson      String?         @db.Text
+  errorMessage    String?         @db.Text
+
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+
+  @@index([videoProjectId])
+  @@index([status])
+  @@index([jobType])
+  @@index([createdAt])
+}

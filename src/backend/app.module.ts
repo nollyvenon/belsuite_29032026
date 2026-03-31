@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -7,6 +8,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { RbacModule } from './rbac/rbac.module';
 import { PaymentModule } from './payments/payment.module';
 import { AIModule } from './ai/ai.module';
+import { VideoModule } from './video/video.module';
 import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
@@ -35,6 +37,15 @@ class StorageModule {}
       envFilePath: '.env',
     }),
 
+    // BullMQ root — shared Redis connection for all queues
+    BullModule.forRoot({
+      connection: {
+        host: process.env['REDIS_HOST'] ?? 'localhost',
+        port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
+        password: process.env['REDIS_PASSWORD'] ?? undefined,
+      },
+    }),
+
     // Multi-tenant infrastructure (global — must be before feature modules)
     MultiTenantModule,
 
@@ -51,6 +62,9 @@ class StorageModule {}
     AnalyticsModule,
     AIModule,
     StorageModule,
+
+    // Video engine
+    VideoModule,
   ],
   providers: [
     DatabaseConfig,

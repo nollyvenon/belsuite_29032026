@@ -44,20 +44,10 @@ export class OAuthService {
    */
   async authenticateOAuth(profile: OAuthProfile): Promise<OAuthLoginResponse> {
     try {
-      // Check if OAuth account exists
-      let oauthAccount = await this.prisma.oAuthAccount.findUnique({
-        where: {
-          userId_provider: {
-            provider: profile.provider,
-            userId: '', // Will search by providerUserId instead
-          },
-        },
-      });
-
       let user: User;
       let isNewUser = false;
 
-      // Try to find by provider ID
+      // Find by provider ID
       const existingOAuth = await this.prisma.oAuthAccount.findFirst({
         where: {
           provider: profile.provider,
@@ -81,9 +71,10 @@ export class OAuthService {
         });
       } else {
         // Check if user exists by email
-        user = await this.prisma.user.findUnique({
+        const existingUser = await this.prisma.user.findUnique({
           where: { email: profile.email.toLowerCase() },
         });
+        user = existingUser as User;
 
         if (user) {
           // User exists, create OAuth link
@@ -177,8 +168,8 @@ export class OAuthService {
         user: this.sanitizeUser(user),
         isNewUser,
       };
-    } catch (error) {
-      this.logger.error(`OAuth authentication failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`OAuth authentication failed: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -224,8 +215,8 @@ export class OAuthService {
       });
 
       this.logger.log(`OAuth account linked: ${profile.provider} - ${userId}`);
-    } catch (error) {
-      this.logger.error(`OAuth link failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`OAuth link failed: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -263,8 +254,8 @@ export class OAuthService {
       });
 
       this.logger.log(`OAuth account unlinked: ${provider} - ${userId}`);
-    } catch (error) {
-      this.logger.error(`OAuth unlink failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`OAuth unlink failed: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -286,8 +277,8 @@ export class OAuthService {
       });
 
       return accounts;
-    } catch (error) {
-      this.logger.error(`Failed to get OAuth accounts: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to get OAuth accounts: ${(error as Error).message}`, (error as Error).stack);
       return [];
     }
   }
@@ -310,9 +301,9 @@ export class OAuthService {
 
       // In production, call provider's token endpoint to refresh
       // For now, return existing accessToken
-      return oauthAccount.accessToken;
-    } catch (error) {
-      this.logger.error(`OAuth token refresh failed: ${error.message}`, error.stack);
+      return oauthAccount.accessToken ?? '';
+    } catch (error: unknown) {
+      this.logger.error(`OAuth token refresh failed: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }

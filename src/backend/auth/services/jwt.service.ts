@@ -41,12 +41,12 @@ export class JwtTokenService {
           type: 'access',
         },
         {
-          expiresIn: expiryTime,
+          expiresIn: expiryTime as any,
           secret: this.configService.get('JWT_SECRET'),
         },
       );
-    } catch (error) {
-      this.logger.error(`Failed to generate access token: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to generate access token: ${(error as Error).message}`, (error as Error).stack);
       throw new UnauthorizedException('Failed to generate access token');
     }
   }
@@ -65,12 +65,12 @@ export class JwtTokenService {
           type: 'refresh',
         },
         {
-          expiresIn: expiryTime,
+          expiresIn: expiryTime as any,
           secret: this.configService.get('JWT_REFRESH_SECRET'),
         },
       );
-    } catch (error) {
-      this.logger.error(`Failed to generate refresh token: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to generate refresh token: ${(error as Error).message}`, (error as Error).stack);
       throw new UnauthorizedException('Failed to generate refresh token');
     }
   }
@@ -107,8 +107,8 @@ export class JwtTokenService {
       }
 
       return payload;
-    } catch (error) {
-      this.logger.debug(`Invalid access token: ${error.message}`);
+    } catch (error: unknown) {
+      this.logger.debug(`Invalid access token: ${(error as Error).message}`);
       throw new UnauthorizedException('Invalid or expired token');
     }
   }
@@ -127,8 +127,8 @@ export class JwtTokenService {
       }
 
       return payload;
-    } catch (error) {
-      this.logger.debug(`Invalid refresh token: ${error.message}`);
+    } catch (error: unknown) {
+      this.logger.debug(`Invalid refresh token: ${(error as Error).message}`);
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }
@@ -136,11 +136,11 @@ export class JwtTokenService {
   /**
    * Decode token without verification (for debugging)
    */
-  decodeToken(token: string): JwtPayload {
+  decodeToken(token: string): JwtPayload | null {
     try {
       return this.jwtService.decode(token) as JwtPayload;
-    } catch (error) {
-      this.logger.error(`Failed to decode token: ${error.message}`);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to decode token: ${(error as Error).message}`);
       return null;
     }
   }

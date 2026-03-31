@@ -51,7 +51,7 @@ export class TwoFactorService {
       });
 
       // Generate QR code
-      const qrCode = await QRCode.toDataURL(secret.otpauth_url);
+      const qrCode = await QRCode.toDataURL(secret.otpauth_url ?? '');
 
       // Generate backup codes
       const backupCodes = this.generateBackupCodes();
@@ -110,8 +110,8 @@ export class TwoFactorService {
         qrCode,
         backupCodes,
       };
-    } catch (error) {
-      this.logger.error(`Failed to setup 2FA: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to setup 2FA: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -155,8 +155,8 @@ export class TwoFactorService {
       this.logger.log(`2FA enabled for user ${userId}`);
 
       return { verified: true, message: 'Two-factor authentication enabled' };
-    } catch (error) {
-      this.logger.error(`Failed to verify 2FA setup: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to verify 2FA setup: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -188,8 +188,8 @@ export class TwoFactorService {
         verified,
         message: verified ? 'Code verified' : 'Invalid code',
       };
-    } catch (error) {
-      this.logger.error(`Failed to verify 2FA code: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to verify 2FA code: ${(error as Error).message}`, (error as Error).stack);
       return { verified: false, message: 'Error verifying code' };
     }
   }
@@ -227,8 +227,8 @@ export class TwoFactorService {
       });
 
       return { verified: true, message: 'Backup code verified' };
-    } catch (error) {
-      this.logger.error(`Failed to verify backup code: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to verify backup code: ${(error as Error).message}`, (error as Error).stack);
       return { verified: false, message: 'Error verifying backup code' };
     }
   }
@@ -268,8 +268,8 @@ export class TwoFactorService {
       });
 
       this.logger.log(`2FA disabled for user ${userId}`);
-    } catch (error) {
-      this.logger.error(`Failed to disable 2FA: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to disable 2FA: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -294,8 +294,8 @@ export class TwoFactorService {
       }
 
       return twoFactor.backupCodes.map(bc => bc.id);
-    } catch (error) {
-      this.logger.error(`Failed to get backup codes: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      this.logger.error(`Failed to get backup codes: ${(error as Error).message}`, (error as Error).stack);
       return [];
     }
   }
