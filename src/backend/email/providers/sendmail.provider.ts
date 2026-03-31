@@ -48,17 +48,23 @@ export class SendmailProvider implements IEmailService {
 
       this.logger.log(`Email sent via Sendmail: ${messageId}`);
 
-      // Store in database for tracking
-      await this.prisma.email.create({
-        data: {
-          externalEmailId: messageId,
-          provider: 'SENDMAIL',
-          toEmail: Array.isArray(options.to) ? options.to.join(',') : options.to,
-          subject: options.subject,
-          sentAt: new Date(),
-          metadata: options.metadata,
-        },
-      });
+      const organizationId =
+        typeof options.metadata?.organizationId === 'string'
+          ? options.metadata.organizationId
+          : null;
+
+      if (organizationId) {
+        await this.prisma.email.create({
+          data: {
+            organizationId,
+            externalEmailId: messageId,
+            provider: 'SENDMAIL',
+            toEmail: Array.isArray(options.to) ? options.to.join(',') : options.to,
+            subject: options.subject,
+            sentAt: new Date(),
+          },
+        });
+      }
 
       return {
         success: true,

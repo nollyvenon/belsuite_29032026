@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Chrome, Apple } from 'lucide-react';
+import { Apple } from 'lucide-react';
 
 export interface OAuthButtonsProps {
   isLoading?: boolean;
@@ -27,7 +27,12 @@ export const OAuthButtons = ({
         disabled={isLoading}
         className="flex items-center justify-center w-full gap-3 px-4 py-3 border transition-all rounded-lg border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <Chrome className="w-5 h-5" />
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M21.8 12.23c0-.76-.07-1.49-.19-2.2H12v4.17h5.5a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.94-1.79 3.04-4.44 3.04-7.61Z" fill="#4285F4"/>
+          <path d="M12 22c2.75 0 5.06-.91 6.75-2.46l-3.3-2.56c-.92.62-2.09.99-3.45.99-2.65 0-4.89-1.79-5.69-4.2H2.9v2.64A10 10 0 0 0 12 22Z" fill="#34A853"/>
+          <path d="M6.31 13.77A6 6 0 0 1 6 12c0-.62.11-1.22.31-1.77V7.59H2.9A10 10 0 0 0 2 12c0 1.61.39 3.13 1.09 4.41l3.22-2.64Z" fill="#FBBC05"/>
+          <path d="M12 6.03c1.5 0 2.84.52 3.9 1.53l2.92-2.92C17.05 2.98 14.74 2 12 2A10 10 0 0 0 2.9 7.59l3.41 2.64c.8-2.41 3.04-4.2 5.69-4.2Z" fill="#EA4335"/>
+        </svg>
         <span className="text-sm font-medium">Continue with Google</span>
       </motion.button>
 

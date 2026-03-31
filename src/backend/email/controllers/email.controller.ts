@@ -18,17 +18,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EmailService } from '../services/email.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { OrganizationGuard } from '../../rbac/guards/organization.guard';
-import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentOrganization } from '../../organizations/decorators/current-organization.decorator';
-import { CreateEmailTemplateDto, UpdateEmailTemplateDto, IEmailService, EmailSendOptions } from '../interfaces/email.service.interface';
+import { JwtAuthGuard } from '../../common/guards/jwt.guard';
+import { Tenant } from '../../common/decorators/tenant.decorator';
+import { CreateEmailTemplateDto, UpdateEmailTemplateDto, EmailSendOptions } from '../interfaces/email.service.interface';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('email')
-@UseGuards(JwtAuthGuard, OrganizationGuard)
+@UseGuards(JwtAuthGuard)
 export class EmailController {
   constructor(private readonly emailService: EmailService) {}
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
 
   /**
    * Send email
@@ -39,7 +41,7 @@ export class EmailController {
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute
   async sendEmail(
     @Body() payload: EmailSendOptions & { templateId?: string; variables?: Record<string, any> },
-    @CurrentOrganization() organizationId: string,
+    @Tenant() organizationId: string,
   ) {
     try {
       // If template ID is provided, use template
@@ -61,7 +63,7 @@ export class EmailController {
 
       return await this.emailService.send(payload, organizationId);
     } catch (error) {
-      throw new BadRequestException(error.message);
+      throw new BadRequestException(this.getErrorMessage(error));
     }
   }
 
@@ -74,7 +76,7 @@ export class EmailController {
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute
   async sendBatchEmails(
     @Body() payload: { emails: EmailSendOptions[] },
-    @CurrentOrganization() organizationId: string,
+    @Tenant() organizationId: string,
   ) {
     if (!payload.emails || !Array.isArray(payload.emails) || payload.emails.length === 0) {
       throw new BadRequestException('Must provide array of emails');
@@ -123,7 +125,7 @@ export class EmailController {
   @HttpCode(201)
   async createTemplate(
     @Body() data: CreateEmailTemplateDto,
-    @CurrentOrganization() organizationId: string,
+    @Tenant() organizationId: string,
   ) {
     if (!data.name || !data.subject || !data.htmlTemplate) {
       throw new BadRequestException(
@@ -141,7 +143,7 @@ export class EmailController {
   @Get('templates/:templateId')
   async getTemplate(
     @Param('templateId') templateId: string,
-    @CurrentOrganization() organizationId: string,
+    @Tenant() organizationId: string,
   ) {
     const template = await this.emailService.getTemplate(templateId, organizationId);
 
@@ -159,7 +161,7 @@ export class EmailController {
   @Get('templates')
   async listTemplates(
     @Query('category') category?: string,
-    @CurrentOrganization() organizationId: string = '',
+    @Tenant() organizationId: string = '',
   ) {
     let templates = await this.emailService.listTemplates(organizationId);
 
@@ -178,15 +180,16 @@ export class EmailController {
   async updateTemplate(
     @Param('templateId') templateId: string,
     @Body() data: UpdateEmailTemplateDto,
-    @CurrentOrganization() organizationId: string,
+    @Tenant() organizationId: string,
   ) {
     try {
       return await this.emailService.updateTemplate(templateId, data, organizationId);
     } catch (error) {
-      if (error.message.includes('not found')) {
-        throw new NotFoundException(error.message);
+      const message = this.getErrorMessage(error);
+      if (message.includes('not found')) {
+        throw new NotFoundException(message);
       }
-      throw new BadRequestException(error.message);
+      throw new BadRequestException(message);
     }
   }
 
@@ -198,15 +201,16 @@ export class EmailController {
   @HttpCode(204)
   async deleteTemplate(
     @Param('templateId') templateId: string,
-    @CurrentOrganization() organizationId: string,
+    @Tenant() organizationId: string,
   ) {
     try {
       await this.emailService.deleteTemplate(templateId, organizationId);
     } catch (error) {
-      if (error.message.includes('not found')) {
-        throw new NotFoundException(error.message);
+      const message = this.getErrorMessage(error);
+      if (message.includes('not found')) {
+        throw new NotFoundException(message);
       }
-      throw new BadRequestException(error.message);
+      throw new BadRequestException(message);
     }
   }
 
@@ -221,7 +225,7 @@ export class EmailController {
   @Get('stats')
   async getStats(
     @Query('days') days: string = '30',
-    @CurrentOrganization() organizationId: string,
+    @Tenant() organizationId: string,
   ) {
     const parsedDays = Math.min(parseInt(days) || 30, 365); // Max 1 year
 

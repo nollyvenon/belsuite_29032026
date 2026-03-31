@@ -14,14 +14,14 @@ import {
   Logger,
   Query,
 } from '@nestjs/common';
-import { AIService } from '../ai.service';
-import { ContentGenerationService } from '../services/content-generation.service';
-import { PromptTemplateService } from '../services/prompt-template.service';
-import { AIUsageLimitService } from '../services/ai-usage-limit.service';
-import { JwtAuthGuard } from '../../common/guards/jwt.guard';
-import { CurrentUser } from '../../common/decorators/user.decorator';
-import { Tenant } from '../../common/decorators/tenant.decorator';
-import { AIModel, RoutingStrategy } from '../types/ai.types';
+import { AIService } from './ai.service';
+import { ContentGenerationService } from './services/content-generation.service';
+import { PromptTemplateService } from './services/prompt-template.service';
+import { AIUsageLimitService } from './services/ai-usage-limit.service';
+import { JwtAuthGuard } from '../common/guards/jwt.guard';
+import { CurrentUser } from '../common/decorators/user.decorator';
+import { Tenant } from '../common/decorators/tenant.decorator';
+import { AIModel } from './types/ai.types';
 
 @Controller('api/ai')
 @UseGuards(JwtAuthGuard)
@@ -34,6 +34,10 @@ export class AIController {
     private promptService: PromptTemplateService,
     private usageLimitService: AIUsageLimitService,
   ) {}
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
 
   // ========== Text Generation ==========
 
@@ -59,7 +63,7 @@ export class AIController {
       const result = await this.aiService.generateText(
         {
           prompt: body.prompt,
-          model: body.model,
+          model: body.model ?? AIModel.GPT_3_5_TURBO,
           maxTokens: body.maxTokens,
           temperature: body.temperature,
         },
@@ -71,7 +75,7 @@ export class AIController {
 
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Text generation failed: ${error.message}`);
+      this.logger.error(`Text generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -83,6 +87,7 @@ export class AIController {
   @Post('blog-post')
   @HttpCode(HttpStatus.OK)
   async generateBlogPost(
+    @Tenant() organizationId: string,
     @CurrentUser() user: any,
     @Body()
     body: {
@@ -95,10 +100,10 @@ export class AIController {
     },
   ) {
     try {
-      const result = await this.contentService.generateBlogPost(user.sub, body);
+      const result = await this.contentService.generateBlogPost(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Blog post generation failed: ${error.message}`);
+      this.logger.error(`Blog post generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -110,6 +115,7 @@ export class AIController {
   @Post('social-post')
   @HttpCode(HttpStatus.OK)
   async generateSocialPost(
+    @Tenant() organizationId: string,
     @CurrentUser() user: any,
     @Body()
     body: {
@@ -122,10 +128,10 @@ export class AIController {
     },
   ) {
     try {
-      const result = await this.contentService.generateSocialPost(user.sub, body);
+      const result = await this.contentService.generateSocialPost(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Social post generation failed: ${error.message}`);
+      this.logger.error(`Social post generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -137,6 +143,7 @@ export class AIController {
   @Post('ad-copy')
   @HttpCode(HttpStatus.OK)
   async generateAdCopy(
+    @Tenant() organizationId: string,
     @CurrentUser() user: any,
     @Body()
     body: {
@@ -151,10 +158,10 @@ export class AIController {
     },
   ) {
     try {
-      const result = await this.contentService.generateAdCopy(user.sub, body);
+      const result = await this.contentService.generateAdCopy(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Ad copy generation failed: ${error.message}`);
+      this.logger.error(`Ad copy generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -166,6 +173,7 @@ export class AIController {
   @Post('video-script')
   @HttpCode(HttpStatus.OK)
   async generateVideoScript(
+    @Tenant() organizationId: string,
     @CurrentUser() user: any,
     @Body()
     body: {
@@ -179,10 +187,10 @@ export class AIController {
     },
   ) {
     try {
-      const result = await this.contentService.generateVideoScript(user.sub, body);
+      const result = await this.contentService.generateVideoScript(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Video script generation failed: ${error.message}`);
+      this.logger.error(`Video script generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -194,6 +202,7 @@ export class AIController {
   @Post('product-description')
   @HttpCode(HttpStatus.OK)
   async generateProductDescription(
+    @Tenant() organizationId: string,
     @CurrentUser() user: any,
     @Body()
     body: {
@@ -206,10 +215,10 @@ export class AIController {
     },
   ) {
     try {
-      const result = await this.contentService.generateProductDescription(user.sub, body);
+      const result = await this.contentService.generateProductDescription(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Product description generation failed: ${error.message}`);
+      this.logger.error(`Product description generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -221,6 +230,7 @@ export class AIController {
   @Post('email-campaign')
   @HttpCode(HttpStatus.OK)
   async generateEmailCampaign(
+    @Tenant() organizationId: string,
     @CurrentUser() user: any,
     @Body()
     body: {
@@ -232,10 +242,10 @@ export class AIController {
     },
   ) {
     try {
-      const result = await this.contentService.generateEmailCampaign(user.sub, body);
+      const result = await this.contentService.generateEmailCampaign(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Email campaign generation failed: ${error.message}`);
+      this.logger.error(`Email campaign generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -247,6 +257,7 @@ export class AIController {
   @Post('headlines')
   @HttpCode(HttpStatus.OK)
   async generateHeadlines(
+    @Tenant() organizationId: string,
     @CurrentUser() user: any,
     @Body()
     body: {
@@ -258,10 +269,10 @@ export class AIController {
     },
   ) {
     try {
-      const result = await this.contentService.generateHeadlines(user.sub, body);
+      const result = await this.contentService.generateHeadlines(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Headline generation failed: ${error.message}`);
+      this.logger.error(`Headline generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -290,7 +301,7 @@ export class AIController {
       const result = await this.contentService.generateImage(organizationId, user.sub, body);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Image generation failed: ${error.message}`);
+      this.logger.error(`Image generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -307,7 +318,7 @@ export class AIController {
       const templates = await this.promptService.getAllBuiltInTemplates();
       return { success: true, data: templates };
     } catch (error) {
-      this.logger.error(`Failed to get templates: ${error.message}`);
+      this.logger.error(`Failed to get templates: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -322,7 +333,7 @@ export class AIController {
       const templates = await this.promptService.getTemplatesByCategory(category);
       return { success: true, data: templates };
     } catch (error) {
-      this.logger.error(`Failed to get templates: ${error.message}`);
+      this.logger.error(`Failed to get templates: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -345,7 +356,7 @@ export class AIController {
       ]);
       return { success: true, data: { stats, limits } };
     } catch (error) {
-      this.logger.error(`Failed to get usage stats: ${error.message}`);
+      this.logger.error(`Failed to get usage stats: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -363,7 +374,7 @@ export class AIController {
       const result = await this.usageLimitService.checkUsageLimit(organizationId, user.sub);
       return { success: true, data: result };
     } catch (error) {
-      this.logger.error(`Failed to check usage: ${error.message}`);
+      this.logger.error(`Failed to check usage: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -378,7 +389,7 @@ export class AIController {
       const stats = this.aiService.getCacheStats();
       return { success: true, data: stats };
     } catch (error) {
-      this.logger.error(`Failed to get cache stats: ${error.message}`);
+      this.logger.error(`Failed to get cache stats: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -397,7 +408,7 @@ export class AIController {
         message: `Cleared ${cleared} cache entries`,
       };
     } catch (error) {
-      this.logger.error(`Failed to clear cache: ${error.message}`);
+      this.logger.error(`Failed to clear cache: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -412,7 +423,7 @@ export class AIController {
       const status = await this.aiService.validateProviders();
       return { success: true, data: status };
     } catch (error) {
-      this.logger.error(`Failed to get providers: ${error.message}`);
+      this.logger.error(`Failed to get providers: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -424,6 +435,7 @@ export class AIController {
   @Post('models/test')
   @HttpCode(HttpStatus.OK)
   async testModel(
+    @Tenant() organizationId: string,
     @Body() body: { prompt: string; model: AIModel },
     @CurrentUser() user: any,
   ) {
@@ -434,6 +446,7 @@ export class AIController {
           model: body.model,
           maxTokens: 100,
         },
+        organizationId,
         user.sub,
         { type: 'custom' },
         false,
@@ -445,7 +458,7 @@ export class AIController {
         data: result,
       };
     } catch (error) {
-      this.logger.error(`Model test failed: ${error.message}`);
+      this.logger.error(`Model test failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }

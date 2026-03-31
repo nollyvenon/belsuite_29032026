@@ -76,14 +76,11 @@ export class StripeProvider implements IPaymentProvider {
         externalPaymentId,
       );
 
-      const charge = payment.charges.data[0];
-      const amount = charge ? charge.amount / 100 : payment.amount / 100;
-
       return {
         id: payment.id,
         externalPaymentId: payment.id,
         status: this.mapStripeStatus(payment.status),
-        amount: amount,
+        amount: payment.amount / 100,
         currency: payment.currency.toUpperCase(),
         provider: PaymentProvider.STRIPE,
         metadata: payment.metadata,
@@ -95,20 +92,8 @@ export class StripeProvider implements IPaymentProvider {
 
   async refundPayment(request: RefundRequest): Promise<RefundResponse> {
     try {
-      // Stripe refunds are typically created from charge IDs, not payment intent IDs
-      // Fetch the payment intent first
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(
-        request.paymentId,
-      );
-
-      if (!paymentIntent.charges.data[0]) {
-        throw new Error('No charge found for this payment');
-      }
-
-      const chargeId = paymentIntent.charges.data[0].id;
-
       const refund = await this.stripe.refunds.create({
-        charge: chargeId,
+        payment_intent: request.paymentId,
         amount: request.amount ? Math.round(request.amount * 100) : undefined,
         reason: 'requested_by_customer',
         metadata: {
@@ -228,7 +213,7 @@ export class StripeProvider implements IPaymentProvider {
 
   async cancelSubscription(externalSubscriptionId: string): Promise<void> {
     try {
-      await this.stripe.subscriptions.del(externalSubscriptionId);
+      await this.stripe.subscriptions.cancel(externalSubscriptionId);
     } catch (error) {
       throw new Error(
         `Stripe subscription cancellation failed: ${error.message}`,

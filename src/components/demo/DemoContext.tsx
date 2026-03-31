@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Lead, MOCK_LEADS, MOCK_STATS, MOCK_ACTIVITY } from '@/src/lib/demo-data';
+import { Lead, MOCK_LEADS, MOCK_STATS, MOCK_ACTIVITY } from '@/lib/demo-data';
 
 type Tab = 'dashboard' | 'leads' | 'ai' | 'automation' | 'analytics' | 'usage';
 

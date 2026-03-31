@@ -1,12 +1,12 @@
-import { Navbar } from '@/src/components/Navbar';
-import { Hero } from '@/src/components/Hero';
-import { SocialProof } from '@/src/components/SocialProof';
-import { ProblemSolution } from '@/src/components/ProblemSolution';
-import { Features } from '@/src/components/Features';
-import { HowItWorks } from '@/src/components/HowItWorks';
-import { Pricing } from '@/src/components/Pricing';
-import { FinalCTA } from '@/src/components/FinalCTA';
-import { Footer } from '@/src/components/Footer';
+import { Navbar } from '@/components/Navbar';
+import { Hero } from '@/components/Hero';
+import { SocialProof } from '@/components/SocialProof';
+import { ProblemSolution } from '@/components/ProblemSolution';
+import { Features } from '@/components/Features';
+import { HowItWorks } from '@/components/HowItWorks';
+import { Pricing } from '@/components/Pricing';
+import { FinalCTA } from '@/components/FinalCTA';
+import { Footer } from '@/components/Footer';
 
 export default function Home() {
   return (

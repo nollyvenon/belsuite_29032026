@@ -148,7 +148,7 @@ export class UsageTrackingService {
       month: usage.period,
       aiTokensUsed: usage.aiTokensUsed || 0,
       aiRequestsCount: usage.aiRequestsCount || 0,
-      storageUsedBytes: usage.storageUsedBytes || 0,
+      storageUsedBytes: Number(usage.storageUsedBytes || 0),
       apiCallsCount: usage.apiCallsCount || 0,
       emailsSent: usage.emailsSent || 0,
       emailsDelivered: usage.emailsDelivered || 0,
@@ -185,7 +185,7 @@ export class UsageTrackingService {
       month: u.period,
       aiTokensUsed: u.aiTokensUsed || 0,
       aiRequestsCount: u.aiRequestsCount || 0,
-      storageUsedBytes: u.storageUsedBytes || 0,
+      storageUsedBytes: Number(u.storageUsedBytes || 0),
       apiCallsCount: u.apiCallsCount || 0,
       emailsSent: u.emailsSent || 0,
       emailsDelivered: u.emailsDelivered || 0,
@@ -441,7 +441,7 @@ export class UsageTrackingService {
   /**
    * Cleanup old records (runs monthly)
    */
-  @Cron(CronExpression.FIRST_DAY_OF_MONTH_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
   async cleanupOldRecords(): Promise<void> {
     const twoYearsAgo = new Date();
     twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);

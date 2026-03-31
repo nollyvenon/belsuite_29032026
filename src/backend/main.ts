@@ -7,7 +7,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter, AllExceptionsFilter } from './common/filters/http-exception.filter';
 import * as helmet from 'helmet';
-import * as rateLimit from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -47,7 +47,6 @@ async function bootstrap() {
   );
 
   // Exception handlers
-  const { httpAdapter } = app.get(HttpAdapterHost);
   app.useGlobalFilters(
     new AllExceptionsFilter(),
     new HttpExceptionFilter(),

@@ -14,7 +14,11 @@ export interface AIUsageStats {
   lastUsedAt: string;
 }
 
-export const AIDashboard = () => {
+interface AIDashboardProps {
+  timeRange?: '24h' | '7d' | '30d';
+}
+
+export const AIDashboard = ({ timeRange = '30d' }: AIDashboardProps) => {
   const [stats, setStats] = useState<AIUsageStats | null>(null);
   const [cacheStats, setCacheStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +27,7 @@ export const AIDashboard = () => {
     fetchStats();
     const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [timeRange]);
 
   const fetchStats = async () => {
     try {
@@ -72,7 +76,7 @@ export const AIDashboard = () => {
       <div>
         <h1 className="text-3xl font-bold mb-2">AI Usage Dashboard</h1>
         <p className="text-black/60 dark:text-white/60">
-          Monitor your AI generation usage, costs, and cache performance
+          Monitor your AI generation usage, costs, and cache performance over the last {timeRange}
         </p>
       </div>
 

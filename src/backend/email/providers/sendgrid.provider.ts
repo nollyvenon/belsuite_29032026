@@ -110,7 +110,7 @@ export class SendGridProvider implements IEmailProvider {
       for (const personalization of request.personalization) {
         for (const recipient of personalization.to) {
           let htmlContent = request.htmlContent;
-          let textContent = request.textTemplate;
+          let textContent = request.textContent;
 
           // Replace variables
           if (personalization.variables) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { trackAnalyticsEvent } from '@/hooks/useAnalytics';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,21 @@ export function useSocialPosts(initialFilters?: PostFilters) {
       body: JSON.stringify(input),
     });
     setPosts((prev) => [post, ...prev]);
+    trackAnalyticsEvent({
+      eventType: 'social_post_created',
+      entityType: 'SOCIAL_POST',
+      entityId: post.id,
+      channel: 'SOCIAL',
+      source: 'APP',
+      properties: {
+        accountCount: input.accountIds.length,
+        mediaCount: input.mediaUrls?.length ?? 0,
+        scheduled: Boolean(input.scheduledAt),
+        useOptimalTime: input.useOptimalTime,
+        autoRepostEnabled: input.autoRepostEnabled,
+        platformCount: post.accounts.length,
+      },
+    });
     return post;
   }, []);
 
@@ -224,12 +240,29 @@ export function useSocialPosts(initialFilters?: PostFilters) {
       body: JSON.stringify(input),
     });
     setPosts((prev) => prev.map((p) => (p.id === id ? post : p)));
+    trackAnalyticsEvent({
+      eventType: 'social_post_updated',
+      entityType: 'SOCIAL_POST',
+      entityId: id,
+      channel: 'SOCIAL',
+      source: 'APP',
+      properties: {
+        fieldsUpdated: Object.keys(input),
+      },
+    });
     return post;
   }, []);
 
   const cancelPost = useCallback(async (id: string) => {
     await apiFetch(`/api/social/posts/${id}`, { method: 'DELETE' });
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'CANCELLED' as PostStatus } : p));
+    trackAnalyticsEvent({
+      eventType: 'social_post_cancelled',
+      entityType: 'SOCIAL_POST',
+      entityId: id,
+      channel: 'SOCIAL',
+      source: 'APP',
+    });
   }, []);
 
   const reschedule = useCallback(async (id: string, scheduledAt: string) => {
@@ -238,6 +271,14 @@ export function useSocialPosts(initialFilters?: PostFilters) {
       body: JSON.stringify({ scheduledAt }),
     });
     setPosts((prev) => prev.map((p) => (p.id === id ? post : p)));
+    trackAnalyticsEvent({
+      eventType: 'social_post_rescheduled',
+      entityType: 'SOCIAL_POST',
+      entityId: id,
+      channel: 'SOCIAL',
+      source: 'APP',
+      properties: { scheduledAt },
+    });
     return post;
   }, []);
 
@@ -306,6 +347,20 @@ export function useBulk() {
       '/api/social/bulk',
       { method: 'POST', body: JSON.stringify(input) },
     );
+    trackAnalyticsEvent({
+      eventType: 'social_bulk_created',
+      entityType: 'SOCIAL_BULK_BATCH',
+      entityId: result.batchId,
+      channel: 'SOCIAL',
+      source: 'APP',
+      value: result.created,
+      properties: {
+        batchName: input.name,
+        requestedPosts: input.posts.length,
+        created: result.created,
+        failed: result.failed,
+      },
+    });
     await load();
     return result;
   }, [load]);
@@ -321,20 +376,51 @@ export function useAutoCreator() {
   const generate = useCallback(async (input: AutoCreatorInput) => {
     setGenerating(true);
     try {
-      return await apiFetch<{ posts: Array<{ platform: SocialPlatform; postId: string; preview: string }> }>(
+      const result = await apiFetch<{ posts: Array<{ platform: SocialPlatform; postId: string; preview: string }> }>(
         '/api/social/ai/generate',
         { method: 'POST', body: JSON.stringify(input) },
       );
+      trackAnalyticsEvent({
+        eventType: 'social_ai_posts_generated',
+        entityType: 'SOCIAL_AI_BATCH',
+        entityId: result.posts[0]?.postId,
+        channel: 'SOCIAL',
+        source: 'APP',
+        value: result.posts.length,
+        properties: {
+          promptLength: input.prompt.length,
+          platformCount: input.platforms.length,
+          tone: input.tone,
+          scheduledAt: input.scheduledAt,
+          generatedPosts: result.posts.length,
+        },
+      });
+      return result;
     } finally {
       setGenerating(false);
     }
   }, []);
 
   const generateCaption = useCallback(async (content: string, platform: SocialPlatform, tone?: string) => {
-    return apiFetch<{ caption: string; hashtags: string[] }>(
+    const result = await apiFetch<{ caption: string; hashtags: string[] }>(
       '/api/social/ai/caption',
       { method: 'POST', body: JSON.stringify({ content, platform, tone }) },
     );
+    trackAnalyticsEvent({
+      eventType: 'social_caption_generated',
+      entityType: 'SOCIAL_CAPTION',
+      entityId: platform,
+      channel: 'SOCIAL',
+      source: 'APP',
+      value: result.hashtags.length,
+      properties: {
+        platform,
+        tone,
+        contentLength: content.length,
+        hashtagCount: result.hashtags.length,
+      },
+    });
+    return result;
   }, []);
 
   return { generating, generate, generateCaption };

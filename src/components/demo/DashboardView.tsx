@@ -24,8 +24,8 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import { MOCK_CHART_DATA, MOCK_ACTIVITY } from '@/src/lib/demo-data';
-import { cn } from '@/src/lib/utils';
+import { MOCK_CHART_DATA, MOCK_ACTIVITY } from '@/lib/demo-data';
+import { cn } from '@/lib/utils';
 
 const StatCard = ({ title, value, growth, icon: Icon, prefix = "" }: any) => (
   <motion.div 

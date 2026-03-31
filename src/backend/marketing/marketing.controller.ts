@@ -24,6 +24,7 @@ import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
+import type { AdGenerationRequest } from './marketing.types';
 
 import { CampaignManagerService } from './services/campaign-manager.service';
 import { AdGeneratorService } from './services/ad-generator.service';
@@ -217,7 +218,7 @@ export class MarketingController {
       objective: CampaignObjectiveEnum;
       platform: AdPlatformEnum;
       format: AdFormatEnum;
-      tone?: string;
+      tone?: AdGenerationRequest['tone'];
       brandVoice?: string;
       keyBenefits?: string[];
       budget?: number;

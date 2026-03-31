@@ -10,6 +10,7 @@ import { PaymentModule } from './payments/payment.module';
 import { AIModule } from './ai/ai.module';
 import { VideoModule } from './video/video.module';
 import { SocialModule } from './social/social.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { UGCModule } from './ugc/ugc.module';
 import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
@@ -25,9 +26,6 @@ class ContentModule {}
 
 @Module({})
 class AutomationModule {}
-
-@Module({})
-class AnalyticsModule {}
 
 @Module({})
 class StorageModule {}

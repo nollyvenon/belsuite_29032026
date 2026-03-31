@@ -246,7 +246,7 @@ export function ABTestView({ campaignId }: { campaignId: string }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {test.status === 'PENDING' && (
+                  {test.status === 'DRAFT' && (
                     <button
                       onClick={() => handleStart(test.id)}
                       disabled={startingId === test.id}

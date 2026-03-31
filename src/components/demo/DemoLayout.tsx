@@ -20,8 +20,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useDemo } from './DemoContext';
-import { useDarkMode } from '@/src/hooks/useDarkMode';
-import { cn } from '@/src/lib/utils';
+import { useDarkMode } from '@/hooks/useDarkMode';
+import { cn } from '@/lib/utils';
 
 const SidebarItem = ({ icon: Icon, label, tab, active, onClick }: any) => (
   <button 

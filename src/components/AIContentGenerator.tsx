@@ -5,14 +5,27 @@ import { motion } from 'motion/react';
 import { Sparkles, Copy, DownloadCloud, Loader } from 'lucide-react';
 
 export interface ContentGeneratorProps {
-  type: 'blog' | 'social' | 'ad' | 'email' | 'product' | 'video' | 'headlines';
+  type?: 'blog' | 'social' | 'ad' | 'email' | 'product' | 'video' | 'headlines' | 'image';
+  contentType?: string;
   onGenerate?: (content: string) => void;
 }
 
-const ContentGenerator = ({ type, onGenerate }: ContentGeneratorProps) => {
+const CONTENT_TYPE_MAP: Record<string, NonNullable<ContentGeneratorProps['type']>> = {
+  blog_post: 'blog',
+  social_post: 'social',
+  ad_copy: 'ad',
+  email_campaign: 'email',
+  product_description: 'product',
+  video_script: 'video',
+  headlines: 'headlines',
+  image: 'image',
+};
+
+const ContentGenerator = ({ type, contentType, onGenerate }: ContentGeneratorProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [error, setError] = useState('');
+  const resolvedType = type ?? (contentType ? CONTENT_TYPE_MAP[contentType] : 'blog');
 
   // Display configuration by type
   const configs: Record<string, any> = {
@@ -57,21 +70,27 @@ const ContentGenerator = ({ type, onGenerate }: ContentGeneratorProps) => {
       icon: '📰',
       fields: ['Content Type', 'Topic', 'Audience', 'Number of Headlines'],
     },
+    image: {
+      title: 'Image Generator',
+      icon: '🖼️',
+      fields: ['Prompt', 'Style'],
+    },
   };
 
-  const config = configs[type];
+  const config = configs[resolvedType] ?? configs.blog;
 
   const handleGenerate = async (formData: any) => {
     setIsLoading(true);
     setError('');
 
     try {
-      const endpoint = type === 'blog' ? '/api/ai/blog-post'
-        : type === 'social' ? '/api/ai/social-post'
-        : type === 'ad' ? '/api/ai/ad-copy'
-        : type === 'email' ? '/api/ai/email-campaign'
-        : type === 'product' ? '/api/ai/product-description'
-        : type === 'video' ? '/api/ai/video-script'
+      const endpoint = resolvedType === 'blog' ? '/api/ai/blog-post'
+        : resolvedType === 'social' ? '/api/ai/social-post'
+        : resolvedType === 'ad' ? '/api/ai/ad-copy'
+        : resolvedType === 'email' ? '/api/ai/email-campaign'
+        : resolvedType === 'product' ? '/api/ai/product-description'
+        : resolvedType === 'video' ? '/api/ai/video-script'
+        : resolvedType === 'image' ? '/api/ai/image'
         : '/api/ai/headlines';
 
       const response = await fetch(endpoint, {
@@ -88,7 +107,13 @@ const ContentGenerator = ({ type, onGenerate }: ContentGeneratorProps) => {
       }
 
       const data = await response.json();
-      const content = data.data.content || data.data.script || data.data.email || data.data.description || data.data.copies?.join('\n\n') || data.data.headlines?.join('\n');
+      const content = data.data.content
+        || data.data.script
+        || data.data.email
+        || data.data.description
+        || data.data.copies?.join('\n\n')
+        || data.data.headlines?.join('\n')
+        || data.data.images?.join('\n');
       
       setGeneratedContent(content);
       onGenerate?.(content);

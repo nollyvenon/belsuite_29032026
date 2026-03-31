@@ -6,7 +6,7 @@
 export { AdminModule } from './admin.module';
 export { AdminEmailSettingsService } from './services/admin-email-settings.service';
 export { AdminEmailSettingsController } from './controllers/admin-email-settings.controller';
-export {
+export type {
   AdminEmailSettingsDto,
   UpdateEmailSettingsDto,
   TestEmailDto,

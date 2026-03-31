@@ -5,7 +5,7 @@
 
 import { Injectable, BadRequestException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { OnboardingStep } from '@prisma/client';
+import { OnboardingStep, SubscriptionTier } from '@prisma/client';
 import * as crypto from 'crypto';
 
 export interface CreateTenantDto {
@@ -55,13 +55,13 @@ export class TenantService {
           name: dto.name,
           slug: dto.slug,
           email: dto.email,
-          tier: (dto.tier?.toUpperCase() as any) || 'STARTER',
+          tier: (dto.tier?.toUpperCase() as SubscriptionTier) || SubscriptionTier.STARTER,
           encryptionKey: this.generateEncryptionKey(),
           tenantOnboarding: {
             create: {
               step: OnboardingStep.WELCOME,
               companyName: dto.companyName,
-              website: dto.website,
+              companyWebsite: dto.website,
               industry: dto.industry,
             },
           },
@@ -183,7 +183,7 @@ export class TenantService {
       where: { id: organizationId },
       data: {
         ...(dto.name && { name: dto.name }),
-        ...(dto.tier && { tier: dto.tier }),
+        ...(dto.tier && { tier: dto.tier.toUpperCase() as SubscriptionTier }),
         ...(dto.metadata && { metadata: dto.metadata }),
       },
       include: {

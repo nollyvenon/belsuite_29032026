@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { trackAnalyticsEvent } from '@/hooks/useAnalytics';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,18 @@ export function useVideoProjects() {
       body: JSON.stringify({ title, aspectRatio }),
     });
     setProjects((prev) => [proj, ...prev]);
+    trackAnalyticsEvent({
+      eventType: 'video_project_created',
+      entityType: 'VIDEO_PROJECT',
+      entityId: proj.id,
+      channel: 'VIDEO',
+      source: 'APP',
+      properties: {
+        title,
+        aspectRatio,
+        status: proj.status,
+      },
+    });
     return proj;
   }, []);
 
@@ -147,6 +160,19 @@ export function useVideoEditor(projectId: string) {
         method: 'POST',
         body: JSON.stringify({ script, voiceId, aspectRatio }),
       });
+      trackAnalyticsEvent({
+        eventType: 'video_script_generated',
+        entityType: 'VIDEO_PROJECT',
+        entityId: projectId,
+        channel: 'VIDEO',
+        source: 'APP',
+        value: script.length,
+        properties: {
+          voiceId,
+          aspectRatio,
+          scriptLength: script.length,
+        },
+      });
       await load();
     } finally {
       setGenerating(false);
@@ -167,6 +193,18 @@ export function useVideoEditor(projectId: string) {
         `/api/video/projects/${projectId}/render`,
         { method: 'POST', body: JSON.stringify({ format, quality }) },
       );
+      trackAnalyticsEvent({
+        eventType: 'video_render_queued',
+        entityType: 'VIDEO_PROJECT',
+        entityId: projectId,
+        channel: 'VIDEO',
+        source: 'APP',
+        properties: {
+          jobId: result.jobId,
+          format,
+          quality,
+        },
+      });
       await load();
       return result;
     } finally {
@@ -192,8 +230,22 @@ export function useVideoEditor(projectId: string) {
       body: formData,
     });
     if (!res.ok) throw new Error('Upload failed');
+    const upload = await res.json() as Record<string, unknown>;
+    trackAnalyticsEvent({
+      eventType: 'video_media_uploaded',
+      entityType: 'VIDEO_PROJECT',
+      entityId: projectId,
+      channel: 'VIDEO',
+      source: 'APP',
+      properties: {
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        assetId: typeof upload['id'] === 'string' ? upload['id'] : undefined,
+      },
+    });
     await load();
-    return res.json();
+    return upload;
   }, [projectId, load]);
 
   const deleteAsset = useCallback(async (assetId: string) => {
@@ -205,6 +257,14 @@ export function useVideoEditor(projectId: string) {
     await apiFetch(`/api/video/projects/${projectId}/subtitles/generate`, {
       method: 'POST',
       body: JSON.stringify({ language }),
+    });
+    trackAnalyticsEvent({
+      eventType: 'video_subtitles_generated',
+      entityType: 'VIDEO_PROJECT',
+      entityId: projectId,
+      channel: 'VIDEO',
+      source: 'APP',
+      properties: { language },
     });
     await load();
   }, [projectId, load]);

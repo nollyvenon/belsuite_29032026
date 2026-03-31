@@ -7,15 +7,18 @@
 export { TenantMiddleware } from './middleware/tenant.middleware';
 
 // Services
-export { TenantService, CreateTenantDto, UpdateTenantDto } from './services/tenant.service';
-export { DomainMappingService, AddDomainDto, DomainMappingResult } from './services/domain-mapping.service';
-export { RateLimitService, RateLimitCheckResult, UpdateRateLimitDto } from './services/rate-limit.service';
+export { TenantService } from './services/tenant.service';
+export type { CreateTenantDto, UpdateTenantDto } from './services/tenant.service';
+export { DomainMappingService } from './services/domain-mapping.service';
+export type { AddDomainDto, DomainMappingResult } from './services/domain-mapping.service';
+export { RateLimitService } from './services/rate-limit.service';
+export type { RateLimitCheckResult, UpdateRateLimitDto } from './services/rate-limit.service';
 export {
   TenantOnboardingService,
-  OnboardingStepData,
-  OnboardingStatus,
 } from './services/tenant-onboarding.service';
-export { UsageTrackingService, UsageMetrics, UsageAlert } from './services/usage-tracking.service';
+export type { OnboardingStepData, OnboardingStatus } from './services/tenant-onboarding.service';
+export { UsageTrackingService } from './services/usage-tracking.service';
+export type { UsageMetrics, UsageAlert } from './services/usage-tracking.service';
 
 // Controllers
 export { TenantController } from './controllers/tenant.controller';
@@ -24,5 +27,7 @@ export { TenantController } from './controllers/tenant.controller';
 export { MultiTenantModule } from './multi-tenant.module';
 
 // Guards & Decorators (re-exported for convenience)
-export { TenantRateLimitGuard, RateLimit, RateLimitMeta } from '../common/guards/tenant-rate-limit.guard';
-export { CurrentTenant, TenantContext, Tenant } from '../common/decorators/tenant.decorator';
+export { TenantRateLimitGuard, RateLimit } from '../common/guards/tenant-rate-limit.guard';
+export type { RateLimitMeta } from '../common/guards/tenant-rate-limit.guard';
+export { CurrentTenant, Tenant } from '../common/decorators/tenant.decorator';
+export type { TenantContext } from '../common/decorators/tenant.decorator';

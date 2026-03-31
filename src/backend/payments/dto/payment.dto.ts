@@ -2,19 +2,19 @@
  * Payment DTOs for request/response validation
  */
 
-import { IsString, IsNumber, IsOptional, IsArray, IsEmail, IsEnum } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEmail } from 'class-validator';
 import { PaymentProvider } from '../types/payment.types';
 
 // Payment request DTOs
 export class CreatePaymentDto {
   @IsString()
-  provider: PaymentProvider;
+  provider!: PaymentProvider;
 
   @IsString()
-  subscriptionId: string;
+  subscriptionId!: string;
 
   @IsNumber()
-  amount: number;
+  amount!: number;
 
   @IsString()
   @IsOptional()
@@ -26,7 +26,7 @@ export class CreatePaymentDto {
 
 export class RefundPaymentDto {
   @IsString()
-  paymentId: string;
+  paymentId!: string;
 
   @IsNumber()
   @IsOptional()
@@ -39,13 +39,13 @@ export class RefundPaymentDto {
 
 export class CreateCustomerDto {
   @IsString()
-  provider: PaymentProvider;
+  provider!: PaymentProvider;
 
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
-  name: string;
+  name!: string;
 
   @IsString()
   @IsOptional()
@@ -54,48 +54,48 @@ export class CreateCustomerDto {
 
 export class AddPaymentMethodDto {
   @IsString()
-  customerId: string;
+  customerId!: string;
 
   @IsString()
-  provider: PaymentProvider;
+  provider!: PaymentProvider;
 
   @IsString()
-  type: 'card' | 'bank_account' | 'wallet';
+  type!: 'card' | 'bank_account' | 'wallet';
 
   @IsString()
-  billingEmail: string;
+  billingEmail!: string;
 
   @IsString()
-  billingName: string;
+  billingName!: string;
 
   @IsString()
-  billingAddress: string;
+  billingAddress!: string;
 
   @IsString()
-  billingCity: string;
+  billingCity!: string;
 
   @IsString()
-  billingState: string;
+  billingState!: string;
 
   @IsString()
-  billingZip: string;
+  billingZip!: string;
 
   @IsString()
-  billingCountry: string;
+  billingCountry!: string;
 }
 
 export class CreateSubscriptionDto {
   @IsString()
-  provider: PaymentProvider;
+  provider!: PaymentProvider;
 
   @IsString()
-  customerId: string;
+  customerId!: string;
 
   @IsString()
-  planId: string;
+  planId!: string;
 
   @IsString()
-  paymentMethodId: string;
+  paymentMethodId!: string;
 
   @IsNumber()
   @IsOptional()
@@ -104,41 +104,41 @@ export class CreateSubscriptionDto {
 
 export class CancelSubscriptionDto {
   @IsString()
-  provider: PaymentProvider;
+  provider!: PaymentProvider;
 
   @IsString()
-  externalSubscriptionId: string;
+  externalSubscriptionId!: string;
 }
 
 export class VerifyPaymentDto {
   @IsString()
-  provider: PaymentProvider;
+  provider!: PaymentProvider;
 
   @IsString()
-  paymentId: string;
+  paymentId!: string;
 }
 
 export class PaymentStatsDto {
-  totalPayments: number;
-  totalAmount: number;
-  completedAmount: number;
-  pendingAmount: number;
-  byStatus: Record<string, number>;
-  byProvider: Record<string, number>;
+  totalPayments!: number;
+  totalAmount!: number;
+  completedAmount!: number;
+  pendingAmount!: number;
+  byStatus!: Record<string, number>;
+  byProvider!: Record<string, number>;
 }
 
 export class StripeWebhookDto {
-  id: string;
-  object: string;
-  type: string;
-  data: {
+  id!: string;
+  object!: string;
+  type!: string;
+  data!: {
     object: Record<string, any>;
   };
 }
 
 export class PaystackWebhookDto {
-  event: string;
-  data: {
+  event!: string;
+  data!: {
     reference: string;
     amount: number;
     status: string;
@@ -165,7 +165,6 @@ export class PaystackWebhookDto {
       first_name: string;
       last_name: string;
       email: string;
-      customer_code: string;
       phone: string;
       metadata: Record<string, any>;
       risk_action: string;
@@ -188,8 +187,8 @@ export class PaystackWebhookDto {
 }
 
 export class FlutterwaveWebhookDto {
-  event: string;
-  data: {
+  event!: string;
+  data!: {
     id: string;
     amount: number;
     currency: string;
@@ -205,11 +204,11 @@ export class FlutterwaveWebhookDto {
 }
 
 export class PayPalWebhookDto {
-  id: string;
-  event_type: string;
-  create_time: string;
-  resource_type: string;
-  resource: {
+  id!: string;
+  event_type!: string;
+  create_time!: string;
+  resource_type!: string;
+  resource!: {
     id: string;
     state: string;
     payer: {
@@ -225,7 +224,7 @@ export class PayPalWebhookDto {
 }
 
 export class SofortWebhookDto {
-  transaction: {
+  transaction!: {
     transaction_id: string;
     merchant_id: number;
     amount: number;

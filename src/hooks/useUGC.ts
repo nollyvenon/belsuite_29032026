@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { trackAnalyticsEvent } from '@/hooks/useAnalytics';
 
 export type UGCProjectStatus = 'DRAFT' | 'SCRIPTING' | 'RENDERING' | 'READY' | 'PUBLISHED' | 'FAILED';
 export type AvatarStyle = 'INFLUENCER' | 'PROFESSIONAL' | 'CASUAL' | 'PRESENTER' | 'NARRATOR';
@@ -184,6 +185,20 @@ export function useUGCProjects() {
         method: 'POST',
         body: JSON.stringify(dto),
       });
+      trackAnalyticsEvent({
+        eventType: 'ugc_project_created',
+        entityType: 'UGC_PROJECT',
+        entityId: project.id,
+        channel: 'UGC',
+        source: 'APP',
+        properties: {
+          aspectRatio: dto.aspectRatio,
+          durationSeconds: dto.durationSeconds,
+          platform: dto.platform,
+          avatarId: dto.avatarId,
+          voiceCloneId: dto.voiceCloneId,
+        },
+      });
       await load();
       return project;
     },
@@ -352,6 +367,19 @@ export function useUGCStudio(projectId: string) {
           method: 'POST',
           body: JSON.stringify(dto),
         });
+        trackAnalyticsEvent({
+          eventType: 'ugc_script_generated',
+          entityType: 'UGC_PROJECT',
+          entityId: projectId,
+          channel: 'UGC',
+          source: 'APP',
+          properties: {
+            objective: dto.objective,
+            platform: dto.platform,
+            durationSeconds: dto.durationSeconds,
+            hasTalkingPoints: Boolean(dto.talkingPoints?.length),
+          },
+        });
         await load();
         return result;
       } finally {
@@ -368,6 +396,18 @@ export function useUGCStudio(projectId: string) {
         const result = await apiFetch<UGCScript>(`/projects/${projectId}/script`, {
           method: 'PUT',
           body: JSON.stringify({ content, scenesJson }),
+        });
+        trackAnalyticsEvent({
+          eventType: 'ugc_script_saved',
+          entityType: 'UGC_PROJECT',
+          entityId: projectId,
+          channel: 'UGC',
+          source: 'APP',
+          value: content.length,
+          properties: {
+            contentLength: content.length,
+            hasScenes: Boolean(scenesJson),
+          },
         });
         await load();
         return result;
@@ -393,6 +433,19 @@ export function useUGCStudio(projectId: string) {
           method: 'POST',
           body: JSON.stringify(dto),
         });
+        trackAnalyticsEvent({
+          eventType: 'ugc_render_requested',
+          entityType: 'UGC_PROJECT',
+          entityId: projectId,
+          channel: 'UGC',
+          source: 'APP',
+          properties: {
+            resolution: dto.resolution,
+            aspectRatio: dto.aspectRatio,
+            enableCaptions: dto.enableCaptions,
+            backgroundMusic: dto.backgroundMusic,
+          },
+        });
         await load();
         return result;
       } finally {
@@ -407,6 +460,17 @@ export function useUGCStudio(projectId: string) {
     try {
       const result = await apiFetch<UGCProject>(`/projects/${projectId}/publish`, {
         method: 'POST',
+      });
+      trackAnalyticsEvent({
+        eventType: 'ugc_project_published',
+        entityType: 'UGC_PROJECT',
+        entityId: projectId,
+        channel: 'UGC',
+        source: 'APP',
+        properties: {
+          platform: result.platform,
+          status: result.status,
+        },
       });
       await load();
       return result;

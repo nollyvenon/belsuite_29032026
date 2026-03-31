@@ -3,6 +3,14 @@
         "/^npx tsc --noEmit --pretty false$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^npm install motion framer-motion lucide-react recharts @nestjs/throttler @sendgrid/mail @aws-sdk/client-ses nodemailer$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^npm install motion framer-motion lucide-react recharts @nestjs/throttler @sendgrid/mail @aws-sdk/client-ses nodemailer --legacy-peer-deps$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

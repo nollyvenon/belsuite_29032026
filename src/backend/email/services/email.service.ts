@@ -4,18 +4,22 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { IEmailService, EmailSendOptions, EmailResponse, EmailStatus, CreateEmailTemplateDto, UpdateEmailTemplateDto, EmailTemplate } from '../interfaces/email.service.interface';
+import { EmailSendOptions, EmailResponse, EmailStatus, CreateEmailTemplateDto, UpdateEmailTemplateDto, EmailTemplate } from '../interfaces/email.service.interface';
 import { PrismaService } from '../../database/prisma.service';
 import { SendGridProvider } from '../providers/sendgrid.provider';
 
 @Injectable()
-export class EmailService implements IEmailService {
+export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly sendGridProvider: SendGridProvider,
   ) {}
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
 
   /**
    * Send a single email
@@ -33,35 +37,46 @@ export class EmailService implements IEmailService {
       }
 
       // For now, use SendGrid as primary provider
-      const response = await this.sendGridProvider.send(options);
+      const primaryRecipient = Array.isArray(options.to) ? options.to[0] : options.to;
+      const response = await this.sendGridProvider.sendEmail({
+        to: { email: primaryRecipient },
+        subject: options.subject,
+        htmlContent: options.html,
+        textContent: options.text,
+        replyTo: options.replyTo,
+        metadata: options.metadata,
+        tags: options.tags,
+      });
 
-      if (response.success && response.messageId) {
-        // Store in database
-        await this.prisma.email.create({
-          data: {
-            toEmail: Array.isArray(options.to) ? options.to[0] : options.to,
-            toName: undefined,
-            organizationId,
-            subject: options.subject,
-            htmlContent: options.html,
-            textContent: options.text,
-            status: 'SENT',
-            provider: 'SENDGRID',
-            externalEmailId: response.messageId,
-            attemptNumber: 1,
-            createdAt: new Date(),
-          },
-        });
+      await this.prisma.email.create({
+        data: {
+          toEmail: primaryRecipient,
+          toName: undefined,
+          organizationId,
+          subject: options.subject,
+          htmlContent: options.html,
+          textContent: options.text,
+          status: 'SENT',
+          provider: 'SENDGRID',
+          externalEmailId: response.externalEmailId,
+          attemptNumber: 1,
+          sentAt: response.sentAt,
+        },
+      });
 
-        this.logger.log(`Email sent: ${response.messageId}`);
-      }
+      this.logger.log(`Email sent: ${response.externalEmailId}`);
 
-      return response;
+      return {
+        success: true,
+        messageId: response.externalEmailId,
+        provider: 'sendgrid',
+        timestamp: response.sentAt,
+      };
     } catch (error) {
-      this.logger.error(`Send failed: ${error.message}`, error.stack);
+      this.logger.error(`Send failed: ${this.getErrorMessage(error)}`);
       return {
         success: false,
-        error: error.message,
+        error: this.getErrorMessage(error),
         provider: 'sendgrid',
         timestamp: new Date(),
         retryable: true,
@@ -121,10 +136,10 @@ export class EmailService implements IEmailService {
         organizationId,
       );
     } catch (error) {
-      this.logger.error(`Template send failed: ${error.message}`);
+      this.logger.error(`Template send failed: ${this.getErrorMessage(error)}`);
       return {
         success: false,
-        error: error.message,
+        error: this.getErrorMessage(error),
         provider: 'sendgrid',
         timestamp: new Date(),
       };
@@ -135,14 +150,36 @@ export class EmailService implements IEmailService {
    * Get email status
    */
   async getStatus(messageId: string): Promise<EmailStatus | null> {
-    return this.sendGridProvider.getStatus(messageId);
+    const email = await this.prisma.email.findFirst({
+      where: {
+        OR: [
+          { externalEmailId: messageId },
+          { id: messageId },
+        ],
+      },
+    });
+
+    if (!email) {
+      return null;
+    }
+
+    return {
+      messageId,
+      status: email.status.toLowerCase() as EmailStatus['status'],
+      timestamp: email.updatedAt,
+    };
   }
 
   /**
    * Service health check
    */
   async health(): Promise<{ healthy: boolean; provider: string; timestamp: Date }> {
-    return this.sendGridProvider.health();
+    const healthy = await this.sendGridProvider.healthCheck();
+    return {
+      healthy,
+      provider: 'sendgrid',
+      timestamp: new Date(),
+    };
   }
 
   /**
@@ -211,7 +248,12 @@ export class EmailService implements IEmailService {
 
     this.logger.log(`Template updated: ${templateId}`);
 
-    return this.getTemplate(templateId, organizationId);
+    const updatedTemplate = await this.getTemplate(templateId, organizationId);
+    if (!updatedTemplate) {
+      throw new Error('Template not found');
+    }
+
+    return updatedTemplate;
   }
 
   /**

@@ -4,7 +4,7 @@
  */
 
 import { Injectable, Logger, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 import { OpenAIProvider } from './providers/openai.provider';
 import { ClaudeProvider } from './providers/claude.provider';
 import { LocalModelProvider } from './providers/local.provider';
@@ -20,15 +20,15 @@ import {
   RoutingStrategy,
   CacheEntry,
   AIFinancialsData,
-  PromptTemplate,
 } from './types/ai.types';
 import * as crypto from 'crypto';
+
+type AIProviderInstance = OpenAIProvider | ClaudeProvider | LocalModelProvider;
 
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
-  private providers: Map<AIProviderEnum, any>;
-  private modelMetrics: Map<AIModel, any> = new Map();
+  private providers: Map<AIProviderEnum, AIProviderInstance>;
 
   // Model configuration with capabilities
   private modelCapabilities: Map<AIModel, AICapability[]> = new Map([
@@ -81,11 +81,15 @@ export class AIService {
     private localProvider: LocalModelProvider,
     private usageLimitService: AIUsageLimitService,
   ) {
-    this.providers = new Map([
+    this.providers = new Map<AIProviderEnum, AIProviderInstance>([
       [AIProviderEnum.OPENAI, this.openaiProvider],
       [AIProviderEnum.CLAUDE, this.claudeProvider],
       [AIProviderEnum.LOCAL, this.localProvider],
     ]);
+  }
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
   }
 
   /**
@@ -145,7 +149,7 @@ export class AIService {
 
       return response;
     } catch (error) {
-      this.logger.error(`Text generation failed: ${error.message}`);
+      this.logger.error(`Text generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -157,7 +161,7 @@ export class AIService {
     request: ImageGenerationRequest,
     organizationId: string,
     userId: string,
-    strategy: RoutingStrategy = { type: 'cheapest' },
+    _strategy: RoutingStrategy = { type: 'cheapest' },
   ): Promise<ImageGenerationResponse> {
     try {
       // Estimate tokens for image generation (each image ~500 tokens)
@@ -185,7 +189,7 @@ export class AIService {
 
       return response;
     } catch (error) {
-      this.logger.error(`Image generation failed: ${error.message}`);
+      this.logger.error(`Image generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -212,10 +216,10 @@ export class AIService {
         return this.selectCheapestModel(availableModels, strategy);
 
       case 'fastest':
-        return this.selectFastestModel(availableModels, strategy);
+        return this.selectFastestModel(availableModels);
 
       case 'best_quality':
-        return this.selectBestQualityModel(availableModels, strategy);
+        return this.selectBestQualityModel(availableModels);
 
       case 'balanced':
         // Balance cost, speed, and quality
@@ -253,7 +257,6 @@ export class AIService {
 
   private selectFastestModel(
     models: AIModel[],
-    strategy: RoutingStrategy,
   ): AIModel {
     // GPT-3.5 is typically faster than GPT-4
     if (models.includes(AIModel.GPT_3_5_TURBO)) {
@@ -267,7 +270,6 @@ export class AIService {
 
   private selectBestQualityModel(
     models: AIModel[],
-    strategy: RoutingStrategy,
   ): AIModel {
     // GPT-4 and Claude Opus have best quality
     if (models.includes(AIModel.GPT_4_TURBO)) {
@@ -288,11 +290,14 @@ export class AIService {
 
     // Filter by preferred providers
     if (prefs.preferredProviders && prefs.preferredProviders.length > 0) {
-      const filtered = models.filter(m =>
-        this.getProviderForModel(m).name
-          .toLowerCase()
-          .includes(prefs.preferredProviders![0].toLowerCase()),
-      );
+      const filtered = models.filter(model => {
+        const provider = this.getProviderForModel(model);
+        return provider
+          ? provider.name
+              .toLowerCase()
+              .includes(prefs.preferredProviders![0].toLowerCase())
+          : false;
+      });
       if (filtered.length > 0) {
         return filtered[0];
       }
@@ -304,7 +309,7 @@ export class AIService {
   /**
    * Get provider instance for model
    */
-  private getProviderForModel(model: AIModel): any {
+  private getProviderForModel(model: AIModel): AIProviderInstance | null {
     if (
       [
         AIModel.GPT_4_TURBO,
@@ -313,7 +318,7 @@ export class AIService {
         AIModel.GPT_3_5,
       ].includes(model)
     ) {
-      return this.providers.get(AIProviderEnum.OPENAI);
+      return this.providers.get(AIProviderEnum.OPENAI) ?? null;
     }
     if (
       [
@@ -322,10 +327,10 @@ export class AIService {
         AIModel.CLAUDE_3_HAIKU,
       ].includes(model)
     ) {
-      return this.providers.get(AIProviderEnum.CLAUDE);
+      return this.providers.get(AIProviderEnum.CLAUDE) ?? null;
     }
     if ([AIModel.OLLAMA_LLAMA2, AIModel.OLLAMA_MISTRAL].includes(model)) {
-      return this.providers.get(AIProviderEnum.LOCAL);
+      return this.providers.get(AIProviderEnum.LOCAL) ?? null;
     }
     return null;
   }
@@ -383,22 +388,8 @@ export class AIService {
       const costs = this.modelCosts.get(model);
       if (!costs) return;
 
-      const financials: AIFinancialsData = {
-        requestId: response.id,
-        userId,
-        model,
-        provider: response.provider,
-        inputTokens: response.tokens.prompt,
-        outputTokens: response.tokens.completion,
-        costPerInput: costs.input,
-        costPerOutput: costs.output,
-        totalCost: response.cost,
-        usedCache: response.cached,
-        timestamp: new Date(),
-      };
-
       // Store in database
-      await this.prisma.aiUsage.create({
+      await this.prisma.aIUsage.create({
         data: {
           organizationId,
           userId,
@@ -414,13 +405,13 @@ export class AIService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to track usage: ${error.message}`);
+      this.logger.error(`Failed to track usage: ${this.getErrorMessage(error)}`);
     }
   }
 
   private async trackImageUsage(organizationId: string, userId: string, response: ImageGenerationResponse): Promise<void> {
     try {
-      await this.prisma.aiUsage.create({
+      await this.prisma.aIUsage.create({
         data: {
           organizationId,
           userId,
@@ -428,7 +419,7 @@ export class AIService {
           provider: response.provider.toString(),
           inputTokens: 0,
           outputTokens: 0,
-          totalTokens: (response.quantity || 1) * 500, // Estimate image generation tokens
+          totalTokens: response.urls.length * 500,
           cost: response.cost,
           usedCache: false,
           contentType: 'image_generation',
@@ -436,7 +427,7 @@ export class AIService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to track image usage: ${error.message}`);
+      this.logger.error(`Failed to track image usage: ${this.getErrorMessage(error)}`);
     }
   }
 
@@ -445,7 +436,7 @@ export class AIService {
    */
   async getUserStats(userId: string) {
     try {
-      const stats = await this.prisma.aiUsage.findMany({
+      const stats = await this.prisma.aIUsage.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -463,7 +454,7 @@ export class AIService {
 
       return summary;
     } catch (error) {
-      this.logger.error(`Failed to get user stats: ${error.message}`);
+      this.logger.error(`Failed to get user stats: ${this.getErrorMessage(error)}`);
       return null;
     }
   }

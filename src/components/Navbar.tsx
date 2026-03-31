@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { Sun, Moon, Zap, Video, Clapperboard, Megaphone } from 'lucide-react';
+import { Sun, Moon, Zap, Video, Clapperboard, Megaphone, BarChart3 } from 'lucide-react';
 import { LoginModal } from './LoginModal';
 
 export const Navbar = () => {
@@ -38,6 +38,9 @@ export const Navbar = () => {
             </a>
             <a href="/marketing" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
               <Megaphone className="w-3.5 h-3.5" /> Marketing
+            </a>
+            <a href="/analytics" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+              <BarChart3 className="w-3.5 h-3.5" /> Analytics
             </a>
           </div>
 

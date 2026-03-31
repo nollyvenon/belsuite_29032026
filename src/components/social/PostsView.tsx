@@ -242,7 +242,7 @@ export function PostsView({ accounts }: { accounts: SocialAccount[] }) {
           {PLATFORM_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
 
-        <button onClick={refresh} className="p-2 rounded-xl border border-white/10 text-zinc-500 hover:text-white hover:bg-white/5 transition-colors">
+        <button onClick={() => { void refresh(); }} className="p-2 rounded-xl border border-white/10 text-zinc-500 hover:text-white hover:bg-white/5 transition-colors">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
@@ -269,7 +269,9 @@ export function PostsView({ accounts }: { accounts: SocialAccount[] }) {
                 key={post.id}
                 post={post}
                 onCancel={() => cancelPost(post.id)}
-                onReschedule={(at) => reschedule(post.id, at)}
+                onReschedule={async (at) => {
+                  await reschedule(post.id, at);
+                }}
               />
             ))}
           </AnimatePresence>

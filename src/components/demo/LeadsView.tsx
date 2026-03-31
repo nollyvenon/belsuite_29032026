@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Search, Filter, MoreHorizontal, Mail, Phone, ExternalLink } from 'lucide-react';
 import { useDemo } from './DemoContext';
-import { cn } from '@/src/lib/utils';
+import { cn } from '@/lib/utils';
 
 export const LeadsView = () => {
   const { leads } = useDemo();

@@ -1,4 +1,4 @@
-import { Zap, Twitter, Instagram, Linkedin, Github } from 'lucide-react';
+import { Zap, Globe, Camera, BriefcaseBusiness, Code2 } from 'lucide-react';
 
 export const Footer = () => {
   return (
@@ -24,6 +24,7 @@ export const Footer = () => {
               <li><a href="/video" className="hover:text-primary transition-colors">AI Video</a></li>
               <li><a href="/ugc" className="hover:text-primary transition-colors">UGC Creator</a></li>
               <li><a href="/marketing" className="hover:text-primary transition-colors">Ad Engine</a></li>
+              <li><a href="/analytics" className="hover:text-primary transition-colors">Analytics</a></li>
               <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
             </ul>
           </div>
@@ -41,10 +42,10 @@ export const Footer = () => {
           <div>
             <h4 className="mb-6 text-sm font-bold uppercase tracking-widest">Social</h4>
             <div className="flex gap-4">
-              <a href="#" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><Twitter className="w-5 h-5" /></a>
-              <a href="#" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><Instagram className="w-5 h-5" /></a>
-              <a href="#" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><Linkedin className="w-5 h-5" /></a>
-              <a href="#" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><Github className="w-5 h-5" /></a>
+              <a href="#" aria-label="X" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><Globe className="w-5 h-5" /></a>
+              <a href="#" aria-label="Instagram" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><Camera className="w-5 h-5" /></a>
+              <a href="#" aria-label="LinkedIn" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><BriefcaseBusiness className="w-5 h-5" /></a>
+              <a href="#" aria-label="GitHub" className="p-2 border rounded-full dark:border-white/10 border-black/10 hover:text-primary transition-colors"><Code2 className="w-5 h-5" /></a>
             </div>
           </div>
         </div>

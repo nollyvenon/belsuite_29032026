@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Send, Copy, Check, RefreshCw, Wand2 } from 'lucide-react';
 import { useDemo } from './DemoContext';
-import { AI_RESPONSES } from '@/src/lib/demo-data';
-import { cn } from '@/src/lib/utils';
+import { AI_RESPONSES } from '@/lib/demo-data';
+import { cn } from '@/lib/utils';
 
 export const AIView = () => {
   const { isGenerating, setIsGenerating, generatedContent, setGeneratedContent } = useDemo();

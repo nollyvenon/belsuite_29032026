@@ -73,7 +73,7 @@ export class TenantOnboardingService {
       remainingSteps: this.onboardingFlow.slice(currentStepIndex + 1).map(s => s.toString()),
       currentStepData: {
         companyName: onboarding.companyName,
-        website: onboarding.website,
+        website: onboarding.companyWebsite,
         industry: onboarding.industry,
         subdomainChosen: onboarding.subdomainChosen,
         customDomainChosen: onboarding.customDomainChosen,
@@ -119,7 +119,7 @@ export class TenantOnboardingService {
       const updated = await this.prisma.tenantOnboarding.update({
         where: { organizationId },
         data: {
-          step: nextStep || OnboardingStep.COMPLETED,
+          step: nextStep ?? OnboardingStep.COMPLETED,
           completed: false,
         },
       });
@@ -143,7 +143,7 @@ export class TenantOnboardingService {
    * Skip optional step
    */
   async skipStep(organizationId: string, currentStep: string): Promise<OnboardingStatus> {
-    const skippableSteps = [
+    const skippableSteps: OnboardingStep[] = [
       OnboardingStep.TEAM_SETUP,
       OnboardingStep.PAYMENT_SETUP,
       OnboardingStep.FEATURE_SELECTION,
@@ -167,7 +167,7 @@ export class TenantOnboardingService {
     await this.prisma.tenantOnboarding.update({
       where: { organizationId },
       data: {
-        step: nextStep || OnboardingStep.COMPLETED,
+        step: nextStep ?? OnboardingStep.COMPLETED,
       },
     });
 
@@ -370,7 +370,7 @@ export class TenantOnboardingService {
   /**
    * Helper: Get next step in flow
    */
-  private getNextStep(currentStep: string): string | null {
+  private getNextStep(currentStep: string): OnboardingStep | null {
     const currentIndex = this.onboardingFlow.findIndex(s => s === currentStep);
 
     if (currentIndex === -1 || currentIndex === this.onboardingFlow.length - 1) {

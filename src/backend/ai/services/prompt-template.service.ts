@@ -3,9 +3,9 @@
  * Manages prompt templates for different content types
  */
 
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { PromptTemplate, AIModel, AICapability } from './types/ai.types';
+import { PromptTemplate, AIModel } from '../types/ai.types';
 
 @Injectable()
 export class PromptTemplateService {
@@ -211,6 +211,57 @@ Requirements:
 
   constructor(private prisma: PrismaService) {}
 
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
+
+  private getDefaultModel(category: string): AIModel {
+    switch (category) {
+      case 'marketing':
+      case 'blog':
+        return AIModel.GPT_4_TURBO;
+      case 'content':
+      case 'ecommerce':
+      default:
+        return AIModel.GPT_3_5_TURBO;
+    }
+  }
+
+  private getDefaultTemperature(category: string): number {
+    switch (category) {
+      case 'marketing':
+        return 0.8;
+      case 'content':
+        return 0.7;
+      default:
+        return 0.6;
+    }
+  }
+
+  private mapStoredTemplate(template: {
+    id: string;
+    name: string;
+    category: string;
+    prompt: string;
+    variables: string[];
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): PromptTemplate {
+    return {
+      id: template.id,
+      name: template.name,
+      category: template.category,
+      template: template.prompt,
+      variables: template.variables,
+      description: template.description ?? '',
+      suggestedModel: this.getDefaultModel(template.category),
+      defaultTemperature: this.getDefaultTemperature(template.category),
+      createdAt: template.createdAt,
+      updatedAt: template.updatedAt,
+    };
+  }
+
   /**
    * Get built-in template
    */
@@ -245,33 +296,19 @@ Requirements:
     try {
       const newTemplate = await this.prisma.promptTemplate.create({
         data: {
-          userId,
+          createdBy: userId,
           name: template.name,
           category: template.category,
-          template: template.template,
+          prompt: template.template,
           variables: template.variables,
-          description: template.description,
-          suggestedModel: template.suggestedModel,
-          defaultTemperature: template.defaultTemperature,
-          exampleOutput: template.exampleOutput,
+          description: template.description || null,
+          isBuiltIn: false,
         },
       });
 
-      return {
-        id: newTemplate.id,
-        name: newTemplate.name,
-        category: newTemplate.category,
-        template: newTemplate.template,
-        variables: newTemplate.variables,
-        description: newTemplate.description,
-        suggestedModel: newTemplate.suggestedModel as AIModel,
-        defaultTemperature: newTemplate.defaultTemperature,
-        exampleOutput: newTemplate.exampleOutput || undefined,
-        createdAt: newTemplate.createdAt,
-        updatedAt: newTemplate.updatedAt,
-      };
+      return this.mapStoredTemplate(newTemplate);
     } catch (error) {
-      this.logger.error(`Failed to create template: ${error.message}`);
+      this.logger.error(`Failed to create template: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -289,33 +326,26 @@ Requirements:
         where: { id: templateId },
       });
 
-      if (!template || template.userId !== userId) {
+      if (!template || template.createdBy !== userId) {
         throw new NotFoundException('Template not found');
       }
 
       const updated = await this.prisma.promptTemplate.update({
         where: { id: templateId },
         data: {
-          ...updates,
-          updatedAt: new Date(),
+          ...(updates.name !== undefined ? { name: updates.name } : {}),
+          ...(updates.category !== undefined ? { category: updates.category } : {}),
+          ...(updates.template !== undefined ? { prompt: updates.template } : {}),
+          ...(updates.variables !== undefined ? { variables: updates.variables } : {}),
+          ...(updates.description !== undefined
+            ? { description: updates.description || null }
+            : {}),
         },
       });
 
-      return {
-        id: updated.id,
-        name: updated.name,
-        category: updated.category,
-        template: updated.template,
-        variables: updated.variables,
-        description: updated.description,
-        suggestedModel: updated.suggestedModel as AIModel,
-        defaultTemperature: updated.defaultTemperature,
-        exampleOutput: updated.exampleOutput || undefined,
-        createdAt: updated.createdAt,
-        updatedAt: updated.updatedAt,
-      };
+      return this.mapStoredTemplate(updated);
     } catch (error) {
-      this.logger.error(`Failed to update template: ${error.message}`);
+      this.logger.error(`Failed to update template: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -329,7 +359,7 @@ Requirements:
         where: { id: templateId },
       });
 
-      if (!template || template.userId !== userId) {
+      if (!template || template.createdBy !== userId) {
         throw new NotFoundException('Template not found');
       }
 
@@ -339,7 +369,7 @@ Requirements:
 
       this.logger.log(`Template deleted: ${templateId}`);
     } catch (error) {
-      this.logger.error(`Failed to delete template: ${error.message}`);
+      this.logger.error(`Failed to delete template: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -350,25 +380,13 @@ Requirements:
   async getUserTemplates(userId: string): Promise<PromptTemplate[]> {
     try {
       const templates = await this.prisma.promptTemplate.findMany({
-        where: { userId },
+        where: { createdBy: userId },
         orderBy: { createdAt: 'desc' },
       });
 
-      return templates.map(t => ({
-        id: t.id,
-        name: t.name,
-        category: t.category,
-        template: t.template,
-        variables: t.variables,
-        description: t.description,
-        suggestedModel: t.suggestedModel as AIModel,
-        defaultTemperature: t.defaultTemperature,
-        exampleOutput: t.exampleOutput || undefined,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
-      }));
+      return templates.map(template => this.mapStoredTemplate(template));
     } catch (error) {
-      this.logger.error(`Failed to get user templates: ${error.message}`);
+      this.logger.error(`Failed to get user templates: ${this.getErrorMessage(error)}`);
       return [];
     }
   }
@@ -412,18 +430,21 @@ Requirements:
    */
   async getTemplateStats(templateId: string): Promise<any> {
     try {
-      const uses = await this.prisma.aiUsage.findMany({
+      const uses = await this.prisma.aIUsage.findMany({
         where: { promptTemplateId: templateId },
       });
 
       return {
         totalUses: uses.length,
-        totalCost: uses.reduce((sum, u) => sum + u.cost, 0),
-        averageCost: uses.length > 0 ? uses.reduce((sum, u) => sum + u.cost, 0) / uses.length : 0,
+        totalCost: uses.reduce((sum: number, usage) => sum + usage.cost, 0),
+        averageCost:
+          uses.length > 0
+            ? uses.reduce((sum: number, usage) => sum + usage.cost, 0) / uses.length
+            : 0,
         lastUsed: uses[uses.length - 1]?.createdAt,
       };
     } catch (error) {
-      this.logger.error(`Failed to get template stats: ${error.message}`);
+      this.logger.error(`Failed to get template stats: ${this.getErrorMessage(error)}`);
       return null;
     }
   }

@@ -24,8 +24,8 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { MOCK_CHART_DATA } from '@/src/lib/demo-data';
-import { cn } from '@/src/lib/utils';
+import { MOCK_CHART_DATA } from '@/lib/demo-data';
+import { cn } from '@/lib/utils';
 
 const PIE_DATA = [
   { name: 'Email', value: 400 },

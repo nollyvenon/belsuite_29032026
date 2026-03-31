@@ -13,7 +13,7 @@ import {
   Clock, 
   Zap 
 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn } from '@/lib/utils';
 
 const WorkflowNode = ({ icon: Icon, title, description, type, active = false }: any) => (
   <motion.div 

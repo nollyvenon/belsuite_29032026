@@ -4,7 +4,6 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { IEmailService } from '../interfaces/email.service.interface';
 import { SendGridProvider } from './sendgrid.provider';
 import { MailgunProvider } from './mailgun.provider';
 import { SESProvider } from './ses.provider';
@@ -13,6 +12,13 @@ import { SendmailProvider } from './sendmail.provider';
 import { SmtpProvider } from './smtp.provider';
 
 export type EmailProviderType = 'sendgrid' | 'mailgun' | 'ses' | 'postmark' | 'sendmail' | 'smtp';
+export type EmailProviderInstance =
+  | SendGridProvider
+  | MailgunProvider
+  | SESProvider
+  | PostmarkProvider
+  | SendmailProvider
+  | SmtpProvider;
 
 @Injectable()
 export class EmailProviderFactory {
@@ -28,7 +34,7 @@ export class EmailProviderFactory {
   /**
    * Get provider instance by name
    */
-  getProvider(providerName?: EmailProviderType): IEmailService {
+  getProvider(providerName?: EmailProviderType): EmailProviderInstance {
     const provider = providerName || (process.env.EMAIL_PROVIDER as EmailProviderType) || 'sendgrid';
 
     switch (provider) {
@@ -51,7 +57,7 @@ export class EmailProviderFactory {
   /**
    * Get all available providers
    */
-  getAllProviders(): Record<EmailProviderType, IEmailService> {
+  getAllProviders(): Record<EmailProviderType, EmailProviderInstance> {
     return {
       sendgrid: this.sendGrid,
       mailgun: this.mailgun,

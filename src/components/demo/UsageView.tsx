@@ -12,7 +12,7 @@ import {
   Zap, 
   ArrowUpRight 
 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn } from '@/lib/utils';
 
 const UsageCard = ({ icon: Icon, title, value, limit, unit, color }: any) => {
   const percentage = (value / limit) * 100;

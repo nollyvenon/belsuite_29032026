@@ -8,7 +8,7 @@ import {
   SESClient,
   SendEmailCommand,
   SendBulkTemplatedEmailCommand,
-  GetAccountSendingEnabledAttributeCommand,
+  GetAccountSendingEnabledCommand,
 } from '@aws-sdk/client-ses';
 import {
   EmailSendOptions,
@@ -187,7 +187,7 @@ export class SESProvider implements IEmailService {
         };
       }
 
-      const command = new GetAccountSendingEnabledAttributeCommand({});
+      const command = new GetAccountSendingEnabledCommand({});
       await this.client.send(command);
 
       return {

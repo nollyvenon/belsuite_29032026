@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { trackAnalyticsEvent } from '@/hooks/useAnalytics';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -312,6 +313,19 @@ export function useCampaigns(status?: string) {
         method: 'POST',
         body: JSON.stringify(dto),
       });
+      trackAnalyticsEvent({
+        eventType: 'marketing_campaign_created',
+        entityType: 'MARKETING_CAMPAIGN',
+        entityId: c.id,
+        channel: 'MARKETING',
+        source: 'APP',
+        value: dto.dailyBudget ?? dto.totalBudget,
+        properties: {
+          objective: dto.objective,
+          dailyBudget: dto.dailyBudget,
+          totalBudget: dto.totalBudget,
+        },
+      });
       await load();
       return c;
     },
@@ -323,6 +337,14 @@ export function useCampaigns(status?: string) {
       await apiFetch(`/campaigns/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: s }),
+      });
+      trackAnalyticsEvent({
+        eventType: 'marketing_campaign_status_changed',
+        entityType: 'MARKETING_CAMPAIGN',
+        entityId: id,
+        channel: 'MARKETING',
+        source: 'APP',
+        properties: { status: s },
       });
       await load();
     },
@@ -368,6 +390,21 @@ export function useAdGenerator() {
           body: JSON.stringify(params),
         });
         setResult(data);
+        trackAnalyticsEvent({
+          eventType: 'marketing_ads_generated',
+          entityType: 'MARKETING_AD_BATCH',
+          entityId: params.platform,
+          channel: 'MARKETING',
+          source: 'APP',
+          value: data.variants.length,
+          properties: {
+            objective: params.objective,
+            platform: params.platform,
+            format: params.format,
+            requestedVariants: params.variantCount,
+            generatedVariants: data.variants.length,
+          },
+        });
         return data;
       } catch (e: any) {
         setError(e.message);
@@ -381,10 +418,22 @@ export function useAdGenerator() {
 
   const saveToCamera = useCallback(
     async (campaignId: string, genResult: AdGenerationResult, request: any) => {
-      return apiFetch<{ adIds: string[] }>(`/campaigns/${campaignId}/ai/save-ads`, {
+      const saved = await apiFetch<{ adIds: string[] }>(`/campaigns/${campaignId}/ai/save-ads`, {
         method: 'POST',
         body: JSON.stringify({ result: genResult, request }),
       });
+      trackAnalyticsEvent({
+        eventType: 'marketing_ads_saved',
+        entityType: 'MARKETING_CAMPAIGN',
+        entityId: campaignId,
+        channel: 'MARKETING',
+        source: 'APP',
+        value: saved.adIds.length,
+        properties: {
+          adCount: saved.adIds.length,
+        },
+      });
+      return saved;
     },
     [],
   );
@@ -470,6 +519,19 @@ export function useBudgetOptimizer() {
         { method: 'POST', body: JSON.stringify({ totalBudget }) },
       );
       setResult(data);
+      trackAnalyticsEvent({
+        eventType: 'marketing_budget_optimized',
+        entityType: 'MARKETING_CAMPAIGN',
+        entityId: campaignId,
+        channel: 'MARKETING',
+        source: 'APP',
+        value: totalBudget,
+        properties: {
+          allocationCount: data.allocations.length,
+          projectedRevenue: data.projectedRevenue,
+          projectedROAS: data.projectedROAS,
+        },
+      });
       return data;
     } catch (e: any) {
       setError(e.message);
@@ -481,10 +543,23 @@ export function useBudgetOptimizer() {
 
   const apply = useCallback(
     async (campaignId: string, r: BudgetOptimizationResult) => {
-      return apiFetch(`/campaigns/${campaignId}/apply-optimization`, {
+      const applied = await apiFetch(`/campaigns/${campaignId}/apply-optimization`, {
         method: 'POST',
         body: JSON.stringify({ result: r }),
       });
+      trackAnalyticsEvent({
+        eventType: 'marketing_budget_applied',
+        entityType: 'MARKETING_CAMPAIGN',
+        entityId: campaignId,
+        channel: 'MARKETING',
+        source: 'APP',
+        value: r.totalBudget,
+        properties: {
+          allocationCount: r.allocations.length,
+          projectedROAS: r.projectedROAS,
+        },
+      });
+      return applied;
     },
     [],
   );
@@ -524,6 +599,16 @@ export function useFunnels() {
         method: 'POST',
         body: JSON.stringify(data),
       });
+      trackAnalyticsEvent({
+        eventType: 'marketing_funnel_created',
+        entityType: 'MARKETING_FUNNEL',
+        entityId: f.id,
+        channel: 'MARKETING',
+        source: 'APP',
+        properties: {
+          slug: data.slug,
+        },
+      });
       await load();
       return f;
     },
@@ -545,6 +630,20 @@ export function useFunnels() {
         '/ai/generate-funnel',
         { method: 'POST', body: JSON.stringify(params) },
       );
+      trackAnalyticsEvent({
+        eventType: 'marketing_funnel_generated',
+        entityType: 'MARKETING_FUNNEL',
+        entityId: result.funnelId,
+        channel: 'MARKETING',
+        source: 'APP',
+        value: result.pages,
+        properties: {
+          objective: params.objective,
+          funnelType: params.funnelType,
+          tone: params.tone,
+          slug: result.slug,
+        },
+      });
       await load();
       return result;
     },
@@ -554,6 +653,13 @@ export function useFunnels() {
   const publishFunnel = useCallback(
     async (id: string) => {
       await apiFetch(`/funnels/${id}/publish`, { method: 'POST' });
+      trackAnalyticsEvent({
+        eventType: 'marketing_funnel_published',
+        entityType: 'MARKETING_FUNNEL',
+        entityId: id,
+        channel: 'MARKETING',
+        source: 'APP',
+      });
       await load();
     },
     [load],
@@ -562,6 +668,13 @@ export function useFunnels() {
   const unpublishFunnel = useCallback(
     async (id: string) => {
       await apiFetch(`/funnels/${id}/unpublish`, { method: 'POST' });
+      trackAnalyticsEvent({
+        eventType: 'marketing_funnel_unpublished',
+        entityType: 'MARKETING_FUNNEL',
+        entityId: id,
+        channel: 'MARKETING',
+        source: 'APP',
+      });
       await load();
     },
     [load],

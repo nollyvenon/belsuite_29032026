@@ -5,12 +5,19 @@
 
 import {
   Injectable,
-  TooManyRequestsException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+
+class TooManyRequestsException extends HttpException {
+  constructor(response: Record<string, any>) {
+    super(response, HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
 
 export interface RateLimitCheckResult {
   allowed: boolean;
@@ -135,7 +142,10 @@ export class RateLimitService {
     period: 'MINUTE' | 'HOUR' | 'DAY',
   ): Promise<any> {
     const now = new Date();
-    const periodStart = this.getPeriodStart(now, period);
+    const periodStart = this.getPeriodStart(
+      now,
+      period.toLowerCase() as 'minute' | 'hour' | 'day',
+    );
 
     const usage = await this.prisma.tenantRateLimitUsage.findFirst({
       where: {

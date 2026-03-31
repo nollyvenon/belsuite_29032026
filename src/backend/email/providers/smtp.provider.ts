@@ -114,17 +114,23 @@ export class SmtpProvider implements IEmailService {
 
       this.logger.log(`Email sent via SMTP: ${messageId}, response: ${info.response}`);
 
-      // Store in database for tracking
-      await this.prisma.email.create({
-        data: {
-          externalEmailId: info.messageId || messageId,
-          provider: 'SMTP',
-          toEmail: recipients,
-          subject: options.subject,
-          sentAt: new Date(),
-          metadata: options.metadata,
-        },
-      });
+      const organizationId =
+        typeof options.metadata?.organizationId === 'string'
+          ? options.metadata.organizationId
+          : null;
+
+      if (organizationId) {
+        await this.prisma.email.create({
+          data: {
+            organizationId,
+            externalEmailId: info.messageId || messageId,
+            provider: 'SMTP',
+            toEmail: recipients,
+            subject: options.subject,
+            sentAt: new Date(),
+          },
+        });
+      }
 
       return {
         success: true,

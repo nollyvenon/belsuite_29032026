@@ -1,14 +1,14 @@
 'use client';
 
 import React from 'react';
-import { DemoProvider, useDemo } from '@/src/components/demo/DemoContext';
-import { DemoLayout } from '@/src/components/demo/DemoLayout';
-import { DashboardView } from '@/src/components/demo/DashboardView';
-import { LeadsView } from '@/src/components/demo/LeadsView';
-import { AIView } from '@/src/components/demo/AIView';
-import { AutomationView } from '@/src/components/demo/AutomationView';
-import { AnalyticsView } from '@/src/components/demo/AnalyticsView';
-import { UsageView } from '@/src/components/demo/UsageView';
+import { DemoProvider, useDemo } from '@/components/demo/DemoContext';
+import { DemoLayout } from '@/components/demo/DemoLayout';
+import { DashboardView } from '@/components/demo/DashboardView';
+import { LeadsView } from '@/components/demo/LeadsView';
+import { AIView } from '@/components/demo/AIView';
+import { AutomationView } from '@/components/demo/AutomationView';
+import { AnalyticsView } from '@/components/demo/AnalyticsView';
+import { UsageView } from '@/components/demo/UsageView';
 
 const DemoContent = () => {
   const { activeTab } = useDemo();

@@ -16,6 +16,7 @@ export enum AIModel {
   GPT_4 = 'gpt-4',
   GPT_3_5_TURBO = 'gpt-3.5-turbo',
   GPT_3_5 = 'gpt-3.5',
+  DALL_E_3 = 'dall-e-3',
 
   // Claude
   CLAUDE_3_OPUS = 'claude-3-opus-20240229',
@@ -171,7 +172,7 @@ export interface CacheEntry {
   createdAt: Date;
 }
 
-export interface AIProvider {
+export interface AIProviderClient {
   name: string;
   isAvailable: boolean;
   generateText(request: AIRequest): Promise<AIResponse>;

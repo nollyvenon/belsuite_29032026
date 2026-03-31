@@ -5,8 +5,6 @@
 
 import {
   PaymentProvider,
-  PaymentStatus,
-  RefundStatus,
   CreatePaymentRequest,
   PaymentResponse,
   RefundResponse,
@@ -20,7 +18,7 @@ import {
   SubscriptionResponse,
   WebhookVerificationRequest,
   WebhookVerificationResponse,
-} from './payment.types';
+} from '../types/payment.types';
 
 export interface IPaymentProvider {
   /**

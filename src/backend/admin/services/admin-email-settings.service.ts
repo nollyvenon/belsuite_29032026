@@ -97,19 +97,33 @@ export class AdminEmailSettingsService {
       );
 
       // Test sending email
-      const response = await provider.send({
-        to: dto.testEmail,
-        subject: 'Belsuite Email Configuration Test',
-        html: `
-          <h2>Email Configuration Test</h2>
-          <p>If you received this email, your email provider is configured correctly!</p>
-          <p><strong>Provider:</strong> ${settings.primaryProvider}</p>
-          <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-        `,
-        text: `Email Configuration Test - Provider: ${settings.primaryProvider}`,
-      });
+      const response = 'sendEmail' in provider
+        ? await provider.sendEmail({
+            to: { email: dto.testEmail },
+            subject: 'Belsuite Email Configuration Test',
+            htmlContent: `
+              <h2>Email Configuration Test</h2>
+              <p>If you received this email, your email provider is configured correctly!</p>
+              <p><strong>Provider:</strong> ${settings.primaryProvider}</p>
+              <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+            `,
+            textContent: `Email Configuration Test - Provider: ${settings.primaryProvider}`,
+            metadata: { organizationId },
+          })
+        : await provider.send({
+            to: dto.testEmail,
+            subject: 'Belsuite Email Configuration Test',
+            html: `
+              <h2>Email Configuration Test</h2>
+              <p>If you received this email, your email provider is configured correctly!</p>
+              <p><strong>Provider:</strong> ${settings.primaryProvider}</p>
+              <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+            `,
+            text: `Email Configuration Test - Provider: ${settings.primaryProvider}`,
+            metadata: { organizationId },
+          });
 
-      if (response.success) {
+      if (('success' in response && response.success) || ('externalEmailId' in response)) {
         // Update last test status
         await this.prisma.adminEmailSettings.update({
           where: { organizationId },

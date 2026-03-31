@@ -17,10 +17,15 @@ export class ContentGenerationService {
     private promptService: PromptTemplateService,
   ) {}
 
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
+
   /**
    * Generate blog post
    */
   async generateBlogPost(
+    organizationId: string,
     userId: string,
     options: {
       topic: string;
@@ -63,6 +68,7 @@ export class ContentGenerationService {
           temperature: template.defaultTemperature,
           maxTokens: 4000,
         },
+        organizationId,
         userId,
         { type: 'cheapest' },
         options.useCache !== false,
@@ -79,7 +85,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Blog post generation failed: ${error.message}`);
+      this.logger.error(`Blog post generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -88,6 +94,7 @@ export class ContentGenerationService {
    * Generate social media post
    */
   async generateSocialPost(
+    organizationId: string,
     userId: string,
     options: {
       platform: 'twitter' | 'instagram' | 'linkedin' | 'facebook' | 'tiktok';
@@ -128,6 +135,7 @@ export class ContentGenerationService {
           temperature: 0.8,
           maxTokens: 500,
         },
+        organizationId,
         userId,
         { type: 'cheapest' },
         true,
@@ -143,7 +151,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Social post generation failed: ${error.message}`);
+      this.logger.error(`Social post generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -152,6 +160,7 @@ export class ContentGenerationService {
    * Generate video script
    */
   async generateVideoScript(
+    organizationId: string,
     userId: string,
     options: {
       topic: string;
@@ -186,6 +195,7 @@ export class ContentGenerationService {
           temperature: template.defaultTemperature,
           maxTokens: 3000,
         },
+        organizationId,
         userId,
         { type: 'best_quality' },
         true,
@@ -203,7 +213,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Video script generation failed: ${error.message}`);
+      this.logger.error(`Video script generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -212,6 +222,7 @@ export class ContentGenerationService {
    * Generate ad copy
    */
   async generateAdCopy(
+    organizationId: string,
     userId: string,
     options: {
       product: string;
@@ -251,6 +262,7 @@ export class ContentGenerationService {
           temperature: 0.8,
           maxTokens: 2000,
         },
+        organizationId,
         userId,
         { type: 'best_quality' },
         true,
@@ -268,7 +280,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Ad copy generation failed: ${error.message}`);
+      this.logger.error(`Ad copy generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -277,6 +289,7 @@ export class ContentGenerationService {
    * Generate product description
    */
   async generateProductDescription(
+    organizationId: string,
     userId: string,
     options: {
       productName: string;
@@ -310,6 +323,7 @@ export class ContentGenerationService {
           temperature: 0.7,
           maxTokens: 1500,
         },
+        organizationId,
         userId,
         { type: 'balanced' },
         true,
@@ -325,7 +339,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Product description generation failed: ${error.message}`);
+      this.logger.error(`Product description generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -334,6 +348,7 @@ export class ContentGenerationService {
    * Generate email campaign
    */
   async generateEmailCampaign(
+    organizationId: string,
     userId: string,
     options: {
       emailType: 'promotional' | 'newsletter' | 'followup' | 'welcome';
@@ -363,6 +378,7 @@ export class ContentGenerationService {
           temperature: 0.6,
           maxTokens: 2000,
         },
+        organizationId,
         userId,
         { type: 'balanced' },
         true,
@@ -378,7 +394,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Email campaign generation failed: ${error.message}`);
+      this.logger.error(`Email campaign generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -387,6 +403,7 @@ export class ContentGenerationService {
    * Generate image
    */
   async generateImage(
+    organizationId: string,
     userId: string,
     options: {
       prompt: string;
@@ -400,11 +417,13 @@ export class ContentGenerationService {
       const response = await this.aiService.generateImage(
         {
           prompt: options.prompt,
+          model: AIModel.DALL_E_3,
           size: options.size || '1024x1024',
           quantity: options.quantity || 1,
           style: options.style,
           quality: options.quality || 'standard',
         },
+        organizationId,
         userId,
         { type: 'best_quality' },
       );
@@ -420,7 +439,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Image generation failed: ${error.message}`);
+      this.logger.error(`Image generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -429,6 +448,7 @@ export class ContentGenerationService {
    * Generate multiple headlines
    */
   async generateHeadlines(
+    organizationId: string,
     userId: string,
     options: {
       contentType: string;
@@ -460,6 +480,7 @@ export class ContentGenerationService {
           temperature: 0.9,
           maxTokens: 1000,
         },
+        organizationId,
         userId,
         { type: 'cheapest' },
         true,
@@ -475,7 +496,7 @@ export class ContentGenerationService {
         },
       };
     } catch (error) {
-      this.logger.error(`Headline generation failed: ${error.message}`);
+      this.logger.error(`Headline generation failed: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
