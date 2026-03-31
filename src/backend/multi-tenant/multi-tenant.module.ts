@@ -6,6 +6,7 @@
 
 import { Module, NestModule, MiddlewareConsumer, Global } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PassportModule } from '@nestjs/passport';
 
 // Middleware
 import { TenantMiddleware } from './middleware/tenant.middleware';
@@ -23,9 +24,12 @@ import { TenantController } from './controllers/tenant.controller';
 // Database
 import { PrismaService } from '../database/prisma.service';
 
+// Guards
+import { TenantRateLimitGuard } from '../common/guards/tenant-rate-limit.guard';
+
 @Global()
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [ScheduleModule.forRoot(), PassportModule],
   providers: [
     PrismaService,
     TenantService,
@@ -33,6 +37,7 @@ import { PrismaService } from '../database/prisma.service';
     RateLimitService,
     TenantOnboardingService,
     UsageTrackingService,
+    TenantRateLimitGuard,
   ],
   controllers: [TenantController],
   exports: [
@@ -41,6 +46,7 @@ import { PrismaService } from '../database/prisma.service';
     RateLimitService,
     TenantOnboardingService,
     UsageTrackingService,
+    TenantRateLimitGuard,
   ],
 })
 export class MultiTenantModule implements NestModule {

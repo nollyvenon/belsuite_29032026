@@ -22,3 +22,7 @@ export { TenantController } from './controllers/tenant.controller';
 
 // Module
 export { MultiTenantModule } from './multi-tenant.module';
+
+// Guards & Decorators (re-exported for convenience)
+export { TenantRateLimitGuard, RateLimit, RateLimitMeta } from '../common/guards/tenant-rate-limit.guard';
+export { CurrentTenant, TenantContext, Tenant } from '../common/decorators/tenant.decorator';
