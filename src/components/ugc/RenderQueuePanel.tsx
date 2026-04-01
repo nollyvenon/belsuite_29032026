@@ -1,8 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { PlayCircle, Rocket, Video, Captions, AudioLines, BadgeCheck } from 'lucide-react';
 import { useUGCStudio } from '@/hooks/useUGC';
+import { passthroughImageLoader } from '@/lib/image-loader';
 
 export function RenderQueuePanel({ projectId }: { projectId: string }) {
   const { project, loading, saving, renderProject, publishProject } = useUGCStudio(projectId);
@@ -57,7 +59,15 @@ export function RenderQueuePanel({ projectId }: { projectId: string }) {
             <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
               <div className="rounded-xl overflow-hidden bg-zinc-900 aspect-[9/16] flex items-center justify-center">
                 {latestRender.thumbnailUrl || project?.thumbnailUrl ? (
-                  <img src={latestRender.thumbnailUrl || project?.thumbnailUrl} alt={project?.title} className="w-full h-full object-cover" />
+                  <Image
+                    src={latestRender.thumbnailUrl || project?.thumbnailUrl || ''}
+                    alt={project?.title || 'Render thumbnail'}
+                    width={540}
+                    height={960}
+                    className="w-full h-full object-cover"
+                    loader={passthroughImageLoader}
+                    unoptimized
+                  />
                 ) : (
                   <Video className="w-10 h-10 text-zinc-700" />
                 )}

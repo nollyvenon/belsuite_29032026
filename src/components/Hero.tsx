@@ -1,7 +1,8 @@
 'use client';
 
-import { motion } from 'motion/react';
-import { ArrowRight, Play, CheckCircle2 } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowRight, Play } from 'lucide-react';
 import { FadeIn } from './FadeIn';
 
 export const Hero = () => {
@@ -37,13 +38,13 @@ export const Hero = () => {
               Start Free Trial
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </button>
-            <a 
+            <Link
               href="/demo"
               className="flex items-center gap-2 px-8 py-4 text-lg font-bold transition-all border rounded-full dark:border-white/10 border-black/10 hover:bg-black/5 dark:hover:bg-white/5"
             >
               <Play className="w-5 h-5 fill-current" />
               View Live Demo
-            </a>
+            </Link>
           </div>
           <p className="mt-4 text-sm text-gray-500">No credit card required. 14-day free trial.</p>
         </FadeIn>
@@ -52,11 +53,14 @@ export const Hero = () => {
           <div className="relative max-w-6xl mx-auto">
             <div className="absolute inset-0 bg-primary/20 blur-[100px] -z-10 rounded-3xl" />
             <div className="overflow-hidden border shadow-2xl rounded-2xl dark:border-white/10 border-black/5 bg-white/50 dark:bg-black/50 backdrop-blur-sm">
-              <img 
+              <Image
                 src="https://picsum.photos/seed/dashboard/1200/800" 
                 alt="Belsuite Dashboard Preview" 
+                width={1200}
+                height={800}
                 className="w-full h-auto opacity-90"
                 referrerPolicy="no-referrer"
+                unoptimized
               />
             </div>
           </div>

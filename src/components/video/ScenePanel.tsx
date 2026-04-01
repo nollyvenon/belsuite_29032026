@@ -141,7 +141,7 @@ export function ScenePanel({
       <div className="flex flex-col items-center justify-center h-full py-12 px-4 text-center">
         <Film className="w-8 h-8 text-zinc-700 mb-3" />
         <p className="text-sm text-zinc-500">No scenes yet</p>
-        <p className="text-xs text-zinc-600 mt-1">Use "Generate from Script" to create scenes automatically</p>
+        <p className="text-xs text-zinc-600 mt-1">Use &quot;Generate from Script&quot; to create scenes automatically</p>
       </div>
     );
   }

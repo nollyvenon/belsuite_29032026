@@ -13,8 +13,6 @@ import {
   X, 
   Bell, 
   Search, 
-  Settings, 
-  LogOut, 
   Moon, 
   Sun,
   ArrowRight
@@ -208,7 +206,7 @@ export const DemoLayout = ({ children }: { children: React.ReactNode }) => {
               
               <h2 className="text-3xl font-bold font-display mb-4">Ready to scale your business?</h2>
               <p className="text-gray-500 mb-10 leading-relaxed">
-                You've seen what Belsuite can do. Now it's time to put it to work for your real business. Join 10,000+ creators and brands today.
+                You&apos;ve seen what Belsuite can do. Now it&apos;s time to put it to work for your real business. Join 10,000+ creators and brands today.
               </p>
               
               <div className="space-y-4">

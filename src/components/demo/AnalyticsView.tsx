@@ -1,11 +1,7 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useSyncExternalStore } from 'react';
 import { 
-  BarChart3, 
-  TrendingUp, 
-  PieChart, 
   ArrowUpRight, 
   ArrowDownRight, 
   Sparkles, 
@@ -56,6 +52,12 @@ const InsightCard = ({ icon: Icon, title, description, trend }: any) => (
 );
 
 export const AnalyticsView = () => {
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -74,63 +76,73 @@ export const AnalyticsView = () => {
         <div className="p-6 border rounded-2xl dark:border-white/10 border-black/5 bg-white dark:bg-black/40">
           <h3 className="text-lg font-bold font-display mb-6">Revenue Performance</h3>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={MOCK_CHART_DATA}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888822" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#888888' }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#888888' }}
-                />
-                <Tooltip 
-                  cursor={{ fill: '#88888811' }}
-                  contentStyle={{ 
-                    backgroundColor: '#000', 
-                    border: '1px solid #333',
-                    borderRadius: '12px',
-                    fontSize: '12px'
-                  }}
-                />
-                <Bar dataKey="revenue" fill="#FF6A00" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {isMounted ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={MOCK_CHART_DATA}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888822" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: '#888888' }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: '#888888' }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#88888811' }}
+                    contentStyle={{ 
+                      backgroundColor: '#000', 
+                      border: '1px solid #333',
+                      borderRadius: '12px',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <Bar dataKey="revenue" fill="#FF6A00" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full animate-pulse rounded-xl bg-black/5 dark:bg-white/5" />
+            )}
           </div>
         </div>
 
         <div className="p-6 border rounded-2xl dark:border-white/10 border-black/5 bg-white dark:bg-black/40">
           <h3 className="text-lg font-bold font-display mb-6">Lead Sources Breakdown</h3>
           <div className="h-[300px] w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <RePieChart>
-                <Pie
-                  data={PIE_DATA}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {PIE_DATA.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#000', 
-                    border: '1px solid #333',
-                    borderRadius: '12px',
-                    fontSize: '12px'
-                  }}
-                />
-              </RePieChart>
-            </ResponsiveContainer>
+            <div className="h-full min-w-0 flex-1">
+              {isMounted ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RePieChart>
+                    <Pie
+                      data={PIE_DATA}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {PIE_DATA.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#000', 
+                        border: '1px solid #333',
+                        borderRadius: '12px',
+                        fontSize: '12px'
+                      }}
+                    />
+                  </RePieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full animate-pulse rounded-xl bg-black/5 dark:bg-white/5" />
+              )}
+            </div>
             <div className="space-y-2 ml-4">
               {PIE_DATA.map((entry, i) => (
                 <div key={i} className="flex items-center gap-2">

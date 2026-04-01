@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Plus, Trash2, Loader2, AlertCircle, CheckCircle2, Clock,
-  ChevronDown, ChevronUp, X, Zap,
+  Plus, Trash2, Loader2, AlertCircle, X, Zap,
 } from 'lucide-react';
-import type { SocialAccount, BulkCreateInput, CreatePostInput, SocialPlatform } from '@/hooks/useSocial';
+import type { SocialAccount, BulkCreateInput, CreatePostInput } from '@/hooks/useSocial';
 import { useBulk } from '@/hooks/useSocial';
 import { PLATFORM_ICONS } from './PlatformBadge';
 
@@ -32,11 +31,13 @@ function BulkCreateModal({
   onClose,
   onCreate,
   creating,
+  submitError,
 }: {
   accounts: SocialAccount[];
   onClose: () => void;
   onCreate: (input: BulkCreateInput) => Promise<void>;
   creating: boolean;
+  submitError: string;
 }) {
   const [name, setName]     = useState('');
   const [posts, setPosts]   = useState<DraftPost[]>([{ ...EMPTY_DRAFT }]);
@@ -167,10 +168,10 @@ function BulkCreateModal({
             <Plus className="w-4 h-4" /> Add Post
           </button>
 
-          {error && (
+          {(error || submitError) && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-300">{error || submitError}</p>
             </div>
           )}
         </div>
@@ -194,7 +195,7 @@ function BulkCreateModal({
 }
 
 export function BulkView({ accounts }: { accounts: SocialAccount[] }) {
-  const { batches, loading, error, refresh, createBulk } = useBulk();
+  const { batches, loading, error, createBulk } = useBulk();
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating]     = useState(false);
   const [createError, setCreateError] = useState('');
@@ -285,6 +286,7 @@ export function BulkView({ accounts }: { accounts: SocialAccount[] }) {
             onClose={() => { setShowCreate(false); setCreateError(''); }}
             onCreate={handleCreate}
             creating={creating}
+            submitError={createError}
           />
         )}
       </AnimatePresence>

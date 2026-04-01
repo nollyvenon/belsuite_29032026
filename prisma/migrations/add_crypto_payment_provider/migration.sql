@@ -1,0 +1,6 @@
+DO $$
+BEGIN
+  ALTER TYPE "PaymentProvider" ADD VALUE IF NOT EXISTS 'CRYPTO';
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

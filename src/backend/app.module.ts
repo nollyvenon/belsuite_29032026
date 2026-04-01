@@ -19,6 +19,7 @@ import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionGuard } from './common/guards/permission.guard';
+import { BillingEnforcementGuard } from './common/guards/billing-enforcement.guard';
 
 // Placeholder modules (to be implemented in next phases)
 @Module({})
@@ -87,6 +88,10 @@ class StorageModule {}
     {
       provide: APP_GUARD,
       useClass: PermissionGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: BillingEnforcementGuard,
     },
   ],
 })

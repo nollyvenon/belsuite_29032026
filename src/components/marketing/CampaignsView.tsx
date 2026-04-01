@@ -7,7 +7,6 @@ import {
   Play,
   Pause,
   Trash2,
-  ChevronRight,
   DollarSign,
   Target,
   Calendar,

@@ -14,6 +14,7 @@ import {
   Logger,
   Query,
 } from '@nestjs/common';
+import { SubscriptionTier } from '@prisma/client';
 import { AIService } from './ai.service';
 import { ContentGenerationService } from './services/content-generation.service';
 import { PromptTemplateService } from './services/prompt-template.service';
@@ -21,6 +22,7 @@ import { AIUsageLimitService } from './services/ai-usage-limit.service';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
+import { RequirePlan } from '../common/decorators/require-plan.decorator';
 import { AIModel } from './types/ai.types';
 
 @Controller('api/ai')
@@ -285,6 +287,7 @@ export class AIController {
    */
   @Post('image')
   @HttpCode(HttpStatus.OK)
+  @RequirePlan({ minimumTier: SubscriptionTier.STARTER, requireActiveSubscription: true })
   async generateImage(
     @Tenant() organizationId: string,
     @CurrentUser() user: any,

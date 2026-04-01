@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sliders, Clock, Mic, Film, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import type { VideoScene, VideoProject } from '@/hooks/useVideoProject';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

@@ -9,7 +9,7 @@ export interface PaymentOption {
   name: string;
   amount: number;
   currency: string;
-  provider: 'STRIPE' | 'PAYSTACK' | 'FLUTTERWAVE' | 'PAYPAL';
+  provider: 'STRIPE' | 'PAYSTACK' | 'FLUTTERWAVE' | 'PAYPAL' | 'SOFORT' | 'CRYPTO';
   description: string;
   features?: string[];
 }
@@ -84,6 +84,13 @@ export const PaymentCheckout = ({ options, onSuccess, onError }: PaymentCheckout
 
         case 'PAYPAL':
           // Redirect to PayPal
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          }
+          break;
+
+        case 'SOFORT':
+        case 'CRYPTO':
           if (data.redirectUrl) {
             window.location.href = data.redirectUrl;
           }
@@ -204,6 +211,8 @@ export const PaymentCheckout = ({ options, onSuccess, onError }: PaymentCheckout
           <div className="p-2 rounded border border-black/10 dark:border-white/10">Paystack</div>
           <div className="p-2 rounded border border-black/10 dark:border-white/10">Flutterwave</div>
           <div className="p-2 rounded border border-black/10 dark:border-white/10">PayPal</div>
+          <div className="p-2 rounded border border-black/10 dark:border-white/10">Sofort</div>
+          <div className="p-2 rounded border border-black/10 dark:border-white/10">Crypto</div>
         </div>
       </div>
     </div>

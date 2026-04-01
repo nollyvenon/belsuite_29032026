@@ -26,6 +26,7 @@ import { PaystackProvider } from './providers/paystack.provider';
 import { FlutterwaveProvider } from './providers/flutterwave.provider';
 import { SofortProvider } from './providers/sofort.provider';
 import { PayPalProvider } from './providers/paypal.provider';
+import { CryptoProvider } from './providers/crypto.provider';
 
 @Injectable()
 export class PaymentService {
@@ -40,6 +41,7 @@ export class PaymentService {
     this.providers.set(PaymentProvider.FLUTTERWAVE, new FlutterwaveProvider());
     this.providers.set(PaymentProvider.PAYPAL, new PayPalProvider());
     this.providers.set(PaymentProvider.SOFORT, new SofortProvider());
+    this.providers.set(PaymentProvider.CRYPTO, new CryptoProvider());
   }
 
   private toPrismaProvider(provider: PaymentProvider): PrismaPaymentProvider {
@@ -52,6 +54,19 @@ export class PaymentService {
 
   private toPrismaRefundStatus(status: RefundStatus): PrismaRefundStatus {
     return status.toUpperCase() as PrismaRefundStatus;
+  }
+
+  private subscriptionIdField(provider: PaymentProvider) {
+    const map: Record<PaymentProvider, string | null> = {
+      [PaymentProvider.STRIPE]: 'stripeSubscriptionId',
+      [PaymentProvider.PAYSTACK]: 'paystackSubscriptionId',
+      [PaymentProvider.FLUTTERWAVE]: 'flutterSubscriptionId',
+      [PaymentProvider.PAYPAL]: 'paypalSubscriptionId',
+      [PaymentProvider.SOFORT]: 'sofortSubscriptionId',
+      [PaymentProvider.CRYPTO]: null,
+    };
+
+    return map[provider];
   }
 
   /**
@@ -93,11 +108,12 @@ export class PaymentService {
       await this.prisma.payment.create({
         data: {
           subscriptionId: request.subscriptionId,
+          invoiceId: request.invoiceId,
           provider: this.toPrismaProvider(provider),
           externalPaymentId: paymentResponse.externalPaymentId,
           amount: paymentResponse.amount,
           currency: paymentResponse.currency,
-          status: this.toPrismaPaymentStatus(PaymentStatus.PENDING),
+          status: this.toPrismaPaymentStatus(paymentResponse.status),
           providerResponse: JSON.stringify(paymentResponse),
           attemptNumber: 1,
         },
@@ -140,6 +156,10 @@ export class PaymentService {
 
       if (!payment) {
         throw new BadRequestException('Payment not found');
+      }
+
+      if (!payment.externalPaymentId) {
+        throw new BadRequestException('Payment does not have an external payment identifier');
       }
 
       const paymentProvider = this.getProvider(provider);
@@ -214,13 +234,20 @@ export class PaymentService {
       });
 
       if (subscription) {
+        const subscriptionIdField = this.subscriptionIdField(provider);
         await this.prisma.subscription.update({
           where: { organizationId },
           data: {
-            [`${provider}SubscriptionId`]: subscriptionResponse.externalSubscriptionId,
+            ...(subscriptionIdField
+              ? { [subscriptionIdField]: subscriptionResponse.externalSubscriptionId }
+              : {}),
             primaryPaymentMethod: this.toPrismaProvider(provider),
             currentPeriodStart: subscriptionResponse.currentPeriodStart,
             currentPeriodEnd: subscriptionResponse.currentPeriodEnd,
+            status:
+              trialDays && trialDays > 0
+                ? SubscriptionStatus.TRIAL
+                : SubscriptionStatus.ACTIVE,
           },
         });
       }
@@ -326,18 +353,30 @@ export class PaymentService {
     switch (event.type) {
       case 'charge.success':
       case 'charge.completed':
+      case 'charge:confirmed':
+      case 'charge:resolved':
       case 'payment_intent.succeeded':
+      case 'invoice.paid':
         await this.handlePaymentSuccess(event);
         break;
 
       case 'charge.failed':
+      case 'charge:failed':
+      case 'charge:delayed':
+      case 'charge:expired':
       case 'payment_intent.payment_failed':
+      case 'invoice.payment_failed':
         await this.handlePaymentFailure(event);
         break;
 
       case 'charge.refunded':
       case 'charge.dispute.created':
         await this.handleRefund(event);
+        break;
+
+      case 'customer.subscription.deleted':
+      case 'subscription.cancelled':
+        await this.handleSubscriptionCancelled(event);
         break;
 
       default:
@@ -351,6 +390,14 @@ export class PaymentService {
   private async handlePaymentSuccess(event: any) {
     const payment = await this.prisma.payment.findFirst({
       where: { externalPaymentId: event.externalPaymentId },
+      include: {
+        subscription: {
+          include: {
+            plan: true,
+            organization: true,
+          },
+        },
+      },
     });
 
     if (payment) {
@@ -361,6 +408,32 @@ export class PaymentService {
           paidAt: new Date(),
         },
       });
+
+      if (payment.invoiceId) {
+        await this.prisma.invoice.updateMany({
+          where: { id: payment.invoiceId },
+          data: {
+            status: 'PAID',
+            paidAt: new Date(),
+          },
+        });
+      }
+
+      await this.prisma.subscription.update({
+        where: { id: payment.subscriptionId },
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+        },
+      });
+
+      if (payment.subscription.plan?.tier) {
+        await this.prisma.organization.update({
+          where: { id: payment.subscription.organizationId },
+          data: {
+            tier: payment.subscription.plan.tier,
+          },
+        });
+      }
 
       this.logger.log(`Payment ${payment.id} completed`);
     }
@@ -386,6 +459,22 @@ export class PaymentService {
         },
       });
 
+      if (payment.invoiceId) {
+        await this.prisma.invoice.updateMany({
+          where: { id: payment.invoiceId },
+          data: {
+            status: 'FAILED',
+          },
+        });
+      }
+
+      await this.prisma.subscription.update({
+        where: { id: payment.subscriptionId },
+        data: {
+          status: SubscriptionStatus.PAST_DUE,
+        },
+      });
+
       this.logger.log(`Payment ${payment.id} failed, scheduled for retry`);
     } else if (payment) {
       // Max retries exceeded
@@ -394,6 +483,22 @@ export class PaymentService {
         data: {
           status: this.toPrismaPaymentStatus(PaymentStatus.FAILED),
           failureReason: 'Max retries exceeded',
+        },
+      });
+
+      if (payment.invoiceId) {
+        await this.prisma.invoice.updateMany({
+          where: { id: payment.invoiceId },
+          data: {
+            status: 'FAILED',
+          },
+        });
+      }
+
+      await this.prisma.subscription.update({
+        where: { id: payment.subscriptionId },
+        data: {
+          status: SubscriptionStatus.PAST_DUE,
         },
       });
 
@@ -409,6 +514,28 @@ export class PaymentService {
   private async handleRefund(event: any) {
     this.logger.log(`Processing refund event`);
     // Refund handling implemented in refundPayment method
+  }
+
+  /**
+   * Handle subscription cancellation events
+   */
+  private async handleSubscriptionCancelled(event: any) {
+    const organizationId =
+      event.metadata?.organizationId ||
+      event.raw?.data?.object?.metadata?.organizationId ||
+      event.raw?.resource?.custom_id;
+
+    if (!organizationId) {
+      return;
+    }
+
+    await this.prisma.subscription.updateMany({
+      where: { organizationId },
+      data: {
+        status: SubscriptionStatus.CANCELLED,
+        cancelledAt: new Date(),
+      },
+    });
   }
 
   /**

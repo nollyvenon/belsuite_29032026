@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, BarChart3 } from 'lucide-react';
+import { ArrowLeft, BarChart3 } from 'lucide-react';
 import AIDashboard from '@/components/AIDashboard';
 
 export default function DashboardPage() {

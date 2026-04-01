@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { Sun, Moon, Zap, Video, Clapperboard, Megaphone, BarChart3 } from 'lucide-react';
+import { Sun, Moon, Zap, Video, Clapperboard, Megaphone, BarChart3, BadgeDollarSign } from 'lucide-react';
 import { LoginModal } from './LoginModal';
 
 export const Navbar = () => {
@@ -29,19 +30,22 @@ export const Navbar = () => {
             <a href="#features" className="text-sm font-medium transition-colors hover:text-primary">Features</a>
             <a href="#how-it-works" className="text-sm font-medium transition-colors hover:text-primary">How it works</a>
             <a href="#pricing" className="text-sm font-medium transition-colors hover:text-primary">Pricing</a>
-            <a href="/demo" className="text-sm font-bold text-primary transition-colors hover:underline">Live Demo</a>
-            <a href="/video" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+            <Link href="/demo" className="text-sm font-bold text-primary transition-colors hover:underline">Live Demo</Link>
+            <Link href="/video" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
               <Video className="w-3.5 h-3.5" /> Video Studio
-            </a>
-            <a href="/ugc" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+            </Link>
+            <Link href="/ugc" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
               <Clapperboard className="w-3.5 h-3.5" /> UGC Creator
-            </a>
-            <a href="/marketing" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+            </Link>
+            <Link href="/marketing" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
               <Megaphone className="w-3.5 h-3.5" /> Marketing
-            </a>
-            <a href="/analytics" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+            </Link>
+            <Link href="/analytics" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
               <BarChart3 className="w-3.5 h-3.5" /> Analytics
-            </a>
+            </Link>
+            <Link href="/billing" className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary">
+              <BadgeDollarSign className="w-3.5 h-3.5" /> Billing
+            </Link>
           </div>
 
           <div className="flex items-center gap-4">

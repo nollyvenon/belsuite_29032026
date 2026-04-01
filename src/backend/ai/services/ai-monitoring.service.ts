@@ -181,10 +181,13 @@ export class AIMonitoringService {
 
       // Check Anthropic
       try {
+        const headers: Record<string, string> = {};
+        if (process.env.ANTHROPIC_API_KEY) {
+          headers['x-api-key'] = process.env.ANTHROPIC_API_KEY;
+        }
+
         const response = await fetch('https://api.anthropic.com/v1/models', {
-          headers: {
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-          },
+          headers,
         });
         health.set('anthropic', response.ok);
       } catch (error) {
@@ -275,14 +278,15 @@ export class AIMonitoringService {
         dayData.byModel[record.model].cost += record.cost;
 
         // Track by content type
-        if (!dayData.byContentType[record.contentType]) {
-          dayData.byContentType[record.contentType] = {
+        const contentType = record.contentType ?? 'unknown';
+        if (!dayData.byContentType[contentType]) {
+          dayData.byContentType[contentType] = {
             requests: 0,
             cost: 0,
           };
         }
-        dayData.byContentType[record.contentType].requests++;
-        dayData.byContentType[record.contentType].cost += record.cost;
+        dayData.byContentType[contentType].requests++;
+        dayData.byContentType[contentType].cost += record.cost;
       });
 
       return {

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Search, Filter, MoreHorizontal, Mail, Phone, ExternalLink } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Mail, Phone } from 'lucide-react';
 import { useDemo } from './DemoContext';
 import { cn } from '@/lib/utils';
 

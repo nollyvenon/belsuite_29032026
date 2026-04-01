@@ -16,10 +16,12 @@ import { ContentGenerationService } from './services/content-generation.service'
 import { AIUsageLimitService } from './services/ai-usage-limit.service';
 import { AIMonitoringService } from './services/ai-monitoring.service';
 import { DatabaseModule } from '../database/database.module';
+import { PaymentModule } from '../payments/payment.module';
 
 @Module({
   imports: [
     DatabaseModule,
+    PaymentModule,
     ConfigModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,

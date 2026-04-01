@@ -1,12 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Mic, Film, AlignJustify } from 'lucide-react';
 import type { VideoScene } from '@/hooks/useVideoProject';
 
 const TRACK_HEIGHT = 32;
-const MIN_PIXELS_PER_SEC = 40;
 
 export function VideoTimeline({
   scenes,
@@ -19,15 +17,10 @@ export function VideoTimeline({
   onSelect: (id: string) => void;
   totalDurationMs: number;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const totalSec     = totalDurationMs / 1000 || 1;
 
   // Build ruler ticks (every second, with labels every 5s)
   const ticks = Array.from({ length: Math.ceil(totalSec) + 1 }, (_, i) => i);
-
-  // Compute px width for given ms
-  const msToWidth = (ms: number, containerWidth: number) =>
-    (ms / 1000 / totalSec) * containerWidth;
 
   if (scenes.length === 0) {
     return (
@@ -101,7 +94,7 @@ export function VideoTimeline({
           <div className="flex-1 relative">
             {scenes
               .filter((s) => s.voiceoverUrl)
-              .map((scene, i) => {
+              .map((scene) => {
                 const offsetMs = scenes.slice(0, scenes.indexOf(scene)).reduce((sum, s) => sum + s.durationMs, 0);
                 const leftPct  = (offsetMs / totalDurationMs) * 100;
                 const widthPct = (scene.durationMs / totalDurationMs) * 100;

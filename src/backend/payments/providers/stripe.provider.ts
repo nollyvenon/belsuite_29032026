@@ -41,6 +41,10 @@ export class StripeProvider implements IPaymentProvider {
     return PaymentProvider.STRIPE;
   }
 
+  private getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
+  }
+
   async createPayment(request: CreatePaymentRequest): Promise<PaymentResponse> {
     try {
       const payment = await this.stripe.paymentIntents.create({
@@ -62,11 +66,13 @@ export class StripeProvider implements IPaymentProvider {
         amount: request.amount,
         currency: request.currency,
         provider: PaymentProvider.STRIPE,
-        clientSecret: payment.client_secret,
+        clientSecret: payment.client_secret ?? undefined,
         metadata: request.metadata,
       };
     } catch (error) {
-      throw new Error(`Stripe payment creation failed: ${error.message}`);
+      throw new Error(
+        `Stripe payment creation failed: ${this.getErrorMessage(error, 'Unknown Stripe error')}`,
+      );
     }
   }
 
@@ -86,7 +92,9 @@ export class StripeProvider implements IPaymentProvider {
         metadata: payment.metadata,
       };
     } catch (error) {
-      throw new Error(`Stripe payment fetch failed: ${error.message}`);
+      throw new Error(
+        `Stripe payment fetch failed: ${this.getErrorMessage(error, 'Unknown Stripe error')}`,
+      );
     }
   }
 
@@ -94,23 +102,27 @@ export class StripeProvider implements IPaymentProvider {
     try {
       const refund = await this.stripe.refunds.create({
         payment_intent: request.paymentId,
-        amount: request.amount ? Math.round(request.amount * 100) : undefined,
+        ...(request.amount
+          ? { amount: Math.round(request.amount * 100) }
+          : {}),
         reason: 'requested_by_customer',
         metadata: {
-          reason: request.reason,
+          reason: request.reason ?? 'Customer requested refund',
         },
       });
 
       return {
         id: refund.id,
         externalRefundId: refund.id,
-        status: this.mapStripeRefundStatus(refund.status),
+        status: this.mapStripeRefundStatus(refund.status ?? 'pending'),
         amount: refund.amount / 100,
         currency: refund.currency.toUpperCase(),
         provider: PaymentProvider.STRIPE,
       };
     } catch (error) {
-      throw new Error(`Stripe refund failed: ${error.message}`);
+      throw new Error(
+        `Stripe refund failed: ${this.getErrorMessage(error, 'Unknown Stripe error')}`,
+      );
     }
   }
 
@@ -126,11 +138,13 @@ export class StripeProvider implements IPaymentProvider {
 
       return {
         externalCustomerId: customer.id,
-        email: customer.email,
+        email: customer.email ?? request.email,
         provider: PaymentProvider.STRIPE,
       };
     } catch (error) {
-      throw new Error(`Stripe customer creation failed: ${error.message}`);
+      throw new Error(
+        `Stripe customer creation failed: ${this.getErrorMessage(error, 'Unknown Stripe error')}`,
+      );
     }
   }
 
@@ -171,7 +185,7 @@ export class StripeProvider implements IPaymentProvider {
       };
     } catch (error) {
       throw new Error(
-        `Stripe payment method creation failed: ${error.message}`,
+        `Stripe payment method creation failed: ${this.getErrorMessage(error, 'Unknown Stripe error')}`,
       );
     }
   }
@@ -202,11 +216,14 @@ export class StripeProvider implements IPaymentProvider {
         currentPeriodStart: new Date(subscription.current_period_start * 1000),
         currentPeriodEnd: new Date(subscription.current_period_end * 1000),
         provider: PaymentProvider.STRIPE,
-        nextPaymentDate: new Date(subscription.next_pending_invoice_item_invoice * 1000),
+        nextPaymentDate:
+          subscription.next_pending_invoice_item_invoice != null
+            ? new Date(subscription.next_pending_invoice_item_invoice * 1000)
+            : new Date(subscription.current_period_end * 1000),
       };
     } catch (error) {
       throw new Error(
-        `Stripe subscription creation failed: ${error.message}`,
+        `Stripe subscription creation failed: ${this.getErrorMessage(error, 'Unknown Stripe error')}`,
       );
     }
   }
@@ -216,7 +233,7 @@ export class StripeProvider implements IPaymentProvider {
       await this.stripe.subscriptions.cancel(externalSubscriptionId);
     } catch (error) {
       throw new Error(
-        `Stripe subscription cancellation failed: ${error.message}`,
+        `Stripe subscription cancellation failed: ${this.getErrorMessage(error, 'Unknown Stripe error')}`,
       );
     }
   }

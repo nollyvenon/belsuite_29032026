@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache python3 make g++
@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 
 
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 

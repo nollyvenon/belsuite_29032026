@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'motion/react';
 import {
   Link2,
   Loader2,
@@ -65,7 +64,6 @@ function PlatformSection({
   platform,
   label,
   accounts,
-  oauthUrl,
   loadingOAuth,
   onConnect,
   onRefresh,
@@ -74,7 +72,6 @@ function PlatformSection({
   platform: string;
   label: string;
   accounts: AdAccount[];
-  oauthUrl: string | null;
   loadingOAuth: boolean;
   onConnect: () => void;
   onRefresh: () => void;
@@ -191,7 +188,6 @@ export function ConnectionsPanel() {
           platform="FACEBOOK"
           label="Facebook Ads"
           accounts={fbAccounts}
-          oauthUrl={null}
           loadingOAuth={fbOAuthLoading}
           onConnect={() => handleConnect('facebook')}
           onRefresh={() => handleRefresh('facebook')}
@@ -202,7 +198,6 @@ export function ConnectionsPanel() {
           platform="GOOGLE"
           label="Google Ads"
           accounts={googleAccounts}
-          oauthUrl={null}
           loadingOAuth={googleOAuthLoading}
           onConnect={() => handleConnect('google')}
           onRefresh={() => handleRefresh('google')}

@@ -122,7 +122,8 @@ export class PayPalProvider implements IPaymentProvider {
       );
 
       const data = response.data;
-      const approveLink = data.links.find((link) => link.rel === 'approve');
+      const approveLink = (data.links as Array<{ rel: string; href: string }> | undefined)
+        ?.find((link) => link.rel === 'approve');
 
       return {
         id: `paypal_${data.id}`,

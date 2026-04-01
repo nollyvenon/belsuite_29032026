@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Search, Filter, MoreVertical, Trash2, Clock, Edit3, RefreshCw,
-  Loader2, AlertCircle, CheckCircle2, ExternalLink, RotateCcw,
+  Search, MoreVertical, Trash2, Clock, RefreshCw,
+  Loader2, AlertCircle, ExternalLink, RotateCcw,
 } from 'lucide-react';
 import type { SocialAccount, ScheduledPost, PostStatus, SocialPlatform } from '@/hooks/useSocial';
 import { useSocialPosts } from '@/hooks/useSocial';
 import { PostStatusBadge } from './PostStatusBadge';
-import { PlatformBadge, PLATFORM_ICONS } from './PlatformBadge';
+import { PLATFORM_ICONS } from './PlatformBadge';
 import { CreatePostModal } from './CreatePostModal';
 
 const STATUS_OPTIONS: PostStatus[] = ['DRAFT', 'SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'FAILED', 'CANCELLED'];
@@ -30,8 +30,6 @@ function PostCard({
   const [busy, setBusy] = useState(false);
 
   const platforms = post.accounts.map((a) => a.account.platform);
-  const successResults = post.publishResults.filter((r) => r.status === 'SUCCESS');
-  const failedResults  = post.publishResults.filter((r) => r.status === 'FAILED');
 
   return (
     <motion.div

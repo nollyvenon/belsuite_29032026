@@ -1,8 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { Bot, Plus, Wand2 } from 'lucide-react';
 import { useUGCAvatars } from '@/hooks/useUGC';
+import { passthroughImageLoader } from '@/lib/image-loader';
 
 const STYLES = ['INFLUENCER', 'PROFESSIONAL', 'CASUAL', 'PRESENTER', 'NARRATOR'] as const;
 const PROVIDERS = ['HEYGEN', 'DID', 'TAVUS', 'SYNTHESIA', 'MOCK'] as const;
@@ -59,7 +61,15 @@ export function AvatarStudio() {
             <div key={avatar.id} className="rounded-xl border border-white/5 bg-black/20 p-4">
               <div className="aspect-[4/3] rounded-lg overflow-hidden bg-zinc-900 flex items-center justify-center mb-4">
                 {avatar.thumbnailUrl ? (
-                  <img src={avatar.thumbnailUrl} alt={avatar.name} className="w-full h-full object-cover" />
+                  <Image
+                    src={avatar.thumbnailUrl}
+                    alt={avatar.name}
+                    width={640}
+                    height={480}
+                    className="w-full h-full object-cover"
+                    loader={passthroughImageLoader}
+                    unoptimized
+                  />
                 ) : (
                   <Bot className="w-8 h-8 text-zinc-700" />
                 )}

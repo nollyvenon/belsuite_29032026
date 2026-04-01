@@ -9,6 +9,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PassportModule } from '@nestjs/passport';
 
 // Middleware
+import { BillingContextMiddleware } from './middleware/billing-context.middleware';
 import { TenantMiddleware } from './middleware/tenant.middleware';
 
 // Services
@@ -52,6 +53,6 @@ import { TenantRateLimitGuard } from '../common/guards/tenant-rate-limit.guard';
 export class MultiTenantModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Apply tenant middleware to all routes
-    consumer.apply(TenantMiddleware).forRoutes('*');
+    consumer.apply(TenantMiddleware, BillingContextMiddleware).forRoutes('*');
   }
 }

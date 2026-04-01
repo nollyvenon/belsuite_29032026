@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Upload, Film, Music, Image, FileText, Mic, Trash2, Loader2, Plus, Wand2,
+  Upload, Film, Music, Image, FileText, Mic, Trash2, Loader2, Wand2,
 } from 'lucide-react';
 import type { MediaAsset } from '@/hooks/useVideoProject';
 
@@ -24,13 +24,6 @@ const MEDIA_COLORS: Record<MediaAsset['mediaType'], string> = {
   VOICEOVER:        'text-amber-400',
   BACKGROUND_MUSIC: 'text-pink-400',
 };
-
-function formatSize(bytes?: number) {
-  if (!bytes) return '';
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
 
 function AssetRow({
   asset,

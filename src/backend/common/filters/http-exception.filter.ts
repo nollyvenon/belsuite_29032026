@@ -22,11 +22,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse();
+    const exceptionResponseObject =
+      typeof exceptionResponse === 'object' && exceptionResponse !== null
+        ? (exceptionResponse as { message?: string | string[] })
+        : null;
 
     const message =
-      typeof exceptionResponse === 'object' &&
-      exceptionResponse['message']
-        ? exceptionResponse['message']
+      exceptionResponseObject?.message
+        ? exceptionResponseObject.message
         : exception.message;
 
     const errorResponse = {

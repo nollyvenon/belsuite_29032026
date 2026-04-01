@@ -28,7 +28,7 @@ export const HowItWorks = () => {
         <div className="max-w-3xl mx-auto mb-20 text-center">
           <FadeIn>
             <h2 className="mb-6 text-4xl font-bold md:text-6xl font-display">From idea to viral in 3 steps.</h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400">We've simplified the complex content creation process into a seamless, AI-powered workflow.</p>
+            <p className="text-lg text-gray-600 dark:text-gray-400">We&apos;ve simplified the complex content creation process into a seamless, AI-powered workflow.</p>
           </FadeIn>
         </div>
 

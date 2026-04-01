@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
 
-export default function OAuthCallbackPage() {
+function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -120,5 +120,23 @@ export default function OAuthCallbackPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-black via-black to-black/80">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4 animate-spin" />
+            <p className="text-white text-lg">Processing authentication...</p>
+            <p className="text-white/60 text-sm mt-2">This may take a few moments...</p>
+          </div>
+        </div>
+      }
+    >
+      <OAuthCallbackContent />
+    </Suspense>
   );
 }

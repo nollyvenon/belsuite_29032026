@@ -132,7 +132,7 @@ export class SendGridProvider implements IEmailProvider {
           const result = await this.sendEmail({
             to: recipient,
             from: request.from,
-            subject: personalization.subject || request.subject,
+            subject: personalization.subject ?? request.subject ?? 'Belsuite Notification',
             htmlContent,
             textContent,
             metadata: personalization.variables,

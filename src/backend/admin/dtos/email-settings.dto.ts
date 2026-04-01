@@ -5,8 +5,8 @@
 import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsEmail } from 'class-validator';
 
 export class AdminEmailSettingsDto {
-  organizationId: string;
-  primaryProvider: string;
+  organizationId!: string;
+  primaryProvider!: string;
   
   // SendGrid
   sendgridApiKey?: string;
@@ -37,28 +37,28 @@ export class AdminEmailSettingsDto {
   sendmailPath?: string;
   
   // General
-  emailFrom: string;
-  emailFromName: string;
+  emailFrom!: string;
+  emailFromName!: string;
   replyTo?: string;
   
   // Failover
-  enableFailover: boolean;
-  fallbackProviders: string[];
-  maxRetries: number;
-  retryDelayMs: number;
+  enableFailover!: boolean;
+  fallbackProviders!: string[];
+  maxRetries!: number;
+  retryDelayMs!: number;
   
   // Rate Limiting
-  rateLimitPerMinute: number;
-  rateLimitPerHour: number;
+  rateLimitPerMinute!: number;
+  rateLimitPerHour!: number;
   
   // Features
-  trackingEnabled: boolean;
-  webhooksEnabled: boolean;
-  attachmentsEnabled: boolean;
+  trackingEnabled!: boolean;
+  webhooksEnabled!: boolean;
+  attachmentsEnabled!: boolean;
   
   // Audit
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
   updatedBy?: string;
   lastTestedAt?: Date;
   testStatus?: string;
@@ -184,17 +184,17 @@ export class UpdateEmailSettingsDto {
 
 export class TestEmailDto {
   @IsEmail()
-  testEmail: string;
+  testEmail!: string;
 }
 
 export class EmailProviderConfigDto {
-  id: string;
-  name: string;
-  description: string;
-  configFields: ConfigField[];
-  pricing: string;
-  maxEmailsPerSecond: number;
-  features: string[];
+  id!: string;
+  name!: string;
+  description!: string;
+  configFields!: ConfigField[];
+  pricing!: string;
+  maxEmailsPerSecond!: number;
+  features!: string[];
 }
 
 export interface ConfigField {

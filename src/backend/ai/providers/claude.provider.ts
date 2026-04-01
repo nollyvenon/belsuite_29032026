@@ -24,7 +24,7 @@ export class ClaudeProvider extends BaseAIProvider {
   private readonly baseUrl = 'https://api.anthropic.com/v1';
 
   // Model configurations with costs (per 1k tokens)
-  private modelConfigs = {
+  private modelConfigs: Partial<Record<AIModel, { inputCost: number; outputCost: number }>> = {
     [AIModel.CLAUDE_3_OPUS]: { inputCost: 0.015, outputCost: 0.075 },
     [AIModel.CLAUDE_3_SONNET]: { inputCost: 0.003, outputCost: 0.015 },
     [AIModel.CLAUDE_3_HAIKU]: { inputCost: 0.00025, outputCost: 0.00125 },
@@ -52,8 +52,10 @@ export class ClaudeProvider extends BaseAIProvider {
         },
       );
 
-      const { content, usage, model } = response.data;
-      const config = this.modelConfigs[request.model as AIModel];
+      const { content, usage } = response.data;
+      const config =
+        this.modelConfigs[request.model as AIModel] ??
+        this.modelConfigs[AIModel.CLAUDE_3_SONNET]!;
 
       const cost = this.calculateCost(
         usage.input_tokens,

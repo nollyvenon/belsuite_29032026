@@ -25,7 +25,7 @@ export class OpenAIProvider extends BaseAIProvider {
   private readonly baseUrl = 'https://api.openai.com/v1';
 
   // Model configurations with costs (per 1k tokens)
-  private modelConfigs = {
+  private modelConfigs: Partial<Record<AIModel, { inputCost: number; outputCost: number }>> = {
     [AIModel.GPT_4_TURBO]: { inputCost: 0.01, outputCost: 0.03 },
     [AIModel.GPT_4]: { inputCost: 0.03, outputCost: 0.06 },
     [AIModel.GPT_3_5_TURBO]: { inputCost: 0.0015, outputCost: 0.002 },
@@ -57,7 +57,9 @@ export class OpenAIProvider extends BaseAIProvider {
       );
 
       const { choices, usage } = response.data;
-      const config = this.modelConfigs[request.model as AIModel];
+      const config =
+        this.modelConfigs[request.model as AIModel] ??
+        this.modelConfigs[AIModel.GPT_4_TURBO]!;
 
       const cost = this.calculateCost(
         usage.prompt_tokens,

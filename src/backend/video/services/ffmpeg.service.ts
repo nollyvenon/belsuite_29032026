@@ -5,7 +5,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const ffmpeg: typeof import('fluent-ffmpeg') = require('fluent-ffmpeg');
 import * as path from 'path';
 import * as fs from 'fs';

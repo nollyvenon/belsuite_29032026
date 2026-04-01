@@ -76,6 +76,11 @@ export function CalendarView() {
           <div className="flex justify-center items-center h-64">
             <Loader2 className="w-6 h-6 text-primary animate-spin" />
           </div>
+        ) : error ? (
+          <div className="flex flex-col justify-center items-center h-64 gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 text-center">
+            <AlertCircle className="w-6 h-6 text-red-400" />
+            <p className="text-sm text-red-300">{error}</p>
+          </div>
         ) : (
           <div className="grid grid-cols-7 gap-1">
             {/* Empty cells before first day */}

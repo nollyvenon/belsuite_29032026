@@ -105,7 +105,7 @@ export class PaymentController {
   @Post('verify')
   @UseGuards(JwtAuthGuard, TenantGuard)
   async verifyPayment(
-    @Tenant() organizationId: string,
+    @Tenant() _organizationId: string,
     @Body() dto: VerifyPaymentDto,
   ) {
     try {
@@ -131,7 +131,7 @@ export class PaymentController {
   @Post('refund')
   @UseGuards(JwtAuthGuard, TenantGuard)
   async refundPayment(
-    @Tenant() organizationId: string,
+    @Tenant() _organizationId: string,
     @Body() dto: RefundPaymentDto,
   ) {
     if (!dto.paymentId) {
@@ -139,11 +139,6 @@ export class PaymentController {
     }
 
     try {
-      const payment = await this.paymentService.getPayment(
-        PaymentProvider.STRIPE,
-        dto.paymentId,
-      );
-
       const refund = await this.paymentService.refundPayment(
         PaymentProvider.STRIPE,
         {
@@ -204,7 +199,7 @@ export class PaymentController {
   @Post('payment-methods/add')
   @UseGuards(JwtAuthGuard, TenantGuard)
   async addPaymentMethod(
-    @Tenant() organizationId: string,
+    @Tenant() _organizationId: string,
     @Body() dto: AddPaymentMethodDto,
   ) {
     if (
@@ -367,7 +362,9 @@ export class PaymentController {
     @Headers('stripe-signature') signature: string,
     @Req() request: Request,
   ) {
-    const body = (request as any).rawBody || '';
+    const body = Buffer.isBuffer((request as any).rawBody)
+      ? (request as any).rawBody.toString('utf8')
+      : ((request as any).rawBody || '');
 
     try {
       const result = await this.webhookHandlers.handleStripeWebhook(
@@ -457,6 +454,30 @@ export class PaymentController {
       return result;
     } catch (error) {
       this.logger.error(`Sofort webhook error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Crypto webhook endpoint
+   */
+  @Post('webhooks/crypto')
+  async cryptoWebhook(
+    @Headers('x-cc-webhook-signature') signature: string,
+    @Req() request: Request,
+  ) {
+    const body = Buffer.isBuffer((request as any).rawBody)
+      ? (request as any).rawBody.toString('utf8')
+      : ((request as any).rawBody || '');
+
+    try {
+      const result = await this.webhookHandlers.handleCryptoWebhook(
+        signature,
+        body,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(`Crypto webhook error: ${error.message}`);
       throw error;
     }
   }

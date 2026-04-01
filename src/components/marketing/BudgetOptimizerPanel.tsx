@@ -12,7 +12,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useBudgetOptimizer } from '@/hooks/useMarketing';
-import type { BudgetOptimizationResult } from '@/hooks/useMarketing';
 
 function fmtCurrency(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);

@@ -24,6 +24,10 @@ export class AdminEmailSettingsService {
     private readonly providerFactory: EmailProviderFactory,
   ) {}
 
+  private getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
+  }
+
   /**
    * Get email settings for organization
    */
@@ -77,7 +81,9 @@ export class AdminEmailSettingsService {
 
       return this.decryptSettings(settings);
     } catch (error) {
-      this.logger.error(`Failed to update email settings: ${error.message}`);
+      this.logger.error(
+        `Failed to update email settings: ${this.getErrorMessage(error, 'Failed to update email settings')}`,
+      );
       throw error;
     }
   }
@@ -154,13 +160,14 @@ export class AdminEmailSettingsService {
         throw new Error(`Provider error: ${response.error}`);
       }
     } catch (error) {
-      this.logger.error(`Email test failed: ${error.message}`);
+      const message = this.getErrorMessage(error, 'Email test failed');
+      this.logger.error(`Email test failed: ${message}`);
 
       await this.prisma.adminEmailSettings.update({
         where: { organizationId },
         data: {
           lastTestedAt: new Date(),
-          testStatus: `FAILED: ${error.message}`,
+          testStatus: `FAILED: ${message}`,
         },
       }).catch(() => {
         // Ignore update error if settings don't exist yet
@@ -400,8 +407,8 @@ export class AdminEmailSettingsService {
       healthy: configured.length > 0,
       primaryProvider: settings.primaryProvider,
       configuredProviders: configured,
-      lastTest: settings.lastTestedAt,
-      testStatus: settings.testStatus,
+      lastTest: settings.lastTestedAt ?? null,
+      testStatus: settings.testStatus ?? null,
     };
   }
 
@@ -543,7 +550,9 @@ export class AdminEmailSettingsService {
 
       return iv.toString('hex') + ':' + encrypted;
     } catch (error) {
-      this.logger.warn('Encryption failed, storing plaintext');
+      this.logger.warn(
+        `Encryption failed, storing plaintext: ${this.getErrorMessage(error, 'unknown error')}`,
+      );
       return value;
     }
   }
@@ -568,7 +577,9 @@ export class AdminEmailSettingsService {
 
       return decrypted;
     } catch (error) {
-      this.logger.warn('Decryption failed, returning as-is');
+      this.logger.warn(
+        `Decryption failed, returning as-is: ${this.getErrorMessage(error, 'unknown error')}`,
+      );
       return encrypted;
     }
   }

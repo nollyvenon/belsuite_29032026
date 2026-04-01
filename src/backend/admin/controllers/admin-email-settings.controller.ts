@@ -8,7 +8,6 @@ import {
   Get,
   Post,
   Put,
-  UseGuards,
   Req,
   Body,
   Logger,
@@ -40,6 +39,23 @@ export class AdminEmailSettingsController {
 
   constructor(private readonly emailSettingsService: AdminEmailSettingsService) {}
 
+  private getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
+  }
+
+  private getErrorStatus(error: unknown, fallback = HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'status' in error &&
+      typeof (error as { status?: unknown }).status === 'number'
+    ) {
+      return (error as { status: number }).status;
+    }
+
+    return fallback;
+  }
+
   // ============================================================================
   // GET ENDPOINTS
   // ============================================================================
@@ -62,9 +78,10 @@ export class AdminEmailSettingsController {
 
       return await this.emailSettingsService.getEmailSettings(organizationId);
     } catch (error) {
-      this.logger.error(`Failed to get email settings: ${error.message}`);
+      const message = this.getErrorMessage(error, 'Failed to get email settings');
+      this.logger.error(`Failed to get email settings: ${message}`);
       throw new HttpException(
-        error.message,
+        message,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -79,7 +96,9 @@ export class AdminEmailSettingsController {
     try {
       return await this.emailSettingsService.getAvailableProviders();
     } catch (error) {
-      this.logger.error(`Failed to get providers: ${error.message}`);
+      this.logger.error(
+        `Failed to get providers: ${this.getErrorMessage(error, 'Failed to get providers')}`,
+      );
       throw new HttpException(
         'Failed to fetch providers',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -105,9 +124,10 @@ export class AdminEmailSettingsController {
 
       return await this.emailSettingsService.checkEmailHealth(organizationId);
     } catch (error) {
-      this.logger.error(`Failed to check email health: ${error.message}`);
+      const message = this.getErrorMessage(error, 'Failed to check email health');
+      this.logger.error(`Failed to check email health: ${message}`);
       throw new HttpException(
-        error.message,
+        message,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -133,8 +153,9 @@ export class AdminEmailSettingsController {
         organizationId,
       );
     } catch (error) {
+      const message = this.getErrorMessage(error, 'Failed to get configured providers');
       this.logger.error(
-        `Failed to get configured providers: ${error.message}`,
+        `Failed to get configured providers: ${message}`,
       );
       throw new HttpException(
         'Failed to fetch configured providers',
@@ -170,13 +191,7 @@ export class AdminEmailSettingsController {
       const currentSettings = await this.emailSettingsService.getEmailSettings(
         organizationId,
       );
-      const hasExistingProvider = Object.values(currentSettings).some(
-        (v) => typeof v === 'string' && v.startsWith('sendgrid') ||
-          v.startsWith('mailgun') ||
-          v.startsWith('postmark') ||
-          v.startsWith('aws') ||
-          v.startsWith('smtp'),
-      );
+      const hasExistingProvider = this.hasConfiguredProvider(currentSettings);
 
       if (!hasExistingProvider && !this.hasProviderInDto(dto)) {
         throw new HttpException(
@@ -196,10 +211,11 @@ export class AdminEmailSettingsController {
 
       return updated;
     } catch (error) {
-      this.logger.error(`Failed to update email settings: ${error.message}`);
+      const message = this.getErrorMessage(error, 'Failed to update email settings');
+      this.logger.error(`Failed to update email settings: ${message}`);
       throw new HttpException(
-        error.message,
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        message,
+        this.getErrorStatus(error),
       );
     }
   }
@@ -239,9 +255,10 @@ export class AdminEmailSettingsController {
 
       return result;
     } catch (error) {
-      this.logger.error(`Test email failed: ${error.message}`);
+      const message = this.getErrorMessage(error, 'Test email failed');
+      this.logger.error(`Test email failed: ${message}`);
       throw new HttpException(
-        error.message,
+        message,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -262,6 +279,17 @@ export class AdminEmailSettingsController {
       (dto.awsAccessKeyId && dto.awsSecretAccessKey) ||
       dto.smtpHost ||
       dto.sendmailPath
+    );
+  }
+
+  private hasConfiguredProvider(settings: AdminEmailSettingsDto): boolean {
+    return Boolean(
+      settings.sendgridApiKey ||
+      settings.mailgunApiKey ||
+      settings.postmarkApiKey ||
+      (settings.awsAccessKeyId && settings.awsSecretAccessKey) ||
+      settings.smtpHost ||
+      settings.sendmailPath,
     );
   }
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useRouter } from 'next/navigation';
@@ -8,6 +9,7 @@ import {
   AlertCircle, Loader2, Film, Trash2, Edit3, Download, Sparkles,
 } from 'lucide-react';
 import { useVideoProjects, VideoProject } from '@/hooks/useVideoProject';
+import { passthroughImageLoader } from '@/lib/image-loader';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -60,7 +62,15 @@ function ProjectCard({
       {/* Thumbnail */}
       <div className={`relative bg-zinc-900 aspect-video overflow-hidden`}>
         {project.thumbnailUrl ? (
-          <img src={project.thumbnailUrl} alt={project.title} className="w-full h-full object-cover" />
+          <Image
+            src={project.thumbnailUrl}
+            alt={project.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
+            className="object-cover"
+            loader={passthroughImageLoader}
+            unoptimized
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Film className="w-10 h-10 text-zinc-700" />
@@ -244,22 +254,18 @@ export default function VideoPage() {
   const { projects, loading, error, createProject, deleteProject } = useVideoProjects();
   const [search, setSearch] = useState('');
   const [showNew, setShowNew] = useState(false);
-  const [creating, setCreating] = useState(false);
 
   const filtered = projects.filter((p) =>
     p.title.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleCreate = async (title: string, ratio: string) => {
-    setCreating(true);
     try {
       const proj = await createProject(title, ratio);
       setShowNew(false);
       router.push(`/video/${proj.id}`);
     } catch (e) {
       console.error(e);
-    } finally {
-      setCreating(false);
     }
   };
 

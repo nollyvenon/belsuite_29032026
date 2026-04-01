@@ -68,9 +68,9 @@ export const Pricing = () => {
                   ))}
                 </div>
 
-                <button className={`w-full py-4 font-bold rounded-full transition-all ${plan.popular ? 'bg-primary text-white hover:orange-glow' : 'border dark:border-white/10 border-black/10 hover:bg-black/5 dark:hover:bg-white/5'}`}>
+                <a href="/billing" className={`block w-full py-4 text-center font-bold rounded-full transition-all ${plan.popular ? 'bg-primary text-white hover:orange-glow' : 'border dark:border-white/10 border-black/10 hover:bg-black/5 dark:hover:bg-white/5'}`}>
                   {plan.cta}
-                </button>
+                </a>
               </div>
             </FadeIn>
           ))}

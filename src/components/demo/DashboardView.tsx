@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { motion } from 'motion/react';
 import { 
   Users, 
@@ -20,9 +20,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar
+  ResponsiveContainer
 } from 'recharts';
 import { MOCK_CHART_DATA, MOCK_ACTIVITY } from '@/lib/demo-data';
 import { cn } from '@/lib/utils';
@@ -50,6 +48,12 @@ const StatCard = ({ title, value, growth, icon: Icon, prefix = "" }: any) => (
 );
 
 export const DashboardView = () => {
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -63,44 +67,48 @@ export const DashboardView = () => {
         <div className="lg:col-span-2 p-6 border rounded-2xl dark:border-white/10 border-black/5 bg-white dark:bg-black/40">
           <h3 className="text-lg font-bold font-display mb-6">Lead Growth Performance</h3>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={MOCK_CHART_DATA}>
-                <defs>
-                  <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#FF6A00" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888822" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#888888' }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#888888' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#000', 
-                    border: '1px solid #333',
-                    borderRadius: '12px',
-                    fontSize: '12px'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="leads" 
-                  stroke="#FF6A00" 
-                  strokeWidth={2}
-                  fillOpacity={1} 
-                  fill="url(#colorLeads)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isMounted ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={MOCK_CHART_DATA}>
+                  <defs>
+                    <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#FF6A00" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888822" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: '#888888' }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: '#888888' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#000', 
+                      border: '1px solid #333',
+                      borderRadius: '12px',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="leads" 
+                    stroke="#FF6A00" 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#colorLeads)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full animate-pulse rounded-xl bg-black/5 dark:bg-white/5" />
+            )}
           </div>
         </div>
 

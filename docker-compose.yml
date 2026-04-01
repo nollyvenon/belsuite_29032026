@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -18,6 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - belsuite-network
 
   # Redis Cache
   redis:
@@ -33,6 +33,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - belsuite-network
 
   # Meilisearch (Full-text search)
   meilisearch:
@@ -50,12 +52,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - belsuite-network
 
   # Backend API (NestJS)
   backend:
     build:
       context: .
       dockerfile: Dockerfile
+      target: builder
     container_name: belsuite-backend
     ports:
       - "3001:3001"
@@ -74,12 +79,15 @@ services:
       - ./src:/app/src
       - ./dist:/app/dist
     command: npm run dev
+    networks:
+      - belsuite-network
 
   # Frontend (Next.js)
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      target: builder
     container_name: belsuite-frontend
     ports:
       - "3000:3000"
@@ -90,6 +98,8 @@ services:
     volumes:
       - ./src/app:/app/src/app
       - ./src/components:/app/src/components
+    networks:
+      - belsuite-network
 
 volumes:
   postgres_data:
@@ -97,5 +107,5 @@ volumes:
   meilisearch_data:
 
 networks:
-  default:
-    name: belsuite-network
+  belsuite-network:
+    driver: bridge

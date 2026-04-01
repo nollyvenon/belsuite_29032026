@@ -9,6 +9,7 @@ export enum PaymentProvider {
   FLUTTERWAVE = 'flutterwave',
   PAYPAL = 'paypal',
   SOFORT = 'sofort',
+  CRYPTO = 'crypto',
 }
 
 export enum PaymentStatus {
@@ -33,6 +34,7 @@ export enum RefundStatus {
 export interface CreatePaymentRequest {
   organizationId: string;
   subscriptionId: string;
+  invoiceId?: string;
   amount: number;
   currency: string;
   metadata?: Record<string, any>;

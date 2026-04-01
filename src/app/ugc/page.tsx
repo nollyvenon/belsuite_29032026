@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Bot,
@@ -72,11 +72,10 @@ export default function UGCPage() {
   const { overview, loading, error } = useUGCDashboard();
   const { projects } = useUGCProjects();
 
-  useEffect(() => {
-    if (!selectedProjectId && projects.length > 0) {
-      setSelectedProjectId(projects[0].id);
-    }
-  }, [projects, selectedProjectId]);
+  const effectiveSelectedProjectId = useMemo(
+    () => selectedProjectId || projects[0]?.id || '',
+    [projects, selectedProjectId],
+  );
 
   const needsProject = tab === 'scripts' || tab === 'renders';
 
@@ -94,7 +93,7 @@ export default function UGCPage() {
             </div>
           </div>
 
-          {needsProject && <ProjectSelector selectedId={selectedProjectId} onSelect={setSelectedProjectId} />}
+          {needsProject && <ProjectSelector selectedId={effectiveSelectedProjectId} onSelect={setSelectedProjectId} />}
         </div>
 
         <div className="max-w-7xl mx-auto px-6 flex gap-1 overflow-x-auto pb-0">
@@ -123,8 +122,8 @@ export default function UGCPage() {
             {tab === 'projects' && <UGCProjectsView />}
             {tab === 'avatars' && <AvatarStudio />}
             {tab === 'voices' && <VoiceClonesPanel />}
-            {tab === 'scripts' && (selectedProjectId ? <ScriptToVideoPanel projectId={selectedProjectId} /> : <NoProjectSelected label="script generation" />)}
-            {tab === 'renders' && (selectedProjectId ? <RenderQueuePanel projectId={selectedProjectId} /> : <NoProjectSelected label="rendering" />)}
+            {tab === 'scripts' && (effectiveSelectedProjectId ? <ScriptToVideoPanel projectId={effectiveSelectedProjectId} /> : <NoProjectSelected label="script generation" />)}
+            {tab === 'renders' && (effectiveSelectedProjectId ? <RenderQueuePanel projectId={effectiveSelectedProjectId} /> : <NoProjectSelected label="rendering" />)}
           </motion.div>
         </AnimatePresence>
       </div>

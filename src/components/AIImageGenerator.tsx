@@ -1,8 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Wand2, Download, Loader, AlertCircle } from 'lucide-react';
+import { passthroughImageLoader } from '@/lib/image-loader';
 
 export interface ImageGeneratorProps {
   onGenerated?: (urls: string[]) => void;
@@ -177,12 +179,16 @@ export const ImageGenerator = ({ onGenerated }: ImageGeneratorProps) => {
               <motion.div
                 key={idx}
                 whileHover={{ scale: 1.05 }}
-                className="relative group"
+                className="relative group aspect-square"
               >
-                <img
+                <Image
                   src={url}
                   alt={`Generated image ${idx + 1}`}
-                  className="w-full rounded-lg object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                  className="rounded-lg object-cover"
+                  loader={passthroughImageLoader}
+                  unoptimized
                 />
                 <motion.a
                   initial={{ opacity: 0 }}

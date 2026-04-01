@@ -174,6 +174,23 @@ export const paymentProviderConfig = {
     },
     docs: 'https://www.sofort.com/eng/api/',
   },
+
+  crypto: {
+    name: 'Crypto (Coinbase Commerce)',
+    regions: ['GLOBAL'],
+    currencies: ['USD', 'EUR', 'GBP', 'USDC', 'BTC', 'ETH'],
+    features: [
+      'ONE_TIME_PAYMENTS',
+      'INVOICE_PAYMENTS',
+      'WEBHOOKS',
+      'SELF_CUSTODY_COMPATIBLE',
+    ],
+    requirements: {
+      apiKey: 'COINBASE_COMMERCE_API_KEY',
+      webhookSecret: 'COINBASE_COMMERCE_WEBHOOK_SECRET',
+    },
+    docs: 'https://commerce.coinbase.com/docs/api/',
+  },
 };
 
 /**

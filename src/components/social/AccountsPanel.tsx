@@ -1,11 +1,13 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, RefreshCw, Loader2, CheckCircle2, AlertCircle, ExternalLink, Users,
 } from 'lucide-react';
 import type { SocialAccount, SocialPlatform } from '@/hooks/useSocial';
 import { useSocialAccounts } from '@/hooks/useSocial';
+import { passthroughImageLoader } from '@/lib/image-loader';
 import { PlatformBadge, PLATFORM_ICONS } from './PlatformBadge';
 import { WhatsAppRecipientsModal } from './WhatsAppRecipientsModal';
 
@@ -90,7 +92,15 @@ function AccountCard({
       {/* Avatar */}
       <div className="relative">
         {account.avatar ? (
-          <img src={account.avatar} alt={account.displayName} className="w-12 h-12 rounded-full object-cover" />
+          <Image
+            src={account.avatar}
+            alt={account.displayName}
+            width={48}
+            height={48}
+            className="rounded-full object-cover"
+            loader={passthroughImageLoader}
+            unoptimized
+          />
         ) : (
           <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-xl">
             {PLATFORM_ICONS[account.platform]}

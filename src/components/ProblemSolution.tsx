@@ -23,7 +23,7 @@ export const ProblemSolution = () => {
                 <XCircle className="w-6 h-6 text-red-500 mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-bold mb-1">Too many tools</h4>
-                  <p className="text-gray-400">Paying for 10+ subscriptions that don't talk to each other.</p>
+                  <p className="text-gray-400">Paying for 10+ subscriptions that don&apos;t talk to each other.</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">

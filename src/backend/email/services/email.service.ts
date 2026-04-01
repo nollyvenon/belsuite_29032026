@@ -21,6 +21,25 @@ export class EmailService {
     return error instanceof Error ? error.message : 'Unknown error';
   }
 
+  private mapTemplate(template: {
+    id: string;
+    name: string;
+    subject: string;
+    htmlTemplate: string;
+    textTemplate: string | null;
+    variables: string[];
+    category: string;
+    isActive: boolean;
+    organizationId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }): EmailTemplate {
+    return {
+      ...template,
+      textTemplate: template.textTemplate ?? undefined,
+    };
+  }
+
   /**
    * Send a single email
    */
@@ -198,32 +217,36 @@ export class EmailService {
     });
 
     this.logger.log(`Template created: ${template.id}`);
-    return template;
+    return this.mapTemplate(template);
   }
 
   /**
    * Get email template
    */
   async getTemplate(templateId: string, organizationId: string): Promise<EmailTemplate | null> {
-    return this.prisma.emailTemplate.findFirst({
+    const template = await this.prisma.emailTemplate.findFirst({
       where: {
         id: templateId,
         organizationId,
       },
     });
+
+    return template ? this.mapTemplate(template) : null;
   }
 
   /**
    * List organization templates
    */
   async listTemplates(organizationId: string): Promise<EmailTemplate[]> {
-    return this.prisma.emailTemplate.findMany({
+    const templates = await this.prisma.emailTemplate.findMany({
       where: {
         organizationId,
         isActive: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return templates.map((template) => this.mapTemplate(template));
   }
 
   /**

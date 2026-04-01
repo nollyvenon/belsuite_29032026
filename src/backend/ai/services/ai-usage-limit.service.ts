@@ -1,12 +1,14 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SubscriptionTier } from '@prisma/client';
+import { BillingService } from '../../payments/services/billing.service';
 
 export interface UsageLimits {
   requestsPerMinute: number;
   tokensPerMonth: number;
   tier: SubscriptionTier;
+  payAsYouGoEnabled: boolean;
+  aiOveragePer1kTokens: number;
 }
 
 export interface UsageCheckResult {
@@ -21,67 +23,29 @@ export interface UsageCheckResult {
     requestsThisMinute: number;
     tokensThisMonth: number;
   };
+  billingMode: 'included' | 'payg';
 }
 
 @Injectable()
 export class AIUsageLimitService {
   constructor(
     private prisma: PrismaService,
-    private configService: ConfigService,
+    private billingService: BillingService,
   ) {}
 
   /**
-   * Get usage limits for a subscription tier
+   * Get usage limits for the current billing plan
    */
-  private getLimitsForTier(tier: SubscriptionTier): UsageLimits {
-    const tierLimits: Record<SubscriptionTier, UsageLimits> = {
-      FREE: {
-        requestsPerMinute: this.configService.get<number>(
-          'AI_REQUESTS_PER_MINUTE_FREE',
-          10,
-        ),
-        tokensPerMonth: this.configService.get<number>(
-          'AI_TOKENS_PER_MONTH_FREE',
-          100000,
-        ),
-        tier: 'FREE',
-      },
-      STARTER: {
-        requestsPerMinute: this.configService.get<number>(
-          'AI_REQUESTS_PER_MINUTE_STARTER',
-          50,
-        ),
-        tokensPerMonth: this.configService.get<number>(
-          'AI_TOKENS_PER_MONTH_STARTER',
-          1000000,
-        ),
-        tier: 'STARTER',
-      },
-      PROFESSIONAL: {
-        requestsPerMinute: this.configService.get<number>(
-          'AI_REQUESTS_PER_MINUTE_PROFESSIONAL',
-          200,
-        ),
-        tokensPerMonth: this.configService.get<number>(
-          'AI_TOKENS_PER_MONTH_PROFESSIONAL',
-          10000000,
-        ),
-        tier: 'PROFESSIONAL',
-      },
-      ENTERPRISE: {
-        requestsPerMinute: this.configService.get<number>(
-          'AI_REQUESTS_PER_MINUTE_ENTERPRISE',
-          1000,
-        ),
-        tokensPerMonth: this.configService.get<number>(
-          'AI_TOKENS_PER_MONTH_ENTERPRISE',
-          100000000,
-        ),
-        tier: 'ENTERPRISE',
-      },
-    };
+  private async getLimitsForOrganization(organizationId: string): Promise<UsageLimits> {
+    const entitlements = await this.billingService.getAiEntitlements(organizationId);
 
-    return tierLimits[tier];
+    return {
+      requestsPerMinute: entitlements.requestsPerMinute,
+      tokensPerMonth: entitlements.includedAiTokens,
+      tier: entitlements.tier,
+      payAsYouGoEnabled: entitlements.payAsYouGoEnabled,
+      aiOveragePer1kTokens: entitlements.aiOveragePer1kTokens,
+    };
   }
 
   /**
@@ -93,18 +57,7 @@ export class AIUsageLimitService {
     userId: string,
     estimatedTokens: number = 100,
   ): Promise<UsageCheckResult> {
-    // Get organization with tier info
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { tier: true },
-    });
-
-    if (!organization) {
-      throw new BadRequestException('Organization not found');
-    }
-
-    const tier = organization.tier;
-    const limits = this.getLimitsForTier(tier);
+    const limits = await this.getLimitsForOrganization(organizationId);
 
     // Count requests in the last minute
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
@@ -141,8 +94,8 @@ export class AIUsageLimitService {
 
     // Check limits
     const requestLimitExceeded = requestsThisMinute >= limits.requestsPerMinute;
-    const tokenLimitExceeded =
-      tokensThisMonth + estimatedTokens > limits.tokensPerMonth;
+    const exceedsIncludedTokens = tokensThisMonth + estimatedTokens > limits.tokensPerMonth;
+    const tokenLimitExceeded = exceedsIncludedTokens && !limits.payAsYouGoEnabled;
 
     return {
       allowed: !requestLimitExceeded && !tokenLimitExceeded,
@@ -166,6 +119,7 @@ export class AIUsageLimitService {
           limits.tokensPerMonth - tokensThisMonth,
         ),
       },
+      billingMode: exceedsIncludedTokens ? 'payg' : 'included',
     };
   }
 
@@ -276,7 +230,10 @@ export class AIUsageLimitService {
     const result = await this.checkUsageLimit(organizationId, userId);
     return {
       requestsRemaining: result.remaining.requestsThisMinute,
-      tokensRemaining: result.remaining.tokensThisMonth,
+      tokensRemaining:
+        result.billingMode === 'payg'
+          ? Number.MAX_SAFE_INTEGER
+          : result.remaining.tokensThisMonth,
       tier: result.limits.tier,
     };
   }

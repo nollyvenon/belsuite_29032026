@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
-  Maximize2, Download, Loader2, Sparkles, ChevronRight, RotateCcw,
-  Settings, Save, Clapperboard, AlertCircle, CheckCircle2,
+  Download, Loader2, Sparkles, RotateCcw,
+  Settings, Clapperboard, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { useVideoEditor } from '@/hooks/useVideoProject';
 import { ScenePanel } from '@/components/video/ScenePanel';
@@ -242,7 +242,7 @@ export default function VideoEditorPage() {
 
   const {
     project, loading, error, generating, rendering,
-    refresh, generateFromScript, queueRender, updateScene,
+    generateFromScript, queueRender, updateScene,
     uploadMedia, deleteAsset, generateSubtitles,
   } = useVideoEditor(projectId);
 
@@ -250,7 +250,6 @@ export default function VideoEditorPage() {
   const [showScript, setShowScript] = useState(false);
   const [toast, setToast]           = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
-  const [savingTimeline, setSavingTimeline]    = useState(false);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });

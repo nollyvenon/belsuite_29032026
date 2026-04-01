@@ -299,13 +299,15 @@ export function useCalendar(from: Date, to: Date) {
   const [days, setDays]       = useState<CalendarDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
+  const fromIso = from.toISOString();
+  const toIso = to.toISOString();
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await apiFetch<CalendarDay[]>(
-        `/api/social/calendar?from=${from.toISOString()}&to=${to.toISOString()}`,
+        `/api/social/calendar?from=${fromIso}&to=${toIso}`,
       );
       setDays(data);
     } catch (e) {
@@ -313,7 +315,7 @@ export function useCalendar(from: Date, to: Date) {
     } finally {
       setLoading(false);
     }
-  }, [from.toISOString(), to.toISOString()]);
+  }, [fromIso, toIso]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -429,19 +431,34 @@ export function useAutoCreator() {
 // ── Optimal times hook ────────────────────────────────────────────────────────
 
 export function useOptimalTimes(platform: SocialPlatform | null) {
-  const [slots, setSlots]     = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [slots, setSlots] = useState<string[]>([]);
+  const [resolvedPlatform, setResolvedPlatform] = useState<SocialPlatform | null>(null);
+
+  const loading = Boolean(platform && platform !== resolvedPlatform);
 
   useEffect(() => {
     if (!platform) return;
-    setLoading(true);
+
+    let cancelled = false;
+
     apiFetch<string[]>(`/api/social/optimal-times/${platform}?count=5`)
-      .then(setSlots)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then((nextSlots) => {
+        if (cancelled) return;
+        setSlots(nextSlots);
+        setResolvedPlatform(platform);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSlots([]);
+        setResolvedPlatform(platform);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [platform]);
 
-  return { slots, loading };
+  return { slots: platform ? slots : [], loading };
 }
 
 // ── Retry dashboard hook ──────────────────────────────────────────────────────

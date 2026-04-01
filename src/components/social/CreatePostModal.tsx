@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  X, Sparkles, Clock, RotateCcw, Loader2, Plus, Hash, Link as LinkIcon,
+  X, Sparkles, Clock, RotateCcw, Loader2, Hash, Link as LinkIcon,
   AlertCircle,
 } from 'lucide-react';
 import type { SocialAccount, SocialPlatform, CreatePostInput } from '@/hooks/useSocial';
 import { useSocialPosts, useOptimalTimes, useAutoCreator } from '@/hooks/useSocial';
-import { PlatformBadge, PLATFORM_ICONS } from './PlatformBadge';
+import { PLATFORM_ICONS } from './PlatformBadge';
 
 const CHAR_LIMITS: Record<SocialPlatform, number> = {
   TWITTER: 280,

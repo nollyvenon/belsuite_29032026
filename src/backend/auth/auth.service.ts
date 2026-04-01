@@ -120,7 +120,7 @@ export class AuthService {
 
     const passwordHash = await this.passwords.hashPassword(dto.password);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const { user, org } = await this.prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
         data: {

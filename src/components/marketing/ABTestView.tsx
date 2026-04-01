@@ -13,7 +13,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useABTests } from '@/hooks/useMarketing';
-import type { ABTest, ABTestAnalysis } from '@/hooks/useMarketing';
+import type { ABTestAnalysis } from '@/hooks/useMarketing';
 
 function SignificanceBadge({ significant }: { significant: boolean }) {
   return (
@@ -108,7 +108,7 @@ function AnalysisCard({ analysis }: { analysis: ABTestAnalysis }) {
 }
 
 export function ABTestView({ campaignId }: { campaignId: string }) {
-  const { tests, loading, createTest, startTest, getAnalysis, deleteTest } = useABTests(campaignId);
+  const { tests, loading, createTest, startTest, getAnalysis } = useABTests(campaignId);
 
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({

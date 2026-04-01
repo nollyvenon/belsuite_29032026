@@ -132,6 +132,28 @@ export class WebhookHandlers {
   }
 
   /**
+   * Handle Crypto webhook
+   */
+  async handleCryptoWebhook(signature: string, body: string) {
+    this.logger.log('Processing Crypto webhook');
+
+    const isValid = await this.paymentService.verifyWebhookSignature(
+      PaymentProvider.CRYPTO,
+      signature,
+      body,
+    );
+
+    if (!isValid.isValid) {
+      throw new BadRequestException('Invalid Crypto webhook signature');
+    }
+
+    const event = JSON.parse(body);
+    await this.paymentService.handleWebhookEvent(PaymentProvider.CRYPTO, event);
+
+    return { received: true };
+  }
+
+  /**
    * Generic webhook handler for future providers
    */
   async handleGenericWebhook(provider: PaymentProvider, signature: string, body: any) {

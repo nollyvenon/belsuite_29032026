@@ -4,9 +4,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { 
   Plus, 
-  Play, 
   Mail, 
-  MessageSquare, 
   PhoneCall, 
   ArrowRight, 
   Settings, 

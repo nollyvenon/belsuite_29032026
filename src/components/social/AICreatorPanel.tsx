@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Sparkles, Loader2, CheckCircle2, AlertCircle, Clock, Send,
-  ChevronDown, ChevronUp, Hash, X,
+  Sparkles, Loader2, CheckCircle2, AlertCircle, Clock, X,
 } from 'lucide-react';
 import type { SocialAccount, SocialPlatform } from '@/hooks/useSocial';
 import { useAutoCreator, useOptimalTimes } from '@/hooks/useSocial';
@@ -122,7 +121,6 @@ export function AICreatorPanel({ accounts }: { accounts: SocialAccount[] }) {
   const [scheduledAt, setScheduledAt]   = useState('');
   const [results, setResults]           = useState<GeneratedPost[]>([]);
   const [error, setError]               = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Primary platform for optimal-time preview
   const primaryPlatform = Array.from(selectedPlatforms)[0] ?? null;
@@ -305,7 +303,7 @@ export function AICreatorPanel({ accounts }: { accounts: SocialAccount[] }) {
           <div className="flex flex-col items-center justify-center h-48 text-center">
             <Sparkles className="w-8 h-8 text-zinc-700 mb-3" />
             <p className="text-sm text-zinc-500">
-              Generated posts will appear here after you click "Generate &amp; Schedule".
+              Generated posts will appear here after you click &quot;Generate &amp; Schedule&quot;.
             </p>
           </div>
         )}

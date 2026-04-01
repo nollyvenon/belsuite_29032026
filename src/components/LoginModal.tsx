@@ -71,7 +71,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
       }
 
       window.location.href = authUrl;
-    } catch (err) {
+    } catch {
       setError('OAuth initialization failed');
     } finally {
       setIsLoading(false);

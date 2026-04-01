@@ -11,6 +11,7 @@ import { rateLimit } from 'express-rate-limit';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
+    rawBody: true,
     cors: {
       origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

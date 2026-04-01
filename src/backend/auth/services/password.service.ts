@@ -5,7 +5,7 @@
 
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const zxcvbn: (password: string, userInputs?: string[]) => { score: number; feedback: { warning: string; suggestions: string[] } } = require('zxcvbn');
 
 export interface PasswordStrength {
