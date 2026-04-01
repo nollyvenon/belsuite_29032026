@@ -21,6 +21,7 @@ import { LeadEngineModule } from './lead-engine/lead-engine.module';
 import { SeoEngineModule } from './seo-engine/seo-engine.module';
 import { CrmEngineModule } from './crm-engine/crm-engine.module';
 import { MarketingAutomationModule } from './marketing-automation/marketing-automation.module';
+import { AICallingModule } from './ai-calling/ai-calling.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -94,6 +95,7 @@ class StorageModule {}
     SeoEngineModule,
     CrmEngineModule,
     MarketingAutomationModule,
+    AICallingModule,
   ],
   providers: [
     DatabaseConfig,
