@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RbacModule } from './rbac/rbac.module';
+import { TeamsModule } from './teams/teams.module';
 import { PaymentModule } from './payments/payment.module';
 import { AIModule } from './ai/ai.module';
 import { VideoModule } from './video/video.module';
@@ -56,6 +57,7 @@ class StorageModule {}
     UsersModule,
     OrganizationsModule,
     RbacModule,
+    TeamsModule,
 
     // Business modules (Phase 2+)
     PaymentModule,

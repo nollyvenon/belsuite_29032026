@@ -57,6 +57,14 @@ model User {
   // UGC Content Generator
   ugcProjects           UGCProject[]   @relation("UserUGCProjects")
 
+  // Module 11: Teams & Collaboration
+  teamCreator           Team[]         @relation("TeamCreator")
+  teamMembers           TeamMember[]   @relation("TeamMember")
+  teamInvited           TeamInvitation[] @relation("TeamInvited")
+  approvalSubmitter     WorkflowApproval[] @relation("ApprovalSubmitter")
+  approvals             Approval[]     @relation("Approver")
+  teamAuditLogs         TeamAuditLog[] @relation("TeamAuditActor")
+
   // Authentication relations
   oauthAccounts         OAuthAccount[]
   twoFactor             TwoFactorSecret?
@@ -348,6 +356,9 @@ model Organization {
   ugcAvatars            UGCAvatar[]    @relation("OrgUGCAvatars")
   voiceClones           VoiceClone[]   @relation("OrgVoiceClones")
   ugcProjects           UGCProject[]   @relation("OrgUGCProjects")
+
+  // Module 11: Teams & Collaboration
+  teams                 Team[]         @relation("OrgTeams")
 
   @@index([slug])
   @@index([status])
@@ -2669,3 +2680,308 @@ model UGCRender {
   @@index([status])
   @@index([createdAt])
 }
+
+// ============================================================================
+// MODULE 11: TEAMS & COLLABORATION
+// ============================================================================
+
+enum TeamRole {
+  OWNER        // Full control, billing, team management
+  ADMIN        // Manage team, users, permissions (no billing)
+  EDITOR       // Create, edit, publish content
+  CONTRIBUTOR  // Create content, cannot publish
+  VIEWER       // Read-only access
+  APPROVER     // Approve/reject content
+}
+
+enum ApprovalStatus {
+  PENDING       // Awaiting approval
+  APPROVED      // Approved by required approvers
+  REJECTED      // Rejected with reason
+  REVOKED       // Approval revoked by approver
+  EXPIRED       // Approval expired
+  CANCELLED     // Workflow cancelled before completion
+}
+
+enum TeamInvitationStatus {
+  PENDING       // Invitation sent, awaiting acceptance
+  ACCEPTED      // User accepted and joined team
+  DECLINED      // User declined invitation
+  REVOKED       // Admin revoked invitation
+  EXPIRED       // Invitation expired
+}
+
+// ─── Teams ───────────────────────────────────────────────────────────────
+
+model Team {
+  id                String              @id @default(cuid())
+  organizationId    String
+  organization      Organization        @relation("OrgTeams", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name              String              @db.VarChar(255)
+  slug              String              @db.VarChar(128)
+  description       String?             @db.Text
+  
+  // Access control
+  isPublic          Boolean             @default(false)
+  requiresApproval  Boolean             @default(true)   // Require approval workflows for content
+  
+  // Members & quota
+  memberCount       Int                 @default(1)
+  maxMembers        Int?                // Null = unlimited
+  
+  // Metadata
+  metadata          String?             @db.Text         // JSON additional metadata
+  
+  // Owner / creator
+  createdById       String
+  createdBy         User                @relation("TeamCreator", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  archivedAt        DateTime?           // Soft delete
+  
+  // Relations
+  members           TeamMember[]
+  invitations       TeamInvitation[]
+  workflows         TeamWorkflow[]
+  auditLogs         TeamAuditLog[]
+  
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([createdAt])
+  @@index([archivedAt])
+}
+
+// ─── Team Members ────────────────────────────────────────────────────────
+
+model TeamMember {
+  id                String              @id @default(cuid())
+  teamId            String
+  team              Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  userId            String
+  user              User                @relation("TeamMember", fields: [userId], references: [id], onDelete: Cascade)
+  
+  role              TeamRole            @default(CONTRIBUTOR)
+  
+  // Status
+  isActive          Boolean             @default(true)
+  joinedAt          DateTime            @default(now())
+  invitedAt         DateTime?           // When invited
+  invitedBy         String?             // User ID who invited
+  
+  // Permissions cache (denormalized for performance)
+  permissions       String[]            @default([])     // JSON array of permission strings
+  
+  // Last activity
+  lastActivityAt    DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([role])
+  @@index([isActive])
+}
+
+// ─── Team Invitations ────────────────────────────────────────────────────
+
+model TeamInvitation {
+  id                String              @id @default(cuid())
+  teamId            String
+  team              Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Invitee details
+  invitedEmail      String              @db.VarChar(255)
+  role              TeamRole            @default(CONTRIBUTOR)
+  
+  // Invitation metadata
+  invitedBy         String
+  invitedByUser     User                @relation("TeamInvited", fields: [invitedBy], references: [id])
+  
+  // Token & expiry
+  token             String              @unique
+  expiresAt         DateTime
+  
+  // Status & response
+  status            TeamInvitationStatus @default(PENDING)
+  acceptedAt        DateTime?
+  acceptedByUserId  String?
+  declinedAt        DateTime?
+  revokedAt         DateTime?
+  
+  // Metadata
+  message           String?             @db.Text
+  
+  createdAt         DateTime            @default(now())
+  
+  @@unique([teamId, invitedEmail])
+  @@index([teamId])
+  @@index([invitedEmail])
+  @@index([token])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// ─── Team Workflows (Approval Workflows) ──────────────────────────────────
+
+model TeamWorkflow {
+  id                String              @id @default(cuid())
+  teamId            String
+  team              Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  name              String              @db.VarChar(255)
+  description       String?             @db.Text
+  
+  // Workflow configuration
+  requiresApprovals Boolean             @default(true)
+  requiredApprovals Int                 @default(1)      // Minimum approvals needed
+  allowRejectReason Boolean             @default(true)
+  
+  // Applicable content types (JSON array: video, post, article, etc.)
+  applicableContentTypes String[]       @default([])
+  
+  // Status
+  isActive          Boolean             @default(true)
+  
+  // Trigger & notification config
+  triggerConfig     String?             @db.Text         // JSON: triggers for auto-start
+  notificationConfig String?            @db.Text         // JSON: notification settings
+  
+  // Statistics
+  totalSubmissions  Int                 @default(0)
+  approvedCount     Int                 @default(0)
+  rejectedCount     Int                 @default(0)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  approvals         WorkflowApproval[]
+  
+  @@index([teamId])
+  @@index([isActive])
+}
+
+// ─── Workflow Approvals (Approval Instances) ──────────────────────────────
+
+model WorkflowApproval {
+  id                String              @id @default(cuid())
+  workflowId        String
+  workflow          TeamWorkflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  // Content being approved
+  contentId         String              @db.VarChar(255)  // Content ID (video, post, article)
+  contentType       String              @db.VarChar(128)  // Type of content
+  
+  // Submitter
+  submittedById      String
+  submittedBy       User                @relation("ApprovalSubmitter", fields: [submittedById], references: [id])
+  
+  // Status & reason
+  status            ApprovalStatus      @default(PENDING)
+  comments          String?             @db.Text         // Internal comments
+  rejectionReason   String?             @db.Text         // If rejected
+  
+  // Approval chain
+  requiredApprovals Int                 @default(1)
+  receivedApprovals Int                 @default(0)
+  
+  // Versioning
+  version           Int                 @default(1)      // Content version being approved
+  contentSnapshot   String?             @db.Text         // JSON snapshot of content
+  
+  // Timestamps
+  submittedAt       DateTime            @default(now())
+  dueAt             DateTime?           // Optional deadline
+  expiresAt         DateTime?           // Approval expires
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  approvals         Approval[]
+  
+  @@index([workflowId])
+  @@index([contentId])
+  @@index([submittedById])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([expiresAt])
+}
+
+// ─── Individual Approvals (One approval per approver per request) ────────
+
+model Approval {
+  id                String              @id @default(cuid())
+  approvalRequestId String
+  approvalRequest   WorkflowApproval    @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  
+  // Approver
+  approverId        String
+  approver          User                @relation("Approver", fields: [approverId], references: [id])
+  
+  // Decision
+  decision          String              @db.VarChar(32)   // APPROVED, REJECTED, or null for pending
+  decisionReason    String?             @db.Text
+  
+  // Timestamps
+  requestedAt       DateTime            @default(now())
+  respondedAt       DateTime?
+  expiresAt         DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([approvalRequestId, approverId])
+  @@index([approvalRequestId])
+  @@index([approverId])
+  @@index([decision])
+  @@index([expiresAt])
+}
+
+// ─── Team Audit Log (Immutable event log) ────────────────────────────────
+
+model TeamAuditLog {
+  id                String              @id @default(cuid())
+  teamId            String
+  team              Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Actor
+  userId            String
+  user              User                @relation("TeamAuditActor", fields: [userId], references: [id])
+  
+  // Event details
+  action            String              @db.VarChar(128)  // e.g., "member.added", "content.approved"
+  resourceType      String              @db.VarChar(128)  // e.g., "team", "member", "approval"
+  resourceId        String?
+  
+  // Changes/details
+  changes           String?             @db.Text         // JSON: before/after values
+  details           String?             @db.Text         // JSON: additional context
+  
+  // Request context
+  ipAddress         String?
+  userAgent         String?
+  
+  // Immutable timestamp
+  timestamp         DateTime            @default(now())
+  
+  @@index([teamId])
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([resourceType])
+}
+
+// ─── Extend Organization model with team relations ───────────────────────
+// Note: Organization model above already includes the relation:
+// - teams               Team[]
+// - This is added here for reference in the migration
