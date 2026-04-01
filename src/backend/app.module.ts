@@ -19,6 +19,8 @@ import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
 import { AICEOModule } from './ai-ceo/ai-ceo.module';
 import { LeadEngineModule } from './lead-engine/lead-engine.module';
 import { SeoEngineModule } from './seo-engine/seo-engine.module';
+import { CrmEngineModule } from './crm-engine/crm-engine.module';
+import { MarketingAutomationModule } from './marketing-automation/marketing-automation.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -90,6 +92,8 @@ class StorageModule {}
     // BelGrowth core engines
     LeadEngineModule,
     SeoEngineModule,
+    CrmEngineModule,
+    MarketingAutomationModule,
   ],
   providers: [
     DatabaseConfig,

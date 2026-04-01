@@ -37,7 +37,7 @@ export function useTeamNotifications(): UseTeamNotificationsReturn {
       socketRef.current = io(
         process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
         {
-          namespace: 'notifications',
+          path: '/notifications',
           auth: { token },
           reconnection: true,
           reconnectionDelay: 1000,

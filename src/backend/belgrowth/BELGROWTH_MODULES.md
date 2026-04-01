@@ -1,9 +1,11 @@
-# BelGrowth AI - Module 1 & 2 Implementation
+# BelGrowth AI - Module 1, 2, 3 & 4 Implementation
 
 This document describes the product-delivered implementations for:
 
 - Module 1: Lead Generation Engine
 - Module 2: SEO Backlink Automation Engine
+- Module 3: CRM Conversion Engine
+- Module 4: Omni-Channel Marketing Automation
 
 ## Module 1 - Lead Generation Engine
 
@@ -129,3 +131,139 @@ Stored in `AnalyticsEvent.properties` for event type `seo.backlink.created`:
 - These modules are production-usable with current schema and auth/tenant guards.
 - They are implemented to ship quickly without forcing immediate migrations.
 - Future phase can move event-payload data into dedicated normalized lead/backlink tables.
+
+## Module 3 - CRM Conversion Engine
+
+### API Base
+`/api/crm-engine`
+
+### Endpoints
+
+- `POST /leads/import`
+  - Imports leads into CRM pipeline from Module 1 lead events or direct payload.
+  - Creates CRM lead identifier and initializes pipeline stage.
+
+- `GET /pipeline`
+  - Lists CRM pipeline records with filters: `stage`, `q`, `page`, `limit`.
+  - Returns stage distribution for board rendering.
+
+- `PATCH /pipeline/stage`
+  - Moves a CRM lead to a new stage (`new`, `qualified`, `contacted`, `proposal`, `negotiation`, `won`, `lost`).
+
+- `POST /outreach/sequence/plan`
+  - AI-generated outreach sequence plan for a CRM lead.
+  - Returns JSON strategy with channels/touches and step guidance.
+
+- `POST /outreach/sequence/start`
+  - Starts an outreach sequence for a CRM lead.
+  - Optional `autoDispatch` sends sequence steps immediately.
+
+- `POST /outreach/dispatch`
+  - Sends one multichannel outreach action.
+  - Email channel is live via `EmailService`; other channels are logged as simulated dispatches.
+
+- `POST /conversions/mark`
+  - Marks a lead as `won` or `lost` with optional deal value/currency.
+
+- `GET /stats?days=30`
+  - Returns pipeline size, conversion/win rates, total won value, stage distribution, top leads.
+
+### CRM Event Schema (Current Persisted Shape)
+Stored in `AnalyticsEvent.properties` for event types:
+
+- `crm.lead.imported`
+- `crm.pipeline.stage_changed`
+- `crm.outreach.sequence_started`
+- `crm.outreach.message_sent`
+- `crm.conversion.marked`
+
+Example `crm.lead.imported` payload:
+
+```json
+{
+  "crmLeadId": "cm9x...",
+  "sourceLeadEventId": "cm9w...",
+  "stage": "qualified",
+  "score": 74,
+  "lead": {
+    "fullName": "Jane Doe",
+    "email": "jane@company.com",
+    "phone": "+1555123456",
+    "companyName": "Acme Corp",
+    "industry": "SaaS",
+    "source": "linkedin"
+  },
+  "notes": "Interested in audit",
+  "importedAt": "2026-04-01T12:00:00.000Z"
+}
+```
+
+## Module 4 - Omni-Channel Marketing Automation
+
+### API Base
+`/api/marketing-automation`
+
+### Capabilities
+
+- Campaign builder payloads for drag-and-drop UI state (`builderNodes`, `builderEdges`)
+- Drip sequences with per-step delay and conditional logic
+- Event-triggered workflows tied to business events
+- Personalization engine via `{{token}}` replacement across all channels
+- A/B message variants per step with deterministic traffic bucketing
+- Queue-backed async execution via BullMQ
+
+### Supported Channels
+
+- Email: live via existing `EmailService`
+- SMS: Twilio-backed when configured, simulated otherwise
+- WhatsApp: Twilio-backed when configured, simulated otherwise
+- Voice calls: Twilio Voice-backed when configured, simulated otherwise
+- AI voice agents: AI-generated call script + Twilio voice execution when configured
+
+### Key Endpoints
+
+- `POST /campaigns`
+  - Creates a marketing automation campaign stored on the existing workflow engine.
+
+- `GET /campaigns`
+  - Lists automation campaigns with search/status/trigger-mode filters.
+
+- `PATCH /campaigns/:campaignId`
+  - Updates builder config, triggers, steps, A/B settings, and activation state.
+
+- `POST /campaigns/:campaignId/activate`
+- `POST /campaigns/:campaignId/deactivate`
+  - Toggles campaign execution.
+
+- `POST /campaigns/:campaignId/launch`
+  - Queues a campaign run for a contact list.
+
+- `POST /events/trigger`
+  - Fires an event-triggered workflow against a single contact payload.
+
+- `POST /ai/copy/generate`
+  - Generates email/SMS/WhatsApp/voice copy variants.
+
+- `POST /ai/send-time/optimize`
+  - Recommends top send hours from historical engagement.
+
+- `POST /ai/ab-tests/optimize`
+  - Scores message variants and recommends an automated winner split.
+
+- `GET /stats?days=30`
+  - Returns campaign counts, run counts, channel mix, and send status breakdowns.
+
+### Execution Data Shape
+
+Configuration is stored in existing `Workflow` and `WorkflowAction` records with:
+
+- `trigger.engine = "marketing_automation"`
+- `trigger.builder.nodes / edges`
+- `actions[].config` storing each campaign step payload
+
+Runtime telemetry is stored in `AnalyticsEvent.properties` for event types:
+
+- `marketing.automation.run_started`
+- `marketing.automation.event_triggered`
+- `marketing.automation.message_sent`
+- `marketing.automation.message_skipped`

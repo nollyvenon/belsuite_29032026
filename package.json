@@ -83,6 +83,7 @@
     "reflect-metadata": "^0.1.13",
     "retry": "^0.13.1",
     "rxjs": "^7.8.1",
+    "socket.io-client": "^4.8.3",
     "speakeasy": "^2.0.0",
     "stripe": "^14.14.0",
     "tailwind-merge": "^3.5.0",

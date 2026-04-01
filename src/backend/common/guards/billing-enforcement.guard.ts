@@ -10,6 +10,7 @@ import {
   REQUIRE_PLAN_KEY,
   RequirePlanOptions,
 } from '../decorators/require-plan.decorator';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 const TIER_ORDER: SubscriptionTier[] = [
   SubscriptionTier.FREE,
@@ -23,6 +24,15 @@ export class BillingEnforcementGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     const requirements = this.reflector.getAllAndOverride<RequirePlanOptions>(
       REQUIRE_PLAN_KEY,
       [context.getHandler(), context.getClass()],
