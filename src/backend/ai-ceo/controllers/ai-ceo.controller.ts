@@ -37,6 +37,10 @@ export class AICEOController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   async generateDecision(@Body() dto: GenerateDecisionDto): Promise<DecisionResponseDto> {
+    if (!dto.organizationId) {
+      throw new Error('organizationId is required');
+    }
+    
     this.logger.log(`Generating ${dto.decisionType} decision for org: ${dto.organizationId}`);
 
     return this.aiCeoService.generateDecision(dto.organizationId, dto.decisionType);
@@ -53,6 +57,10 @@ export class AICEOController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   async generateReport(@Body() dto: GenerateReportDto): Promise<ReportResponseDto> {
+    if (!dto.organizationId) {
+      throw new Error('organizationId is required');
+    }
+    
     this.logger.log(`Generating ${dto.frequency} report for org: ${dto.organizationId}`);
 
     return this.aiCeoService.generateReport(dto.organizationId, dto.frequency);

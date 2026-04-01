@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(docker-compose *)",
-      "Bash(select-object *)"
+      "Bash(select-object *)",
+      "Bash(npx *)",
+      "Bash(rm *)",
+      "Bash(npm *)",
+      "Bash(del *)",
+      "Bash(timeout *)",
+      "Bash(taskkill *)",
+      "Bash(true)"
     ]
   },
   "$version": 3

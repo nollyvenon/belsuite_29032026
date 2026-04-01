@@ -487,7 +487,7 @@ export class AICEOService {
     try {
       // Validate using engine-specific logic
       const engineKey = this.getEngineForDecisionType(decision.type);
-      const engine = this.engines[engineKey];
+      const engine = (this.engines as any)[engineKey];
       return engine ? await engine.validate(decision) : true;
     } catch (error) {
       this.logger.warn(`Decision validation error: ${error.message}`);

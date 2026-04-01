@@ -626,6 +626,10 @@ export class TeamsService {
         where: { id: approvalId },
       });
 
+      if (!currentApproval) {
+        throw new Error(`Approval not found: ${approvalId}`);
+      }
+
       let newStatus = currentApproval.status;
 
       if (rejectedCount > 0) {

@@ -15,6 +15,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { UGCModule } from './ugc/ugc.module';
 import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
+import { AICEOModule } from './ai-ceo/ai-ceo.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -78,6 +79,9 @@ class StorageModule {}
 
     // UGC creator engine
     UGCModule,
+
+    // AI CEO Module
+    AICEOModule,
   ],
   providers: [
     DatabaseConfig,
