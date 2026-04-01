@@ -758,3 +758,170 @@ export function useAdConnections() {
 
   return { fbAccounts, googleAccounts, loading, reload: load, getOAuthUrl, refreshAccounts, connectFacebook, connectGoogle };
 }
+
+// ── Campaign ROI hook ─────────────────────────────────────────────────────────
+
+export interface CampaignROI {
+  campaignId: string;
+  name: string;
+  objective: string;
+  dateRangeDays: number;
+  totals: {
+    spend: number;
+    revenue: number;
+    clicks: number;
+    impressions: number;
+    conversions: number;
+  };
+  efficiency: {
+    ctr: number;
+    cvr: number;
+    cpa: number;
+    roas: number;
+    roi: number;
+  };
+  budget: {
+    dailyBudget: number | null;
+    totalBudget: number | null;
+  };
+  recommendations: string[];
+}
+
+export function useCampaignROI(campaignId: string, days = 30) {
+  const [data, setData] = useState<CampaignROI | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!campaignId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await apiFetch<CampaignROI>(`/campaigns/${campaignId}/roi?days=${days}`);
+      setData(result);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [campaignId, days]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { data, loading, error, load };
+}
+
+// ── Campaign Approvals hook ───────────────────────────────────────────────────
+
+export interface ApprovalResponse {
+  id: string;
+  decision: string;
+  decisionReason?: string | null;
+  respondedAt?: string | null;
+  approver?: { id: string; email: string; firstName?: string | null; lastName?: string | null } | null;
+}
+
+export interface CampaignApproval {
+  id: string;
+  workflowId: string;
+  contentId: string;
+  status: string;
+  comments?: string | null;
+  requiredApprovals: number;
+  receivedApprovals: number;
+  version: number;
+  submittedAt: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  workflow?: { id: string; name: string; teamId: string } | null;
+  submittedBy?: { id: string; email: string; firstName?: string | null; lastName?: string | null } | null;
+  approvals: ApprovalResponse[];
+}
+
+export function useCampaignApprovals(campaignId: string) {
+  const [approvals, setApprovals] = useState<CampaignApproval[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [responding, setResponding] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!campaignId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiFetch<CampaignApproval[]>(`/campaigns/${campaignId}/approvals`);
+      setApprovals(data);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [campaignId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const submitApproval = useCallback(
+    async (dto: { workflowId: string; comments?: string; version?: number }) => {
+      setSubmitting(true);
+      try {
+        await apiFetch(`/campaigns/${campaignId}/approvals`, {
+          method: 'POST',
+          body: JSON.stringify(dto),
+        });
+        await load();
+        return true;
+      } catch (e: any) {
+        setError(e.message);
+        return false;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [campaignId, load],
+  );
+
+  const respondToApproval = useCallback(
+    async (
+      approvalId: string,
+      dto: { decision: 'APPROVED' | 'REJECTED'; decisionReason?: string },
+    ) => {
+      setResponding(approvalId);
+      try {
+        await apiFetch(`/approvals/${approvalId}/respond`, {
+          method: 'POST',
+          body: JSON.stringify(dto),
+        });
+        await load();
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setResponding(null);
+      }
+    },
+    [load],
+  );
+
+  return {
+    approvals,
+    loading,
+    error,
+    submitting,
+    responding,
+    reload: load,
+    submitApproval,
+    respondToApproval,
+  };
+}
+
+// ── Campaign clone helper (used from CampaignsView) ──────────────────────────
+
+export async function cloneCampaign(
+  campaignId: string,
+  data?: { name?: string; startDate?: string; endDate?: string },
+): Promise<Campaign> {
+  return apiFetch<Campaign>(`/campaigns/${campaignId}/clone`, {
+    method: 'POST',
+    body: JSON.stringify(data ?? {}),
+  });
+}

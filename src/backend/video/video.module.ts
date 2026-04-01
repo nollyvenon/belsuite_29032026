@@ -14,16 +14,19 @@ import { SubtitleService } from './services/subtitle.service';
 import { StorageService } from './services/storage.service';
 import { VideoProcessor, VIDEO_QUEUE } from './processors/video.processor';
 import { PrismaService } from '../database/prisma.service';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
+    CommonModule, // Import Module 1 infrastructure (EventBus, Context, CircuitBreaker)
+    
     // BullMQ queue for async video processing
     BullModule.registerQueue({
       name: VIDEO_QUEUE,
       defaultJobOptions: {
         removeOnComplete: 100,
         removeOnFail:     50,
-        attempts:         2,
+        attempts:         3,
         backoff:          { type: 'exponential', delay: 5000 },
       },
     }),

@@ -14,21 +14,22 @@ import { SocialModule } from './social/social.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { UGCModule } from './ugc/ugc.module';
+import { AutomationModule } from './automation/automation.module';
 import { MultiTenantModule } from './multi-tenant/multi-tenant.module';
 import { AICEOModule } from './ai-ceo/ai-ceo.module';
+import { LeadEngineModule } from './lead-engine/lead-engine.module';
+import { SeoEngineModule } from './seo-engine/seo-engine.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionGuard } from './common/guards/permission.guard';
 import { BillingEnforcementGuard } from './common/guards/billing-enforcement.guard';
+import { CommonModule } from './common/common.module';
 
 // Placeholder modules (to be implemented in next phases)
 @Module({})
 class ContentModule {}
-
-@Module({})
-class AutomationModule {}
 
 @Module({})
 class StorageModule {}
@@ -49,6 +50,9 @@ class StorageModule {}
         password: process.env['REDIS_PASSWORD'] ?? undefined,
       },
     }),
+
+    // Common infrastructure (event bus, request context, resilience)
+    CommonModule,
 
     // Multi-tenant infrastructure (global — must be before feature modules)
     MultiTenantModule,
@@ -82,6 +86,10 @@ class StorageModule {}
 
     // AI CEO Module
     AICEOModule,
+
+    // BelGrowth core engines
+    LeadEngineModule,
+    SeoEngineModule,
   ],
   providers: [
     DatabaseConfig,

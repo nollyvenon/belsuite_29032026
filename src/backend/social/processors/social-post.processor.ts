@@ -11,6 +11,7 @@ import { PostStatus, PublishStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { SocialAccountService } from '../services/social-account.service';
 import { AutoRepostService } from '../services/auto-repost.service';
+import { SocialWebhookService } from '../services/social-webhook.service';
 import { PublishJobPayload } from '../types/social.types';
 
 export const SOCIAL_QUEUE = 'social-publishing';
@@ -31,6 +32,7 @@ export class SocialPostProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly accountService: SocialAccountService,
     private readonly autoRepost: AutoRepostService,
+    private readonly webhookService: SocialWebhookService,
     @InjectQueue(SOCIAL_QUEUE) private readonly queue: Queue,
   ) {
     super();
@@ -174,6 +176,13 @@ export class SocialPostProcessor extends WorkerHost {
       },
     });
 
+    await this.webhookService.emit(organizationId, `social.post.${finalStatus.toLowerCase()}`, {
+      postId,
+      successCount,
+      failCount,
+      publishedAt: finalStatus === PostStatus.PUBLISHED ? new Date().toISOString() : null,
+    });
+
     // Schedule first repost if enabled and at least partially published
     if (finalStatus === PostStatus.PUBLISHED && post.autoRepostEnabled) {
       const repostDelay =
@@ -264,6 +273,12 @@ export class SocialPostProcessor extends WorkerHost {
         await this.prisma.scheduledPost.update({
           where: { id: postId },
           data: { status: PostStatus.PUBLISHED, publishedAt: new Date() },
+        });
+
+        await this.webhookService.emit(organizationId, 'social.post.published', {
+          postId,
+          resultId,
+          retry: true,
         });
       }
 

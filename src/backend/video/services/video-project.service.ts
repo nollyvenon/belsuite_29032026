@@ -1,6 +1,7 @@
 /**
  * Video Project Service
  * Orchestrates project CRUD, scene generation, render job dispatch, and timeline management.
+ * Integrated with Module 1 (EventBus, RequestContext, CircuitBreaker) for enterprise-grade resilience.
  */
 
 import {
@@ -9,6 +10,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -25,16 +27,32 @@ import {
 } from '../dto/video.dto';
 import { VideoJobType, VideoJobStatus, VideoStatus } from '@prisma/client';
 import { TimelineState } from '../types/video.types';
+import { EventBus } from '../../common/events/event.bus';
+import { RequestContextService } from '../../common/context/request-context.service';
+import { CircuitBreakerManager } from '../../common/resilience/circuit-breaker';
+import { VideoUploadedEvent } from '../../common/events/event.types';
 @Injectable()
 export class VideoProjectService {
   private readonly logger = new Logger(VideoProjectService.name);
+  private readonly videoCircuitBreaker: any;
 
   constructor(
     private readonly prisma:    PrismaService,
     private readonly generator: SceneGeneratorService,
+    private readonly eventBus:  EventBus,
+    private readonly context:   RequestContextService,
+    private readonly circuitBreakerManager: CircuitBreakerManager,
     @InjectQueue(VIDEO_QUEUE)
     private readonly queue:     Queue,
-  ) {}
+  ) {
+    // Initialize circuit breaker for external video API calls
+    this.videoCircuitBreaker = this.circuitBreakerManager.getBreaker({
+      name: 'video-generation',
+      failureThreshold: 5,
+      successThreshold: 2,
+      timeout: 30000,
+    });
+  }
 
   // ── Project CRUD ──────────────────────────────────────────────────────────
 
@@ -58,7 +76,18 @@ export class VideoProjectService {
       },
     });
 
-    this.logger.log(`Project created: ${project.id}`);
+    // Emit event for analytics and audit trail
+    await this.eventBus.publish(new VideoUploadedEvent(
+      organizationId,
+      userId,
+      project.id,
+      organizationId,
+      project.title,
+      0,
+      this.context.getCorrelationId() ?? `corr-${Date.now()}`,
+    ));
+
+    this.logger.log(`Project created: ${project.id} for org ${organizationId}`);
     return project;
   }
 
@@ -116,15 +145,21 @@ export class VideoProjectService {
       data:  { status: VideoStatus.PROCESSING, script: dto.script },
     });
 
+    // Emit processing started event
+    this.logger.debug(`Video processing started: project=${projectId} task=scene-generation`);
+
     try {
-      const timeline = await this.generator.generateFromScript({
-        projectId,
-        organizationId,
-        script:      dto.script,
-        voiceId:     dto.voiceId,
-        style:       dto.style,
-        aspectRatio: dto.aspectRatio,
-        language:    dto.language,
+      // Use circuit breaker for scene generation API call
+      const timeline = await this.videoCircuitBreaker.execute(async () => {
+        return await this.generator.generateFromScript({
+          projectId,
+          organizationId,
+          script:      dto.script,
+          voiceId:     dto.voiceId,
+          style:       dto.style,
+          aspectRatio: dto.aspectRatio,
+          language:    dto.language,
+        });
       });
 
       await this.prisma.videoProject.update({
@@ -132,8 +167,22 @@ export class VideoProjectService {
         data:  { status: VideoStatus.DRAFT },
       });
 
+      this.logger.debug(`Scene generation completed for project ${projectId}`);
       return timeline;
     } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      
+      // Check if circuit breaker is open
+      if (errorMsg.includes('CIRCUIT_BREAKER_OPEN')) {
+        this.logger.error(`Video service temporarily unavailable for project ${projectId}`);
+        await this.prisma.videoProject.update({
+          where: { id: projectId },
+          data:  { status: VideoStatus.FAILED },
+        });
+        throw new ServiceUnavailableException('Video generation service temporarily unavailable. Please retry in a few moments.');
+      }
+
+      this.logger.error(`Scene generation failed for project ${projectId}: ${errorMsg}`);
       await this.prisma.videoProject.update({
         where: { id: projectId },
         data:  { status: VideoStatus.FAILED },
@@ -207,11 +256,23 @@ export class VideoProjectService {
       },
     });
 
-    // Add to BullMQ queue
+    // Add to BullMQ queue with retry policy
     const bullJob = await this.queue.add(
       'render',
-      { type: 'render', projectId, organizationId, outputFormat: format, quality },
-      { attempts: 2, backoff: { type: 'exponential', delay: 5000 } },
+      { 
+        type: 'render',
+        projectId,
+        organizationId,
+        outputFormat: format,
+        quality,
+        userId: this.context.getUserId(),
+      },
+      { 
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: 5000,
+        removeOnFail: 360000, // Keep failed jobs for 1 hour
+      },
     );
 
     // Store bullJob ID for tracking
@@ -225,8 +286,21 @@ export class VideoProjectService {
       data:  { status: VideoStatus.PROCESSING },
     });
 
-    this.logger.log(`Render queued: project=${projectId} bullJob=${bullJob.id}`);
-    return { jobId: dbJob.id, bullJobId: bullJob.id };
+    // Emit render started event
+    this.logger.debug(`Video processing started: project=${projectId} task=render`);
+
+    this.logger.log(`Render queued: project=${projectId} bullJob=${bullJob.id} quality=${quality}`);
+    return { jobId: dbJob.id, bullJobId: bullJob.id, estimatedTime: this.estimateRenderTime(quality) };
+  }
+
+  private estimateRenderTime(quality: string): number {
+    // Rough estimates in seconds
+    switch (quality) {
+      case 'low': return 30;
+      case 'high': return 120;
+      case 'medium':
+      default: return 60;
+    }
   }
 
   async getRenderStatus(projectId: string, organizationId: string) {

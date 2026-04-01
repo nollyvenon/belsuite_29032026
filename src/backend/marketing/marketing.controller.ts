@@ -27,6 +27,7 @@ import { Tenant } from '../common/decorators/tenant.decorator';
 import type { AdGenerationRequest } from './marketing.types';
 
 import { CampaignManagerService } from './services/campaign-manager.service';
+import { CampaignApprovalService } from './services/campaign-approval.service';
 import { AdGeneratorService } from './services/ad-generator.service';
 import { ABTestService } from './services/ab-test.service';
 import { BudgetOptimizerService } from './services/budget-optimizer.service';
@@ -43,6 +44,7 @@ export class MarketingController {
 
   constructor(
     private campaigns: CampaignManagerService,
+    private approvals: CampaignApprovalService,
     private adGenerator: AdGeneratorService,
     private abTests: ABTestService,
     private budgetOptimizer: BudgetOptimizerService,
@@ -139,6 +141,16 @@ export class MarketingController {
     return this.campaigns.setStatus(organizationId, id, body.status);
   }
 
+  @Post('campaigns/:id/clone')
+  @HttpCode(HttpStatus.CREATED)
+  async cloneCampaign(
+    @Tenant() organizationId: string,
+    @Param('id') id: string,
+    @Body() body: { name?: string; startDate?: string; endDate?: string },
+  ) {
+    return this.campaigns.cloneCampaign(organizationId, id, body);
+  }
+
   @Delete('campaigns/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteCampaign(
@@ -158,6 +170,64 @@ export class MarketingController {
       organizationId,
       id,
       days ? parseInt(days, 10) : 30,
+    );
+  }
+
+  @Get('campaigns/:id/roi')
+  async getCampaignROI(
+    @Tenant() organizationId: string,
+    @Param('id') id: string,
+    @Query('days') days?: string,
+  ) {
+    return this.performance.getCampaignROI(
+      organizationId,
+      id,
+      days ? parseInt(days, 10) : 30,
+    );
+  }
+
+  @Get('campaigns/:id/approvals')
+  async listCampaignApprovals(
+    @Tenant() organizationId: string,
+    @Param('id') id: string,
+  ) {
+    return this.approvals.listCampaignApprovals(organizationId, id);
+  }
+
+  @Post('campaigns/:id/approvals')
+  @HttpCode(HttpStatus.CREATED)
+  async submitCampaignApproval(
+    @Tenant() organizationId: string,
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      workflowId: string;
+      comments?: string;
+      contentSnapshot?: Record<string, unknown>;
+      version?: number;
+    },
+  ) {
+    return this.approvals.submitForApproval(
+      organizationId,
+      id,
+      user?.sub,
+      body,
+    );
+  }
+
+  @Post('approvals/:approvalId/respond')
+  async respondToCampaignApproval(
+    @Tenant() organizationId: string,
+    @CurrentUser() user: any,
+    @Param('approvalId') approvalId: string,
+    @Body() body: { decision: 'APPROVED' | 'REJECTED'; decisionReason?: string },
+  ) {
+    return this.approvals.respondToApproval(
+      organizationId,
+      approvalId,
+      user?.sub,
+      body,
     );
   }
 

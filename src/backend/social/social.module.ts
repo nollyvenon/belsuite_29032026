@@ -24,6 +24,8 @@ import { AutoRepostService } from './services/auto-repost.service';
 import { OptimalTimeService } from './services/optimal-time.service';
 import { AutoCreatorService } from './services/auto-creator.service';
 import { RetryDashboardService } from './services/retry-dashboard.service';
+import { SchedulingPolicyService } from './services/scheduling-policy.service';
+import { SocialWebhookService } from './services/social-webhook.service';
 
 // Publishers
 import { InstagramPublisher } from './services/publishers/instagram.publisher';
@@ -69,6 +71,8 @@ import { WhatsAppPublisher } from './services/publishers/whatsapp.publisher';
     AutoRepostService,
     AutoCreatorService,
     RetryDashboardService,
+    SchedulingPolicyService,
+    SocialWebhookService,
 
     // BullMQ processor
     SocialPostProcessor,
@@ -77,6 +81,7 @@ import { WhatsAppPublisher } from './services/publishers/whatsapp.publisher';
     SocialAccountService,
     PostSchedulerService,
     OptimalTimeService,
+    SchedulingPolicyService,
   ],
 })
 export class SocialModule {}

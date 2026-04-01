@@ -12,8 +12,9 @@ import {
   Calendar,
   Loader2,
   X,
+  Copy,
 } from 'lucide-react';
-import { useCampaigns } from '@/hooks/useMarketing';
+import { useCampaigns, cloneCampaign } from '@/hooks/useMarketing';
 import type { Campaign } from '@/hooks/useMarketing';
 
 const OBJECTIVES = [
@@ -36,7 +37,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export function CampaignsView() {
-  const { campaigns, loading, createCampaign, setStatus, deleteCampaign } = useCampaigns();
+  const { campaigns, loading, createCampaign, setStatus, deleteCampaign, reload } = useCampaigns();
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -48,6 +49,7 @@ export function CampaignsView() {
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
+  const [cloningId, setCloningId] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -73,6 +75,18 @@ export function CampaignsView() {
       await setStatus(campaign.id, nextStatus);
     } finally {
       setStatusLoadingId(null);
+    }
+  }
+
+  async function handleClone(id: string) {
+    setCloningId(id);
+    try {
+      await cloneCampaign(id);
+      await reload();
+    } catch {
+      // ignore
+    } finally {
+      setCloningId(null);
     }
   }
 
@@ -189,6 +203,18 @@ export function CampaignsView() {
 
               {/* Actions */}
               <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => handleClone(c.id)}
+                  disabled={cloningId === c.id}
+                  className="p-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-colors disabled:opacity-50"
+                  title="Clone campaign"
+                >
+                  {cloningId === c.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
                 <button
                   onClick={() => handleToggleStatus(c)}
                   disabled={statusLoadingId === c.id}

@@ -42,6 +42,63 @@ export enum AICapability {
   CODE_GENERATION = 'CODE_GENERATION',
 }
 
+export enum AITaskType {
+  GENERATE_CONTENT = 'GENERATE_CONTENT',
+  GENERATE_BLOG = 'GENERATE_BLOG',
+  GENERATE_SOCIAL = 'GENERATE_SOCIAL',
+  GENERATE_AD_COPY = 'GENERATE_AD_COPY',
+  GENERATE_IMAGE = 'GENERATE_IMAGE',
+}
+
+export interface AIGenerationRequest {
+  organizationId: string;
+  userId: string;
+  taskType: AITaskType;
+  model: AIModel;
+  provider: AIProvider;
+  prompt: string;
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface AIGenerationResponse {
+  id: string;
+  content: string;
+  model: AIModel;
+  provider: AIProvider;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD: number;
+  finishReason: string;
+  cacheHit: boolean;
+  generationTime: number;
+  createdAt: Date;
+}
+
+export interface AIUsageMetrics {
+  organizationId: string;
+  monthToDate: {
+    totalRequests: number;
+    totalTokens: number;
+    totalCostUSD: number;
+  };
+  today: {
+    totalRequests: number;
+    totalTokens: number;
+    totalCostUSD: number;
+  };
+  byModel: Record<string, { requests: number; tokens: number; costUSD: number }>;
+  byTask: Record<string, { requests: number; tokens: number; costUSD: number }>;
+  remaining: {
+    monthlyBudget: number;
+    dailyEstimate: number;
+    requestsLeft: number;
+  };
+}
+
 export interface AIModelConfig {
   model: AIModel;
   provider: AIProvider;

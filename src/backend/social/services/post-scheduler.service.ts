@@ -23,6 +23,8 @@ import {
   ListPostsQueryDto,
 } from '../dto/social.dto';
 import { PublishJobPayload, PostCalendarDay } from '../types/social.types';
+import { SchedulingPolicyService } from './scheduling-policy.service';
+import { SocialWebhookService } from './social-webhook.service';
 
 const MUTABLE_STATUSES: PostStatus[] = [PostStatus.DRAFT, PostStatus.SCHEDULED];
 
@@ -34,6 +36,8 @@ export class PostSchedulerService {
     private readonly prisma: PrismaService,
     @InjectQueue(SOCIAL_QUEUE) private readonly queue: Queue,
     private readonly optimalTime: OptimalTimeService,
+    private readonly schedulingPolicy: SchedulingPolicyService,
+    private readonly webhookService: SocialWebhookService,
   ) {}
 
   // ── Create ────────────────────────────────────────────────────────────────
@@ -60,13 +64,19 @@ export class PostSchedulerService {
 
     if (dto.useOptimalTime && accounts.length > 0) {
       const platform = accounts[0].platform;
-      scheduledAt = await this.optimalTime.getOptimalTime(orgId, platform);
+      const preview = await this.schedulingPolicy.previewSchedule(orgId, {
+        platforms: [platform],
+        count: 1,
+      });
+      const slot = preview.previews[0]?.slots[0];
+      scheduledAt = slot ? new Date(slot.utcIso) : await this.optimalTime.getOptimalTime(orgId, platform);
       optimalTimeUsed = true;
     } else if (dto.scheduledAt) {
       scheduledAt = new Date(dto.scheduledAt);
       if (isNaN(scheduledAt.getTime())) {
         throw new BadRequestException('Invalid scheduledAt date');
       }
+      await this.schedulingPolicy.validateScheduledAt(orgId, scheduledAt);
     }
 
     const status =
@@ -116,6 +126,16 @@ export class PostSchedulerService {
     }
 
     this.logger.log(`Created post ${post.id} for org ${orgId}`);
+
+    await this.webhookService.emit(orgId, 'social.post.created', {
+      postId: post.id,
+      scheduledAt: post.scheduledAt?.toISOString() ?? null,
+      status: post.status,
+      optimalTimeUsed,
+      accountIds: dto.accountIds,
+      userId,
+    });
+
     return post;
   }
 
@@ -251,6 +271,7 @@ export class PostSchedulerService {
 
     if (dto.scheduledAt !== undefined) {
       updateData.scheduledAt = new Date(dto.scheduledAt);
+      await this.schedulingPolicy.validateScheduledAt(orgId, updateData.scheduledAt);
       updateData.status =
         updateData.scheduledAt > new Date()
           ? PostStatus.SCHEDULED
@@ -288,6 +309,12 @@ export class PostSchedulerService {
       await this.enqueuePublish(updated, delay);
     }
 
+    await this.webhookService.emit(orgId, 'social.post.updated', {
+      postId,
+      scheduledAt: updated.scheduledAt?.toISOString() ?? null,
+      status: updated.status,
+    });
+
     return updated;
   }
 
@@ -299,6 +326,8 @@ export class PostSchedulerService {
     if (isNaN(scheduledAt.getTime())) {
       throw new BadRequestException('Invalid scheduledAt date');
     }
+
+    await this.schedulingPolicy.validateScheduledAt(orgId, scheduledAt);
 
     const updated = await this.prisma.scheduledPost.update({
       where: { id: postId },
@@ -314,6 +343,13 @@ export class PostSchedulerService {
     await this.enqueuePublish(updated, delay);
 
     this.logger.log(`Rescheduled post ${postId} to ${scheduledAt.toISOString()}`);
+
+    await this.webhookService.emit(orgId, 'social.post.rescheduled', {
+      postId,
+      scheduledAt: scheduledAt.toISOString(),
+      previousStatus: post.status,
+    });
+
     return updated;
   }
 
@@ -324,10 +360,17 @@ export class PostSchedulerService {
       throw new ForbiddenException('Cannot cancel an already-published post.');
     }
 
-    return this.prisma.scheduledPost.update({
+    const cancelled = await this.prisma.scheduledPost.update({
       where: { id: postId },
       data: { status: PostStatus.CANCELLED },
     });
+
+    await this.webhookService.emit(orgId, 'social.post.cancelled', {
+      postId,
+      previousStatus: post.status,
+    });
+
+    return cancelled;
   }
 
   async deletePost(orgId: string, postId: string) {

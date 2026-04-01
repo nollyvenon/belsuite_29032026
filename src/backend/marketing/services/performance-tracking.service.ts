@@ -238,6 +238,87 @@ export class PerformanceTrackingService {
     };
   }
 
+  async getCampaignROI(
+    organizationId: string,
+    campaignId: string,
+    days = 30,
+  ) {
+    const campaign = await this.prisma.marketingCampaign.findFirst({
+      where: { id: campaignId, organizationId },
+      select: {
+        id: true,
+        name: true,
+        objective: true,
+        dailyBudget: true,
+        totalBudget: true,
+      },
+    });
+
+    if (!campaign) throw new NotFoundException('Campaign not found');
+
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const [snapshots, conversions] = await Promise.all([
+      this.prisma.campaignPerformance.findMany({
+        where: { campaignId, date: { gte: since } },
+        orderBy: { date: 'asc' },
+      }),
+      this.prisma.conversionEvent.findMany({
+        where: {
+          organizationId,
+          utmCampaign: campaign.name,
+          occurredAt: { gte: since },
+        },
+        select: { value: true },
+      }),
+    ]);
+
+    const totals = snapshots.reduce(
+      (acc, snapshot) => ({
+        spend: acc.spend + snapshot.spend,
+        revenue: acc.revenue + snapshot.revenue,
+        clicks: acc.clicks + snapshot.clicks,
+        impressions: acc.impressions + snapshot.impressions,
+        conversions: acc.conversions + snapshot.conversions,
+      }),
+      { spend: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0 },
+    );
+
+    const attributedRevenue = Math.max(
+      totals.revenue,
+      conversions.reduce((sum, conversion) => sum + (conversion.value ?? 0), 0),
+    );
+    const roas = totals.spend > 0 ? attributedRevenue / totals.spend : 0;
+    const roi = totals.spend > 0 ? ((attributedRevenue - totals.spend) / totals.spend) * 100 : 0;
+
+    return {
+      campaignId: campaign.id,
+      name: campaign.name,
+      objective: campaign.objective,
+      dateRangeDays: days,
+      totals: {
+        spend: totals.spend,
+        revenue: attributedRevenue,
+        clicks: totals.clicks,
+        impressions: totals.impressions,
+        conversions: totals.conversions,
+      },
+      efficiency: {
+        ctr: totals.impressions > 0 ? totals.clicks / totals.impressions : 0,
+        cvr: totals.clicks > 0 ? totals.conversions / totals.clicks : 0,
+        cpa: totals.conversions > 0 ? totals.spend / totals.conversions : 0,
+        roas,
+        roi,
+      },
+      budget: {
+        dailyBudget: campaign.dailyBudget,
+        totalBudget: campaign.totalBudget,
+      },
+      recommendations: this.buildROIRecommendations(roas, roi, totals.conversions),
+    };
+  }
+
   /**
    * Ingest daily performance snapshot from a platform sync.
    * Called by platform adapters (Facebook Ads, Google Ads) after pulling metrics.
@@ -419,5 +500,31 @@ export class PerformanceTrackingService {
       }
     }
     return result;
+  }
+
+  private buildROIRecommendations(
+    roas: number,
+    roi: number,
+    conversions: number,
+  ): string[] {
+    const recommendations: string[] = [];
+
+    if (roas >= 4) {
+      recommendations.push('Scale budget gradually; current ROAS supports expansion.');
+    } else if (roas >= 2) {
+      recommendations.push('Hold budget steady and test new creatives to improve efficiency.');
+    } else {
+      recommendations.push('Do not increase spend until targeting and offer quality improve.');
+    }
+
+    if (roi < 0) {
+      recommendations.push('Campaign is running at negative ROI; audit attribution and cut low-quality placements.');
+    }
+
+    if (conversions < 10) {
+      recommendations.push('Conversion volume is still thin; gather more data before large optimization moves.');
+    }
+
+    return recommendations;
   }
 }

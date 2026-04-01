@@ -204,6 +204,66 @@ export class RescheduleDto {
   scheduledAt!: string;
 }
 
+export class BlackoutWindowDto {
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  @ArrayMinSize(1)
+  daysOfWeek!: number[];
+
+  @IsString()
+  startTime!: string;
+
+  @IsString()
+  endTime!: string;
+}
+
+export class UpdateSchedulingPolicyDto {
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1440)
+  minimumLeadMinutes?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BlackoutWindowDto)
+  blackoutWindows?: BlackoutWindowDto[];
+}
+
+export class SchedulePreviewDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  accountIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsEnum(SocialPlatform, { each: true })
+  platforms?: SocialPlatform[];
+
+  @IsOptional()
+  @IsDateString()
+  after?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  @Type(() => Number)
+  count?: number;
+}
+
 // ── Query filters ─────────────────────────────────────────────────────────────
 
 export class ListPostsQueryDto {

@@ -60,6 +60,7 @@ export class AICEOService {
 
   private readonly DECISION_CACHE_TTL = 7 * 24 * 60 * 60; // 7 days
   private readonly METRICS_CACHE_TTL = 24 * 60 * 60; // 24 hours
+  private readonly cache = new Map<string, { value: string; expiresAt: number }>();
 
   constructor(
     private prisma: PrismaService,
@@ -68,7 +69,6 @@ export class AICEOService {
     private billingAdapter: BillingDataAdapter,
     private analyticsAdapter: AnalyticsDataAdapter,
     private organizationsAdapter: OrganizationsDataAdapter,
-    private redis?: any,
   ) {
     // Initialize OpenAI if API key is set
     if (process.env.OPENAI_API_KEY) {
@@ -94,7 +94,7 @@ export class AICEOService {
 
       // Check cache first
       const cacheKey = `decision:${organizationId}:${decisionType}`;
-      const cached = await this.redis.get(cacheKey);
+      const cached = this.cacheGet(cacheKey);
       if (cached) {
         this.logger.debug(`Cache hit for decision: ${cacheKey}`);
         return JSON.parse(cached);
@@ -136,7 +136,7 @@ export class AICEOService {
       await this.persistDecision(organizationId, decision);
 
       // Cache result
-      await this.redis.setex(cacheKey, this.DECISION_CACHE_TTL, JSON.stringify(decision));
+      this.cacheSet(cacheKey, this.DECISION_CACHE_TTL, JSON.stringify(decision));
 
       // Queue job for follow-up analysis
       await this.decisionsQueue.add(
@@ -198,7 +198,7 @@ export class AICEOService {
 
       // Cache report
       const cacheKey = `report:${organizationId}:${frequency}`;
-      await this.redis.setex(cacheKey, this.DECISION_CACHE_TTL, JSON.stringify(report));
+      this.cacheSet(cacheKey, this.DECISION_CACHE_TTL, JSON.stringify(report));
 
       return this.mapReportToDto(report, organizationId);
     } catch (error) {
@@ -272,12 +272,12 @@ export class AICEOService {
       const cacheKey = `metrics:${organizationId}`;
       let metrics: MetricsDto;
 
-      const cached = await this.redis.get(cacheKey);
+      const cached = this.cacheGet(cacheKey);
       if (cached) {
         metrics = JSON.parse(cached);
       } else {
         metrics = await this.gatherMetricsDto(organizationId);
-        await this.redis.setex(cacheKey, this.METRICS_CACHE_TTL, JSON.stringify(metrics));
+        this.cacheSet(cacheKey, this.METRICS_CACHE_TTL, JSON.stringify(metrics));
       }
 
       // Get active decisions (non-expired)
@@ -315,13 +315,13 @@ export class AICEOService {
       this.logger.log(`Applying decision ${decisionId} for org: ${organizationId}`);
 
       // Note: Update to implement when AIceoDecision model is added to Prisma schema
-      // await this.prisma.aiCEODecision.update({
-      //   where: { id: decisionId },
-      //   data: {
-      //     implemented: true,
-      //     implementedAt: new Date(),
-      //   },
-      // });
+      await this.prisma.aIceoDecision.update({
+        where: { id: decisionId },
+        data: {
+          implemented: true,
+          implementedAt: new Date(),
+        },
+      });
 
       // Queue follow-up impact analysis
       await this.decisionsQueue.add(
@@ -349,24 +349,21 @@ export class AICEOService {
   async getDecisionHistory(organizationId: string, limit = 20): Promise<any[]> {
     try {
       // Note: Implement when AIceoDecision model is added to Prisma schema
-      // return this.prisma.aiCEODecision.findMany({
-      //   where: { organizationId, implemented: true },
-      //   orderBy: { generatedAt: 'desc' },
-      //   take: limit,
-      //   select: {
-      //     id: true,
-      //     type: true,
-      //     severity: true,
-      //     title: true,
-      //     implemented: true,
-      //     implementedAt: true,
-      //     actualImpact: true,
-      //     generatedAt: true,
-      //   },
-      // });
-
-      // Temporary: return empty array until Prisma schema is updated
-      return [];
+      return this.prisma.aIceoDecision.findMany({
+        where: { organizationId, implemented: true },
+        orderBy: { generatedAt: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          type: true,
+          severity: true,
+          title: true,
+          implemented: true,
+          implementedAt: true,
+          actualImpact: true,
+          generatedAt: true,
+        },
+      });
     } catch (error) {
       this.logger.error(`Error getting decision history: ${error.message}`, error.stack);
       return [];
@@ -498,24 +495,24 @@ export class AICEOService {
   private async persistDecision(organizationId: string, decision: AIDecision): Promise<void> {
     try {
       // Note: Implement when AIceoDecision model is added to Prisma schema
-      // await this.prisma.aiCEODecision.create({
-      //   data: {
-      //     id: decision.id,
-      //     organizationId,
-      //     type: decision.type,
-      //     severity: decision.severity,
-      //     title: decision.title,
-      //     description: decision.description,
-      //     recommendation: decision.recommendation,
-      //     estimatedImpact: decision.estimatedImpact,
-      //     implementationSteps: decision.implementationSteps,
-      //     confidence: decision.confidence,
-      //     aiModel: decision.aiModel,
-      //     generatedAt: decision.generatedAt,
-      //     expiresAt: decision.expiresAt,
-      //   },
-      // });
-      this.logger.debug(`Would persist decision ${decision.id} (Prisma schema update needed)`);
+      await this.prisma.aIceoDecision.create({
+        data: {
+          id: decision.id,
+          organizationId,
+          type: decision.type,
+          severity: decision.severity,
+          title: decision.title,
+          description: decision.description,
+          recommendation: decision.recommendation,
+          estimatedImpact: decision.estimatedImpact as any,
+          implementationSteps: decision.implementationSteps,
+          confidence: decision.confidence,
+          aiModel: decision.aiModel,
+          generatedAt: decision.generatedAt,
+          expiresAt: decision.expiresAt,
+        },
+      });
+      this.logger.debug(`Persisted decision ${decision.id}`);
     } catch (error) {
       this.logger.warn(`Could not persist decision: ${error.message}`);
     }
@@ -528,19 +525,19 @@ export class AICEOService {
   ): Promise<void> {
     try {
       // Note: Implement when AICEOReport model is added to Prisma schema
-      // await this.prisma.aiCEOReport.create({
-      //   data: {
-      //     organizationId,
-      //     frequency,
-      //     period: report.period,
-      //     metrics: report.metrics,
-      //     summary: report.summary,
-      //     decisions: report.decisions,
-      //     generatedAt: report.generatedAt,
-      //     aiModel: report.aiModel,
-      //   },
-      // });
-      this.logger.debug(`Would persist report for org ${organizationId} (Prisma schema update needed)`);
+      await this.prisma.aICEOReport.create({
+        data: {
+          organizationId,
+          frequency,
+          period: report.period as any,
+          metrics: report.metrics as any,
+          summary: report.summary as any,
+          decisions: report.decisions as any,
+          generatedAt: report.generatedAt,
+          aiModel: report.aiModel,
+        },
+      });
+      this.logger.debug(`Persisted report for org ${organizationId}`);
     } catch (error) {
       this.logger.warn(`Could not persist report: ${error.message}`);
     }
@@ -613,17 +610,15 @@ export class AICEOService {
   private async getActiveDecisions(organizationId: string): Promise<AIDecision[]> {
     try {
       // Note: Implement when AIceoDecision model is added to Prisma schema
-      // const decisions = await this.prisma.aiCEODecision.findMany({
-      //   where: {
-      //     organizationId,
-      //     expiresAt: { gt: new Date() },
-      //   },
-      //   orderBy: { generatedAt: 'desc' },
-      //   take: 5,
-      // });
-      // return decisions as any;
-
-      return [];
+      const decisions = await this.prisma.aIceoDecision.findMany({
+        where: {
+          organizationId,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { generatedAt: 'desc' },
+        take: 5,
+      });
+      return decisions as any;
     } catch (error) {
       this.logger.warn(`Could not fetch active decisions: ${error.message}`);
       return [];
@@ -633,14 +628,12 @@ export class AICEOService {
   private async getRecentReports(organizationId: string, limit: number): Promise<AIAnalysisReport[]> {
     try {
       // Note: Implement when AICEOReport model is added to Prisma schema
-      // const reports = await this.prisma.aiCEOReport.findMany({
-      //   where: { organizationId },
-      //   orderBy: { generatedAt: 'desc' },
-      //   take: limit,
-      // });
-      // return reports as any;
-
-      return [];
+      const reports = await this.prisma.aICEOReport.findMany({
+        where: { organizationId },
+        orderBy: { generatedAt: 'desc' },
+        take: limit,
+      });
+      return reports as any;
     } catch (error) {
       this.logger.warn(`Could not fetch recent reports: ${error.message}`);
       return [];
@@ -650,8 +643,7 @@ export class AICEOService {
   private async getHealthStatus(organizationId: string): Promise<HealthCheckDto> {
     let lastAnalysis: any = null;
     try {
-      // @ts-ignore - aiCEODecision model will be available after Prisma generates
-      lastAnalysis = await (this.prisma as any).aiCEODecision.findFirst({
+      lastAnalysis = await this.prisma.aIceoDecision.findFirst({
         where: { organizationId },
         orderBy: { generatedAt: 'desc' },
         select: { generatedAt: true },
@@ -689,14 +681,12 @@ export class AICEOService {
   private async getHistoricalDecisions(organizationId: string): Promise<AIDecision[]> {
     try {
       // Note: Implement when AIceoDecision model is added to Prisma schema
-      // const decisions = await this.prisma.aiCEODecision.findMany({
-      //   where: { organizationId, implemented: true },
-      //   orderBy: { generatedAt: 'desc' },
-      //   take: 10,
-      // });
-      // return decisions as any;
-
-      return [];
+      const decisions = await this.prisma.aIceoDecision.findMany({
+        where: { organizationId, implemented: true },
+        orderBy: { generatedAt: 'desc' },
+        take: 10,
+      });
+      return decisions as any;
     } catch (error) {
       this.logger.warn(`Could not fetch historical decisions: ${error.message}`);
       return [];
@@ -845,4 +835,20 @@ export class AICEOService {
       return {};
     }
   };
+
+  // ============ IN-MEMORY CACHE HELPERS ============
+
+  private cacheGet(key: string): string | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  private cacheSet(key: string, ttlSeconds: number, value: string): void {
+    this.cache.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+  }
 }

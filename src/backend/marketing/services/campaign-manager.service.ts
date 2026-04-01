@@ -10,6 +10,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { RequestContextService } from '../../common/context/request-context.service';
+import { EventBus } from '../../common/events/event.bus';
+import { AnalyticsEventEmittedEvent } from '../../common/events/event.types';
 import { CampaignObjectiveEnum } from '../marketing.types';
 
 export interface CreateCampaignDto {
@@ -38,7 +41,11 @@ export interface UpdateCampaignDto {
 export class CampaignManagerService {
   private readonly logger = new Logger(CampaignManagerService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly contextService: RequestContextService,
+    private readonly eventBus: EventBus,
+  ) {}
 
   async listCampaigns(organizationId: string, status?: string) {
     const where: any = { organizationId };
@@ -88,7 +95,7 @@ export class CampaignManagerService {
       if (!account) throw new BadRequestException('Ad account not found');
     }
 
-    return this.prisma.marketingCampaign.create({
+    const campaign = await this.prisma.marketingCampaign.create({
       data: {
         organizationId,
         name: dto.name,
@@ -103,6 +110,18 @@ export class CampaignManagerService {
         aiGenerated: false,
       },
     });
+
+    await this.publishCampaignEvent(
+      organizationId,
+      'marketing.campaign.created',
+      {
+        campaignId: campaign.id,
+        objective: campaign.objective,
+        status: campaign.status,
+      },
+    );
+
+    return campaign;
   }
 
   async updateCampaign(
@@ -112,7 +131,7 @@ export class CampaignManagerService {
   ) {
     await this.assertOwnership(organizationId, campaignId);
 
-    return this.prisma.marketingCampaign.update({
+    const campaign = await this.prisma.marketingCampaign.update({
       where: { id: campaignId },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -124,6 +143,17 @@ export class CampaignManagerService {
         ...(dto.audienceJson !== undefined && { audienceJson: dto.audienceJson }),
       },
     });
+
+    await this.publishCampaignEvent(
+      organizationId,
+      'marketing.campaign.updated',
+      {
+        campaignId: campaign.id,
+        status: campaign.status,
+      },
+    );
+
+    return campaign;
   }
 
   async setStatus(
@@ -132,15 +162,93 @@ export class CampaignManagerService {
     status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED',
   ) {
     await this.assertOwnership(organizationId, campaignId);
-    return this.prisma.marketingCampaign.update({
+    const campaign = await this.prisma.marketingCampaign.update({
       where: { id: campaignId },
       data: { status },
     });
+
+    await this.publishCampaignEvent(
+      organizationId,
+      'marketing.campaign.status_changed',
+      { campaignId, status },
+    );
+
+    return campaign;
   }
 
   async deleteCampaign(organizationId: string, campaignId: string) {
     await this.assertOwnership(organizationId, campaignId);
     await this.prisma.marketingCampaign.delete({ where: { id: campaignId } });
+    await this.publishCampaignEvent(
+      organizationId,
+      'marketing.campaign.deleted',
+      { campaignId },
+    );
+  }
+
+  async cloneCampaign(
+    organizationId: string,
+    campaignId: string,
+    data?: { name?: string; startDate?: string; endDate?: string },
+  ) {
+    const campaign = await this.prisma.marketingCampaign.findFirst({
+      where: { id: campaignId, organizationId },
+      include: { ads: true },
+    });
+
+    if (!campaign) throw new NotFoundException('Campaign not found');
+
+    const clonedCampaign = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.marketingCampaign.create({
+        data: {
+          organizationId,
+          adAccountId: campaign.adAccountId,
+          name: data?.name?.trim() || `${campaign.name} Copy`,
+          description: campaign.description,
+          objective: campaign.objective,
+          dailyBudget: campaign.dailyBudget,
+          totalBudget: campaign.totalBudget,
+          startDate: data?.startDate ? new Date(data.startDate) : campaign.startDate,
+          endDate: data?.endDate ? new Date(data.endDate) : campaign.endDate,
+          audienceJson: campaign.audienceJson,
+          status: 'DRAFT',
+          aiGenerated: campaign.aiGenerated,
+          aiNotes: campaign.aiNotes,
+        },
+      });
+
+      for (const ad of campaign.ads) {
+        await tx.ad.create({
+          data: {
+            campaignId: created.id,
+            name: ad.name,
+            format: ad.format,
+            status: 'DRAFT',
+            headline: ad.headline,
+            body: ad.body,
+            callToAction: ad.callToAction,
+            destinationUrl: ad.destinationUrl,
+            creativeAssets: ad.creativeAssets,
+            aiGenerated: ad.aiGenerated,
+            aiPrompt: ad.aiPrompt,
+            aiScore: ad.aiScore,
+          },
+        });
+      }
+
+      return created;
+    });
+
+    await this.publishCampaignEvent(
+      organizationId,
+      'marketing.campaign.cloned',
+      {
+        sourceCampaignId: campaignId,
+        clonedCampaignId: clonedCampaign.id,
+      },
+    );
+
+    return this.getCampaign(organizationId, clonedCampaign.id);
   }
 
   // ─── Ads management ──────────────────────────────────────────────────────────
@@ -217,5 +325,25 @@ export class CampaignManagerService {
       select: { id: true },
     });
     if (!campaign) throw new NotFoundException('Campaign not found');
+  }
+
+  private async publishCampaignEvent(
+    organizationId: string,
+    eventName: string,
+    properties: Record<string, unknown>,
+  ) {
+    const correlationId =
+      this.contextService.getCorrelationId() ?? `corr-${Date.now()}`;
+
+    await this.eventBus.publish(
+      new AnalyticsEventEmittedEvent(
+        organizationId,
+        eventName,
+        organizationId,
+        properties,
+        correlationId,
+        this.contextService.getUserId(),
+      ),
+    );
   }
 }

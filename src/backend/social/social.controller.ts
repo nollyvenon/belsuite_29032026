@@ -52,7 +52,10 @@ import {
   GenerateCaptionDto,
   RescheduleDto,
   ListPostsQueryDto,
+  UpdateSchedulingPolicyDto,
+  SchedulePreviewDto,
 } from './dto/social.dto';
+import { SchedulingPolicyService } from './services/scheduling-policy.service';
 
 interface AuthUser {
   id: string;
@@ -70,6 +73,7 @@ export class SocialController {
     private readonly creator: AutoCreatorService,
     private readonly optimalTimes: OptimalTimeService,
     private readonly retryDashboard: RetryDashboardService,
+    private readonly schedulingPolicy: SchedulingPolicyService,
   ) {}
 
   // ── Accounts ──────────────────────────────────────────────────────────────
@@ -244,6 +248,29 @@ export class SocialController {
       new Date(from),
       new Date(to),
     );
+  }
+
+  // ── Scheduler policy ─────────────────────────────────────────────────────
+
+  @Get('settings/scheduling')
+  getSchedulingPolicy(@CurrentUser() user: AuthUser) {
+    return this.schedulingPolicy.getPolicy(user.orgId);
+  }
+
+  @Patch('settings/scheduling')
+  updateSchedulingPolicy(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateSchedulingPolicyDto,
+  ) {
+    return this.schedulingPolicy.updatePolicy(user.orgId, dto);
+  }
+
+  @Post('schedule/preview')
+  previewSchedule(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SchedulePreviewDto,
+  ) {
+    return this.schedulingPolicy.previewSchedule(user.orgId, dto);
   }
 
   // ── Retry dashboard ───────────────────────────────────────────────────────

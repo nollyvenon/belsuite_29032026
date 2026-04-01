@@ -14,6 +14,8 @@ import {
   Loader2,
   AlertCircle,
   ChevronDown,
+  TrendingUp,
+  ClipboardCheck,
 } from 'lucide-react';
 import { MarketingDashboard } from '@/components/marketing/MarketingDashboard';
 import { CampaignsView } from '@/components/marketing/CampaignsView';
@@ -22,6 +24,8 @@ import { ABTestView } from '@/components/marketing/ABTestView';
 import { BudgetOptimizerPanel } from '@/components/marketing/BudgetOptimizerPanel';
 import { FunnelsView } from '@/components/marketing/FunnelsView';
 import { ConnectionsPanel } from '@/components/marketing/ConnectionsPanel';
+import { CampaignROIView } from '@/components/marketing/CampaignROIView';
+import { CampaignApprovalPanel } from '@/components/marketing/CampaignApprovalPanel';
 import { useMarketingDashboard, useCampaigns } from '@/hooks/useMarketing';
 
 type Tab =
@@ -31,7 +35,9 @@ type Tab =
   | 'ab-tests'
   | 'budget'
   | 'funnels'
-  | 'connections';
+  | 'connections'
+  | 'roi'
+  | 'approvals';
 
 const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
@@ -41,6 +47,8 @@ const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
   { id: 'budget', label: 'Budget AI', Icon: Zap },
   { id: 'funnels', label: 'Funnels', Icon: Layers },
   { id: 'connections', label: 'Connections', Icon: Link2 },
+  { id: 'roi', label: 'ROI', Icon: TrendingUp },
+  { id: 'approvals', label: 'Approvals', Icon: ClipboardCheck },
 ];
 
 function CampaignSelector({
@@ -109,7 +117,7 @@ export default function MarketingPage() {
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const { overview, loading: dashLoading, error: dashError } = useMarketingDashboard(30);
 
-  const needsCampaign = tab === 'ab-tests' || tab === 'budget';
+  const needsCampaign = tab === 'ab-tests' || tab === 'budget' || tab === 'roi' || tab === 'approvals';
 
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
@@ -201,6 +209,22 @@ export default function MarketingPage() {
             {tab === 'funnels' && <FunnelsView />}
 
             {tab === 'connections' && <ConnectionsPanel />}
+
+            {tab === 'roi' && (
+              selectedCampaignId ? (
+                <CampaignROIView campaignId={selectedCampaignId} />
+              ) : (
+                <NoCampaignSelected label="ROI" />
+              )
+            )}
+
+            {tab === 'approvals' && (
+              selectedCampaignId ? (
+                <CampaignApprovalPanel campaignId={selectedCampaignId} />
+              ) : (
+                <NoCampaignSelected label="Approvals" />
+              )
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
