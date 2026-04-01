@@ -1,0 +1,79 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+
+  routes:
+    # Critical alerts
+    - match:
+        severity: critical
+      receiver: 'critical'
+      group_wait: 0s
+      repeat_interval: 5m
+
+    # High priority alerts
+    - match:
+        severity: high
+      receiver: 'high'
+      group_wait: 1m
+      repeat_interval: 30m
+
+    # Database alerts
+    - match:
+        service: database
+      receiver: 'database'
+      repeat_interval: 30m
+
+    # Application alerts
+    - match:
+        service: application
+      receiver: 'application'
+      repeat_interval: 1h
+
+receivers:
+  - name: 'default'
+    slack_configs:
+      - channel: '#alerts'
+        title: 'BelSuite Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'critical'
+    slack_configs:
+      - channel: '#critical-alerts'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .GroupLabels.alertname }}'
+
+  - name: 'high'
+    slack_configs:
+      - channel: '#alerts'
+        title: '⚠️ HIGH: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'database'
+    slack_configs:
+      - channel: '#database-alerts'
+        title: 'Database Alert: {{ .GroupLabels.alertname }}'
+
+  - name: 'application'
+    slack_configs:
+      - channel: '#app-alerts'
+        title: 'App Alert: {{ .GroupLabels.alertname }}'
+
+inhibit_rules:
+  # Inhibit all alerts if the application is down
+  - source_match:
+      severity: 'critical'
+      alertname: 'BackendDown'
+    target_match_re:
+      severity: 'warning|info'
+    equal: ['instance']

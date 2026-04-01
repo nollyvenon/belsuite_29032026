@@ -1,0 +1,202 @@
+groups:
+  - name: backend_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # Backend down
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: application
+        annotations:
+          summary: "Backend is down"
+          description: "Backend instance {{ $labels.instance }} is not responding"
+
+      # High latency
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: high
+          service: application
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Memory pressure
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes{name="belsuite-backend-prod"} / container_spec_memory_limit_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: application
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # CPU pressure
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{name="belsuite-backend-prod"}[5m]) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          service: application
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Postgres down
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL instance {{ $labels.instance }} is not responding"
+
+      # High connection count
+      - alert: HighDatabaseConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High database connections"
+          description: "{{ $value }} active connections (threshold: 80)"
+
+      # Slow queries
+      - alert: SlowQueries
+        expr: pg_slow_queries > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Slow queries detected"
+          description: "{{ $value }} slow queries in last 5 minutes"
+
+      # Disk space running low
+      - alert: DiskSpaceRunningLow
+        expr: node_filesystem_avail_bytes{device="/dev/mapper/vg0-data"} / node_filesystem_size_bytes < 0.10
+        for: 5m
+        labels:
+          severity: high
+          service: database
+        annotations:
+          summary: "Disk space running low"
+          description: "Only {{ $value | humanizePercentage }} disk space left"
+
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance {{ $labels.instance }} is not responding"
+
+      # High memory usage
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # Evictions happening
+      - alert: RedisEvictions
+        expr: increase(redis_evicted_keys_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Redis is evicting keys"
+          description: "{{ $value }} keys evicted in last 5 minutes"
+
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      # Elasticsearch down
+      - alert: ElasticsearchDown
+        expr: up{job="elasticsearch"} == 0
+        for: 1m
+        labels:
+          severity: high
+          service: logging
+        annotations:
+          summary: "Elasticsearch is down"
+          description: "Elasticsearch cluster is unavailable"
+
+      # Nginx down
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: proxy
+        annotations:
+          summary: "Nginx is down"
+          description: "Nginx reverse proxy is not responding"
+
+      # High request rate
+      - alert: HighRequestRate
+        expr: rate(nginx_http_requests_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: info
+          service: proxy
+        annotations:
+          summary: "High request rate"
+          description: "Request rate is {{ $value }} req/s"
+
+  - name: sla_alerts
+    interval: 60s
+    rules:
+      # Availability SLO violation
+      - alert: AvailabilitySLOViolation
+        expr: (1 - (rate(http_requests_total{status=~"5.."}[30m]) / rate(http_requests_total[30m]))) < 0.999
+        for: 5m
+        labels:
+          severity: high
+          service: slo
+        annotations:
+          summary: "Availability SLO violation"
+          description: "Availability is below 99.9% target"
+
+      # Latency SLO violation
+      - alert: LatencySLOViolation
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[30m])) > 1.5
+        for: 5m
+        labels:
+          severity: high
+          service: slo
+        annotations:
+          summary: "Latency SLO violation"
+          description: "P99 latency is above 1.5s target"

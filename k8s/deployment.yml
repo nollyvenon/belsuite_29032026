@@ -1,0 +1,304 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: belsuite-prod
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: belsuite-config
+  namespace: belsuite-prod
+data:
+  NODE_ENV: 'production'
+  LOG_LEVEL: 'info'
+  API_URL: 'https://api.belsuite.app'
+  PROMETHEUS_ENABLED: 'true'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: belsuite-secrets
+  namespace: belsuite-prod
+type: Opaque
+stringData:
+  DATABASE_URL: 'postgresql://belsuite:${DB_PASSWORD}@postgres.belsuite-prod.svc.cluster.local:5432/belsuite'
+  REDIS_URL: 'redis://:${REDIS_PASSWORD}@redis.belsuite-prod.svc.cluster.local:6379'
+  JWT_SECRET: '${JWT_SECRET}'
+  STRIPE_SECRET_KEY: '${STRIPE_SECRET_KEY}'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: belsuite-backend
+  namespace: belsuite-prod
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: belsuite-backend
+  template:
+    metadata:
+      labels:
+        app: belsuite-backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '3001'
+        prometheus.io/path: '/metrics'
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - belsuite-backend
+                topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: backend
+          image: ghcr.io/belsuite/belsuite:backend-latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: belsuite-config
+            - secretRef:
+                name: belsuite-secrets
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              exec:
+                command: ['/bin/sh', '-c', 'sleep 15']
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: belsuite-backend
+  namespace: belsuite-prod
+  labels:
+    app: belsuite-backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app: belsuite-backend
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: belsuite-backend-hpa
+  namespace: belsuite-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: belsuite-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: '1k'
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: belsuite-frontend
+  namespace: belsuite-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: belsuite-frontend
+  template:
+    metadata:
+      labels:
+        app: belsuite-frontend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      containers:
+        - name: frontend
+          image: ghcr.io/belsuite/belsuite:frontend-latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: belsuite-config
+          resources:
+            requests:
+              memory: '128Mi'
+              cpu: '100m'
+            limits:
+              memory: '256Mi'
+              cpu: '200m'
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: belsuite-frontend
+  namespace: belsuite-prod
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+  selector:
+    app: belsuite-frontend
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: belsuite-frontend-hpa
+  namespace: belsuite-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: belsuite-frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: belsuite-backend-pdb
+  namespace: belsuite-prod
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: belsuite-backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: belsuite-frontend-pdb
+  namespace: belsuite-prod
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: belsuite-frontend

@@ -1,0 +1,190 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: belsuite-network-policy
+  namespace: belsuite-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: belsuite-backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: belsuite-prod
+        - podSelector:
+            matchLabels:
+              app: belsuite-frontend
+      ports:
+        - protocol: TCP
+          port: 3001
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              monitoring: "true"
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: belsuite-prod
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: belsuite-ingress
+  namespace: belsuite-prod
+  annotations:
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+    nginx.ingress.kubernetes.io/rate-limit: '100'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - 'app.belsuite.app'
+        - 'api.belsuite.app'
+      secretName: belsuite-tls
+  rules:
+    - host: 'app.belsuite.app'
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: belsuite-frontend
+                port:
+                  number: 80
+    - host: 'api.belsuite.app'
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: belsuite-backend
+                port:
+                  number: 80
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ops@belsuite.app
+    privateKeySecretRef:
+      name: letsencrypt-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: belsuite-backend
+  namespace: belsuite-prod
+  labels:
+    app: belsuite-backend
+spec:
+  selector:
+    matchLabels:
+      app: belsuite-backend
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: belsuite-alerts
+  namespace: belsuite-prod
+  labels:
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: belsuite.rules
+      interval: 30s
+      rules:
+        - alert: BelsuiteBackendDown
+          expr: up{job="belsuite-backend"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "BelSuite backend is down"
+
+        - alert: BelsuiteHighErrorRate
+          expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+          for: 5m
+          labels:
+            severity: high
+          annotations:
+            summary: "High error rate detected"
+
+        - alert: BelsuiteHighLatency
+          expr: histogram_quantile(0.95, http_request_duration_seconds_bucket) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High API latency"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: belsuite-quota
+  namespace: belsuite-prod
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    pods: "100"
+    services: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: belsuite-limits
+  namespace: belsuite-prod
+spec:
+  limits:
+    - max:
+        cpu: "2"
+        memory: 2Gi
+      min:
+        cpu: 100m
+        memory: 128Mi
+      type: Container
+    - max:
+        cpu: "4"
+        memory: 4Gi
+      min:
+        cpu: 100m
+        memory: 128Mi
+      type: Pod
