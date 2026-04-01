@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 import { OAuthButtons } from './OAuthButtons';
 
 export interface LoginModalProps {
@@ -12,6 +13,7 @@ export interface LoginModalProps {
 }
 
 export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps) => {
+  const { setSession } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +40,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
       const data = await response.json();
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
+      setSession(data.accessToken, data.refreshToken);
 
       onLoginSuccess?.(data.accessToken);
       onClose();

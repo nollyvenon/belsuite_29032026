@@ -3,10 +3,12 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
+import { useAuthStore } from '@/stores/auth-store';
 
 function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setSession } = useAuthStore();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Processing authentication...');
 
@@ -48,6 +50,7 @@ function OAuthCallbackContent() {
         // Store tokens
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
+        setSession(data.accessToken, data.refreshToken);
 
         // Clear OAuth session
         sessionStorage.removeItem('oauth_provider');
@@ -66,7 +69,7 @@ function OAuthCallbackContent() {
     };
 
     handleOAuthCallback();
-  }, [router, searchParams]);
+  }, [router, searchParams, setSession]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-black via-black to-black/80">
