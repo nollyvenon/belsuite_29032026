@@ -29,24 +29,23 @@ export async function getRevenueMetrics(days = 30): Promise<RevenueMetrics> {
   const billing = billingOverview.status === 'fulfilled' ? billingOverview.value : null;
   const analytics = analyticsRevenue.status === 'fulfilled' ? analyticsRevenue.value : null;
 
-  // Fallback to estimated values if API doesn't return
-  const currentRevenue = billing?.totalAmount ?? billing?.usage?.summary?.totalAmount ?? 24580;
-  const previousRevenue = currentRevenue * 0.75; // Estimate 33% growth
+  const currentRevenue = Number(billing?.totalAmount ?? billing?.usage?.summary?.totalAmount ?? analytics?.current ?? 0);
+  const previousRevenue = Number(analytics?.previous ?? 0);
   const change = currentRevenue - previousRevenue;
-  const changePercent = (change / previousRevenue) * 100;
+  const changePercent = previousRevenue > 0 ? (change / previousRevenue) * 100 : 0;
 
   return {
     current: currentRevenue,
     previous: previousRevenue,
     change,
     changePercent,
-    mrr: 18240,
-    arr: 218880,
-    subscriptionRevenue: 14200,
-    payAsYouGoRevenue: 7340,
-    creditsRevenue: 3040,
-    churnRate: 4.2,
-    retentionRate: 95.8,
-    customerLTV: 2840,
+    mrr: Number(analytics?.mrr ?? 0),
+    arr: Number(analytics?.arr ?? 0),
+    subscriptionRevenue: Number(analytics?.subscriptionRevenue ?? 0),
+    payAsYouGoRevenue: Number(analytics?.payAsYouGoRevenue ?? 0),
+    creditsRevenue: Number(analytics?.creditsRevenue ?? 0),
+    churnRate: Number(analytics?.churnRate ?? 0),
+    retentionRate: Number(analytics?.retentionRate ?? 0),
+    customerLTV: Number(analytics?.customerLTV ?? 0),
   };
 }

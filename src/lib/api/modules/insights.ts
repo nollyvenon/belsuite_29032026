@@ -40,17 +40,58 @@ export async function getAnalyticsTrends(days = 7): Promise<TrendDataPoint[]> {
     aiClient.get<any>('/usage', { days }),
   ]);
 
-  // Generate mock data based on API responses or use defaults
-  const dateLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return dateLabels.map((date, idx) => ({
-    date,
-    analytics: 200 + Math.random() * 300,
-    marketing: 180 + Math.random() * 250,
-    social: 150 + Math.random() * 200,
-    video: 140 + Math.random() * 180,
-    ugc: 100 + Math.random() * 150,
-    ai: 120 + Math.random() * 200,
-  }));
+  const sources = {
+    analytics: analytics.status === 'fulfilled' ? analytics.value : null,
+    marketing: marketing.status === 'fulfilled' ? marketing.value : null,
+    social: social.status === 'fulfilled' ? social.value : null,
+    video: video.status === 'fulfilled' ? video.value : null,
+    ugc: ugc.status === 'fulfilled' ? ugc.value : null,
+    ai: ai.status === 'fulfilled' ? ai.value : null,
+  };
+
+  const mapByDate = new Map<string, TrendDataPoint>();
+
+  const ensurePoint = (date: string) => {
+    if (!mapByDate.has(date)) {
+      mapByDate.set(date, {
+        date,
+        analytics: 0,
+        marketing: 0,
+        social: 0,
+        video: 0,
+        ugc: 0,
+        ai: 0,
+      });
+    }
+    return mapByDate.get(date)!;
+  };
+
+  const mergeSeries = (key: keyof Omit<TrendDataPoint, 'date'>, payload: any) => {
+    if (!payload) return;
+    const series = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.series)
+        ? payload.series
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+
+    for (const point of series) {
+      const date = String(point?.date ?? point?.label ?? point?.day ?? '');
+      if (!date) continue;
+      const value = Number(point?.value ?? point?.count ?? point?.total ?? 0);
+      ensurePoint(date)[key] = Number.isFinite(value) ? value : 0;
+    }
+  };
+
+  mergeSeries('analytics', sources.analytics);
+  mergeSeries('marketing', sources.marketing);
+  mergeSeries('social', sources.social);
+  mergeSeries('video', sources.video);
+  mergeSeries('ugc', sources.ugc);
+  mergeSeries('ai', sources.ai);
+
+  return Array.from(mapByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function getContentPipelineMetrics(): Promise<PipelineMetrics> {
@@ -62,19 +103,19 @@ export async function getContentPipelineMetrics(): Promise<PipelineMetrics> {
   const videos = videoProjects.status === 'fulfilled' ? videoProjects.value : [];
   const ugc = ugcDashboard.status === 'fulfilled' ? ugcDashboard.value : null;
 
-  const uploaded = videos.filter((v: any) => v.status === 'DRAFT').length || 240;
-  const processing = videos.filter((v: any) => v.status === 'PROCESSING').length || 38;
-  const review = videos.filter((v: any) => v.status === 'PENDING_REVIEW').length || 12;
-  const published = videos.filter((v: any) => v.status === 'READY').length || 2290;
+  const uploaded = videos.filter((v: any) => v.status === 'DRAFT').length;
+  const processing = videos.filter((v: any) => v.status === 'PROCESSING').length;
+  const review = videos.filter((v: any) => v.status === 'PENDING_REVIEW').length;
+  const published = videos.filter((v: any) => v.status === 'READY').length;
 
   return {
     uploaded,
     processing,
     review,
     published,
-    successRate: 99.2,
-    avgProcessingTime: '12m 34s',
-    failedRenders: 18,
-    totalRenders: 2308,
+    successRate: Number(ugc?.pipeline?.successRate ?? 0),
+    avgProcessingTime: String(ugc?.pipeline?.avgProcessingTime ?? '0m 0s'),
+    failedRenders: Number(ugc?.pipeline?.failedRenders ?? 0),
+    totalRenders: Number(ugc?.pipeline?.totalRenders ?? videos.length),
   };
 }

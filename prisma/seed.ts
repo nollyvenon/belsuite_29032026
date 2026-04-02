@@ -170,6 +170,15 @@ async function main() {
     { action: 'manage', resource: 'users' },
     { action: 'manage', resource: 'organization' },
     { action: 'manage', resource: 'billing' },
+    { action: 'read', resource: 'deals' },
+    { action: 'manage', resource: 'deals' },
+    { action: 'read', resource: 'rank_tracker' },
+    { action: 'manage', resource: 'rank_tracker' },
+    { action: 'read', resource: 'call_center' },
+    { action: 'manage', resource: 'call_center' },
+    { action: 'read', resource: 'revenue' },
+    { action: 'read', resource: 'referrals' },
+    { action: 'manage', resource: 'referrals' },
   ];
 
   for (const perm of permissions) {
@@ -193,7 +202,13 @@ async function main() {
   const creatorPermissions = ['create', 'read', 'update'].map((action) => ({
     action,
     resource: 'content',
-  }));
+  })).concat([
+    { action: 'read', resource: 'deals' },
+    { action: 'read', resource: 'rank_tracker' },
+    { action: 'read', resource: 'call_center' },
+    { action: 'read', resource: 'revenue' },
+    { action: 'read', resource: 'referrals' },
+  ]);
 
   for (const perm of creatorPermissions) {
     await prisma.permission.upsert({

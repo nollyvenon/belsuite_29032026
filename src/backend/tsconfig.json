@@ -31,7 +31,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["node"]
+    "types": ["node", "jest"]
   },
   "include": ["./**/*"],
   "exclude": [

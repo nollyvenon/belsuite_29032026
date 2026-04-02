@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
+import { RequirePermission } from '../common/decorators/permission.decorator';
 import { CreateReferralLinkDto, TrackReferralDto } from './dto/referral.dto';
 import { ReferralEngineService } from './referral-engine.service';
 
@@ -17,6 +18,7 @@ export class ReferralEngineController {
 
   @Post('links')
   @UseGuards(JwtAuthGuard)
+  @RequirePermission('manage:referrals', 'manage:organization')
   create(@Request() req: any, @Body() dto: CreateReferralLinkDto) {
     const { organizationId, id: userId } = req.user;
     return this.svc.createLink(organizationId, userId, dto);
@@ -24,12 +26,14 @@ export class ReferralEngineController {
 
   @Get('links')
   @UseGuards(JwtAuthGuard)
+  @RequirePermission('read:referrals', 'manage:organization')
   list(@Request() req: any) {
     return this.svc.listLinks(req.user.organizationId);
   }
 
   @Get('stats')
   @UseGuards(JwtAuthGuard)
+  @RequirePermission('read:referrals', 'manage:organization')
   stats(@Request() req: any) {
     return this.svc.getStats(req.user.organizationId);
   }
@@ -46,6 +50,7 @@ export class ReferralEngineController {
 
   @Post(':id/convert')
   @UseGuards(JwtAuthGuard)
+  @RequirePermission('manage:referrals', 'manage:organization')
   convert(@Request() req: any, @Param('id') id: string) {
     return this.svc.markConverted(req.user.organizationId, id);
   }
