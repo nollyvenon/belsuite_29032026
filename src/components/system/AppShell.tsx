@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   BadgeDollarSign,
   BarChart3,
+  Bot,
   BookOpen,
   ChevronLeft,
   LayoutDashboard,
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { id: 'ugc', label: 'UGC', href: '/ugc', Icon: Wand2 },
   { id: 'billing', label: 'Billing', href: '/billing', Icon: BadgeDollarSign },
   { id: 'ai', label: 'AI', href: '/ai/dashboard', Icon: Sparkles },
+  { id: 'ai-autopilot', label: 'AI Autopilot', href: '/ai-autopilot', Icon: Bot },
   { id: 'funnel-engine', label: 'Funnels', href: '/funnel-engine', Icon: TrendingUp },
   { id: 'admin', label: 'Admin', href: '/admin', Icon: Shield },
   { id: 'api-docs', label: 'API Docs', href: '/api-docs', Icon: BookOpen },

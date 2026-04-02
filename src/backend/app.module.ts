@@ -23,6 +23,7 @@ import { CrmEngineModule } from './crm-engine/crm-engine.module';
 import { MarketingAutomationModule } from './marketing-automation/marketing-automation.module';
 import { AICallingModule } from './ai-calling/ai-calling.module';
 import { FunnelEngineModule } from './funnel-engine/funnel-engine.module';
+import { AIAutopilotModule } from './ai-autopilot/ai-autopilot.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -98,6 +99,7 @@ class StorageModule {}
     MarketingAutomationModule,
     AICallingModule,
     FunnelEngineModule,
+    AIAutopilotModule,
   ],
   providers: [
     DatabaseConfig,

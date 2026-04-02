@@ -1097,6 +1097,105 @@ Receives `RecordingUrl`, `RecordingSid`, and duration. Automatically queues a Wh
 
 ---
 
+## Module 9: AI Autopilot API
+
+Base Path: `/api/ai-autopilot`
+
+AI Autopilot is the orchestration layer that evaluates campaign/funnel/messaging performance and executes policy-driven optimization actions through an async queue.
+
+### Create Autopilot Policy
+
+`POST /api/ai-autopilot/policies`
+
+Request:
+
+```json
+{
+  "name": "Default Growth Brain",
+  "description": "Pause weak campaigns and scale winners",
+  "scope": "full_stack",
+  "pauseRoiThreshold": 0,
+  "scaleRoiThreshold": 30,
+  "scaleBudgetPercent": 20,
+  "autoRun": false,
+  "runCron": "0 */6 * * *"
+}
+```
+
+Response:
+
+```json
+{
+  "id": "evt_abc123",
+  "name": "Default Growth Brain",
+  "scope": "full_stack",
+  "pauseRoiThreshold": 0,
+  "scaleRoiThreshold": 30,
+  "scaleBudgetPercent": 20,
+  "autoRun": false,
+  "createdAt": "2026-04-02T10:00:00.000Z"
+}
+```
+
+### List Autopilot Policies
+
+`GET /api/ai-autopilot/policies`
+
+Returns latest policy snapshots for the tenant.
+
+### Trigger Autopilot Run
+
+`POST /api/ai-autopilot/runs/trigger`
+
+Request:
+
+```json
+{
+  "policyId": "evt_abc123",
+  "reason": "manual_dashboard_execution",
+  "context": {
+    "initiatedBy": "admin"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "runId": "evt_run_123",
+  "status": "queued"
+}
+```
+
+### List Autopilot Runs
+
+`GET /api/ai-autopilot/runs?page=1&limit=20&q=completed`
+
+Returns requested/completed run events with action summaries.
+
+### Get Autopilot Insights
+
+`GET /api/ai-autopilot/insights?days=30`
+
+Response includes:
+- run totals
+- active vs paused campaigns
+- campaign ROI leaderboard
+- AI synthesis: working/notWorking/recommendations
+
+### Automation Actions Executed by Autopilot
+
+Per run, AI Autopilot may execute:
+- Pause active campaigns with ROI below `pauseRoiThreshold`
+- Scale active campaigns with ROI at or above `scaleRoiThreshold`
+- Emit funnel optimization suggestions from conversion signals
+- Emit messaging experiment recommendations from outreach volume
+
+All actions are persisted as analytics events for auditability.
+
+---
+
 **API Version**: v1
-**Last Updated**: 2026-04-01
+**Last Updated**: 2026-04-02
 **Status**: Production Ready
