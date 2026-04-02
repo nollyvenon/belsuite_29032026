@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-export type PaymentProvider = 'stripe' | 'paystack' | 'flutterwave' | 'paypal' | 'sofort' | 'crypto';
+export type PaymentProvider = 'stripe' | 'paystack' | 'flutterwave' | 'paypal' | 'sofort' | 'mpesa' | 'crypto';
 export type BillingCycle = 'MONTHLY' | 'YEARLY';
 
 export interface BillingPlan {
@@ -18,11 +18,17 @@ export interface BillingPlan {
   features: string[];
   requestsPerMinute: number;
   includedAiTokens: number;
+  includedLeads: number;
+  includedMessages: number;
+  includedCalls: number;
   payAsYouGoEnabled: boolean;
   usagePricing: {
     aiOveragePer1kTokens: number;
     apiOveragePer1kRequests: number;
     emailOveragePer1k: number;
+    leadOveragePerLead: number;
+    messageOveragePerMessage: number;
+    callOveragePerCall: number;
     storageOveragePerGb: number;
   } | null;
   supportedProviders: PaymentProvider[];
@@ -82,6 +88,9 @@ export interface BillingOverview {
       aiTokensUsed: number;
       apiCallsCount: number;
       emailsSent: number;
+      leadsCaptured: number;
+      messagesSent: number;
+      callsMade: number;
       storageUsedGb: number;
     };
     lineItems: Array<{
@@ -167,6 +176,9 @@ export function useBilling() {
     estimatedAiTokens?: number;
     estimatedApiCalls?: number;
     estimatedEmails?: number;
+    estimatedLeads?: number;
+    estimatedMessages?: number;
+    estimatedCalls?: number;
     estimatedStorageGb?: number;
     currency?: string;
   }) => {

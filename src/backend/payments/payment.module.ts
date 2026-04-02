@@ -13,6 +13,7 @@ import { PaystackProvider } from './providers/paystack.provider';
 import { FlutterwaveProvider } from './providers/flutterwave.provider';
 import { PayPalProvider } from './providers/paypal.provider';
 import { SofortProvider } from './providers/sofort.provider';
+import { MpesaProvider } from './providers/mpesa.provider';
 import { CryptoProvider } from './providers/crypto.provider';
 import { BillingCatalogService } from './services/billing-catalog.service';
 import { BillingService } from './services/billing.service';
@@ -28,6 +29,7 @@ import { BillingService } from './services/billing.service';
     FlutterwaveProvider,
     PayPalProvider,
     SofortProvider,
+    MpesaProvider,
     CryptoProvider,
   ],
   controllers: [PaymentController, BillingController],

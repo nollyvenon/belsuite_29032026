@@ -26,6 +26,7 @@ import { PaystackProvider } from './providers/paystack.provider';
 import { FlutterwaveProvider } from './providers/flutterwave.provider';
 import { SofortProvider } from './providers/sofort.provider';
 import { PayPalProvider } from './providers/paypal.provider';
+import { MpesaProvider } from './providers/mpesa.provider';
 import { CryptoProvider } from './providers/crypto.provider';
 
 @Injectable()
@@ -41,10 +42,15 @@ export class PaymentService {
     this.providers.set(PaymentProvider.FLUTTERWAVE, new FlutterwaveProvider());
     this.providers.set(PaymentProvider.PAYPAL, new PayPalProvider());
     this.providers.set(PaymentProvider.SOFORT, new SofortProvider());
+    this.providers.set(PaymentProvider.MPESA, new MpesaProvider());
     this.providers.set(PaymentProvider.CRYPTO, new CryptoProvider());
   }
 
   private toPrismaProvider(provider: PaymentProvider): PrismaPaymentProvider {
+    if (provider === PaymentProvider.MPESA) {
+      return PrismaPaymentProvider.FLUTTERWAVE;
+    }
+
     return provider.toUpperCase() as PrismaPaymentProvider;
   }
 
@@ -63,6 +69,7 @@ export class PaymentService {
       [PaymentProvider.FLUTTERWAVE]: 'flutterSubscriptionId',
       [PaymentProvider.PAYPAL]: 'paypalSubscriptionId',
       [PaymentProvider.SOFORT]: 'sofortSubscriptionId',
+      [PaymentProvider.MPESA]: null,
       [PaymentProvider.CRYPTO]: null,
     };
 

@@ -9,6 +9,9 @@ export interface BillingUsagePricing {
   aiOveragePer1kTokens: number;
   apiOveragePer1kRequests: number;
   emailOveragePer1k: number;
+  leadOveragePerLead: number;
+  messageOveragePerMessage: number;
+  callOveragePerCall: number;
   storageOveragePerGb: number;
 }
 
@@ -21,6 +24,9 @@ export interface BillingPlanDefinition {
   trialDays: number;
   requestsPerMinute: number;
   includedAiTokens: number;
+  includedLeads: number;
+  includedMessages: number;
+  includedCalls: number;
   payAsYouGoEnabled: boolean;
   maxMembers: number;
   maxProjects: number;
@@ -47,6 +53,9 @@ export interface BillingUsageSnapshot {
   aiTokensUsed: number;
   apiCallsCount: number;
   emailsSent: number;
+  leadsCaptured: number;
+  messagesSent: number;
+  callsMade: number;
   storageUsedGb: number;
 }
 

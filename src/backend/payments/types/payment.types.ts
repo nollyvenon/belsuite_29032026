@@ -9,6 +9,7 @@ export enum PaymentProvider {
   FLUTTERWAVE = 'flutterwave',
   PAYPAL = 'paypal',
   SOFORT = 'sofort',
+  MPESA = 'mpesa',
   CRYPTO = 'crypto',
 }
 

@@ -46,6 +46,21 @@ export class BillingPreviewDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  estimatedLeads?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  estimatedMessages?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  estimatedCalls?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   estimatedStorageGb?: number;
 
   @IsOptional()

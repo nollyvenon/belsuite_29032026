@@ -24,6 +24,7 @@ const PROVIDER_LABELS: Record<PaymentProvider, string> = {
   flutterwave: 'Flutterwave',
   paypal: 'PayPal',
   sofort: 'Sofort',
+  mpesa: 'M-Pesa',
   crypto: 'Crypto',
 };
 
@@ -412,7 +413,7 @@ export default function BillingPage() {
                         <input
                           value={billingForm.paymentMethodId}
                           onChange={(event) => setBillingForm((current) => ({ ...current, paymentMethodId: event.target.value }))}
-                          placeholder="pm_..., paypal_token, auth_code"
+                          placeholder={provider === 'mpesa' ? '2547XXXXXXXX' : 'pm_..., paypal_token, auth_code'}
                           className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600"
                         />
                       </label>
@@ -487,7 +488,21 @@ export default function BillingPage() {
             <div className="grid gap-8 xl:grid-cols-[0.9fr_1.1fr]">
               <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm">
                 <h2 className="text-xl font-semibold text-white">Usage-based billing</h2>
-                <p className="mt-1 text-sm text-slate-400">AI, API, email, and storage overages are priced directly from your current plan.</p>
+                <p className="mt-1 text-sm text-slate-400">Track AI, email, leads, outbound messages, calls, API, and storage overages from one billing surface.</p>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    ['AI Tokens', overview.usage.usage.aiTokensUsed.toLocaleString()],
+                    ['Emails Sent', overview.usage.usage.emailsSent.toLocaleString()],
+                    ['Leads Captured', overview.usage.usage.leadsCaptured.toLocaleString()],
+                    ['Calls Made', overview.usage.usage.callsMade.toLocaleString()],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</p>
+                      <p className="mt-3 text-2xl font-semibold text-white">{value}</p>
+                    </div>
+                  ))}
+                </div>
 
                 <div className="mt-6 space-y-4">
                   {overview.usage.lineItems.map((item) => (

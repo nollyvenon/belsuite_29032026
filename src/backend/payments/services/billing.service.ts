@@ -106,6 +106,9 @@ export class BillingService {
       estimatedAiTokens?: number;
       estimatedApiCalls?: number;
       estimatedEmails?: number;
+      estimatedLeads?: number;
+      estimatedMessages?: number;
+      estimatedCalls?: number;
       estimatedStorageGb?: number;
       currency?: string;
     },
@@ -122,6 +125,9 @@ export class BillingService {
       aiTokensUsed: input.estimatedAiTokens,
       apiCallsCount: input.estimatedApiCalls,
       emailsSent: input.estimatedEmails,
+      leadsCaptured: input.estimatedLeads,
+      messagesSent: input.estimatedMessages,
+      callsMade: input.estimatedCalls,
       storageUsedGb: input.estimatedStorageGb,
     });
     const pricing = this.calculateSummary(plan, input.billingCycle ?? 'MONTHLY', coupon, usage.lineItems, input.currency ?? 'USD');
@@ -309,16 +315,17 @@ export class BillingService {
       },
     });
 
-    const shouldCreateCryptoCharge =
-      input.provider === PaymentProvider.CRYPTO && quote.summary.totalAmount > 0;
+    const shouldCreateHostedCharge =
+      (input.provider === PaymentProvider.CRYPTO || input.provider === PaymentProvider.MPESA) &&
+      quote.summary.totalAmount > 0;
 
     return {
       subscription,
       invoice,
       remoteSubscription,
       payment:
-        shouldCreateCryptoCharge
-          ? await this.paymentService.createPayment(PaymentProvider.CRYPTO, {
+        shouldCreateHostedCharge
+          ? await this.paymentService.createPayment(input.provider, {
               organizationId,
               subscriptionId: subscription.id,
               invoiceId: invoice.id,
@@ -327,6 +334,9 @@ export class BillingService {
               metadata: {
                 userId,
                 email: billingProfile.billingEmail,
+                name: billingProfile.billingName || organization.name,
+                phone: input.paymentMethodId,
+                paymentMethodId: input.paymentMethodId,
                 billingCycle: input.billingCycle,
                 planTier: plan.tier,
                 chargeType: 'SUBSCRIPTION_START',
@@ -513,7 +523,7 @@ export class BillingService {
     overrides?: Partial<BillingUsageSnapshot>,
   ): Promise<BillingUsageSnapshot> {
     const month = this.getCurrentMonth();
-    const [tenantUsage, aiUsage] = await Promise.all([
+    const [tenantUsage, aiUsage, billableEvents] = await Promise.all([
       this.prisma.tenantUsage.findUnique({
         where: {
           organizationId_period: {
@@ -534,12 +544,64 @@ export class BillingService {
           totalTokens: true,
         },
       }),
+      this.prisma.analyticsEvent.findMany({
+        where: {
+          organizationId,
+          timestamp: {
+            gte: this.getCurrentMonthStart(),
+            lte: this.getCurrentMonthEnd(),
+          },
+          eventType: {
+            in: [
+              'lead.scraped',
+              'funnel.lead.captured',
+              'marketing.automation.message_sent',
+              'crm.outreach.message_sent',
+              'ai.call.dispatched',
+            ],
+          },
+        },
+        select: {
+          eventType: true,
+          properties: true,
+        },
+      }),
     ]);
+
+    let leadsCaptured = 0;
+    let messagesSent = 0;
+    let callsMade = 0;
+
+    for (const event of billableEvents) {
+      if (event.eventType === 'lead.scraped' || event.eventType === 'funnel.lead.captured') {
+        leadsCaptured += 1;
+        continue;
+      }
+
+      if (event.eventType === 'ai.call.dispatched') {
+        callsMade += 1;
+        continue;
+      }
+
+      if (event.eventType === 'marketing.automation.message_sent' || event.eventType === 'crm.outreach.message_sent') {
+        const props = this.parseJson(event.properties);
+        const channel = String(props.channel || '').toLowerCase();
+
+        if (channel === 'voice') {
+          callsMade += 1;
+        } else if (channel && channel !== 'email') {
+          messagesSent += 1;
+        }
+      }
+    }
 
     return {
       aiTokensUsed: overrides?.aiTokensUsed ?? aiUsage._sum.totalTokens ?? tenantUsage?.aiTokensUsed ?? 0,
       apiCallsCount: overrides?.apiCallsCount ?? tenantUsage?.apiCallsCount ?? 0,
       emailsSent: overrides?.emailsSent ?? tenantUsage?.emailsSent ?? 0,
+      leadsCaptured: overrides?.leadsCaptured ?? leadsCaptured,
+      messagesSent: overrides?.messagesSent ?? messagesSent,
+      callsMade: overrides?.callsMade ?? callsMade,
       storageUsedGb:
         overrides?.storageUsedGb ?? Number(tenantUsage?.storageUsedBytes ?? 0) / (1024 * 1024 * 1024),
     };
@@ -556,6 +618,12 @@ export class BillingService {
 
     const apiAmount = (usage.apiCallsCount / 1000) * plan.usagePricing.apiOveragePer1kRequests;
     const emailAmount = (usage.emailsSent / 1000) * plan.usagePricing.emailOveragePer1k;
+    const leadOverage = Math.max(0, usage.leadsCaptured - plan.includedLeads);
+    const leadAmount = leadOverage * plan.usagePricing.leadOveragePerLead;
+    const messageOverage = Math.max(0, usage.messagesSent - plan.includedMessages);
+    const messageAmount = messageOverage * plan.usagePricing.messageOveragePerMessage;
+    const callOverage = Math.max(0, usage.callsMade - plan.includedCalls);
+    const callAmount = callOverage * plan.usagePricing.callOveragePerCall;
     const storageOverage = Math.max(0, usage.storageUsedGb - plan.maxStorageGB);
     const storageAmount = storageOverage * plan.usagePricing.storageOveragePerGb;
 
@@ -583,6 +651,30 @@ export class BillingService {
         amount: this.round2(emailAmount),
         included: 0,
         overage: usage.emailsSent,
+      },
+      {
+        label: 'Pay-per-lead usage',
+        quantity: usage.leadsCaptured,
+        unitPrice: plan.usagePricing.leadOveragePerLead,
+        amount: this.round2(leadAmount),
+        included: plan.includedLeads,
+        overage: leadOverage,
+      },
+      {
+        label: 'Pay-per-message usage',
+        quantity: usage.messagesSent,
+        unitPrice: plan.usagePricing.messageOveragePerMessage,
+        amount: this.round2(messageAmount),
+        included: plan.includedMessages,
+        overage: messageOverage,
+      },
+      {
+        label: 'Call usage',
+        quantity: usage.callsMade,
+        unitPrice: plan.usagePricing.callOveragePerCall,
+        amount: this.round2(callAmount),
+        included: plan.includedCalls,
+        overage: callOverage,
       },
       {
         label: 'Storage overage',
@@ -692,6 +784,15 @@ export class BillingService {
       return JSON.parse(metadata) as BillingMetadata;
     } catch {
       return {};
+    }
+  }
+
+  private parseJson(raw: string | null) {
+    if (!raw) return {} as Record<string, any>;
+    try {
+      return JSON.parse(raw) as Record<string, any>;
+    } catch {
+      return {} as Record<string, any>;
     }
   }
 
