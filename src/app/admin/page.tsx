@@ -8,10 +8,20 @@ import { MetricCard } from '@/components/system/MetricCard';
 import { EmailSettingsPanel } from '@/components/admin/EmailSettingsPanel';
 import { SystemHealthPanel } from '@/components/admin/SystemHealthPanel';
 import { TenantManagementPanel } from '@/components/admin/TenantManagementPanel';
+import { AutopilotSchedulePanel } from '@/components/admin/AutopilotSchedulePanel';
 import { useAdminPanel } from '@/hooks/useAdminPanel';
+import { useAutopilotSchedules } from '@/hooks/useAutopilotSchedules';
 
 export default function AdminPage() {
   const { tenants, settings, providers, health, loading, saving, error, reload, saveSettings, saveTenant } = useAdminPanel();
+  const {
+    presets,
+    schedules,
+    liveJobs,
+    loading: scheduleLoading,
+    upsertSchedule,
+    deleteSchedule,
+  } = useAutopilotSchedules();
 
   return (
     <AppShell activeRoute="admin">
@@ -53,6 +63,20 @@ export default function AdminPage() {
 
           <SectionPanel title="Provider health" subtitle="Provider catalog and the raw backend health payload for operational review.">
             <SystemHealthPanel providers={providers} health={health} />
+          </SectionPanel>
+
+          <SectionPanel
+            title="AI Autopilot Schedules"
+            subtitle="Configure recurring autopilot cycles per tenant. Choose from preset intervals or define a custom cron expression."
+          >
+            <AutopilotSchedulePanel
+              presets={presets}
+              schedules={schedules}
+              liveJobs={liveJobs}
+              saving={scheduleLoading}
+              onUpsert={upsertSchedule}
+              onDelete={deleteSchedule}
+            />
           </SectionPanel>
         </div>
       )}
