@@ -821,6 +821,273 @@ Official SDKs coming soon:
 
 ---
 
+## Module 5 — AI Calling & Voice Agents
+
+Base path: `/api/ai-calling`
+
+All routes require `Authorization: Bearer <jwt>` except the Twilio webhook callbacks which are public but Twilio-signature-protected.
+
+---
+
+### Voice Agents
+
+#### Create Voice Agent
+
+**POST /api/ai-calling/agents**
+
+Create a reusable AI calling persona with objection playbooks, qualification questions, and a conversation style.
+
+**Request:**
+```json
+{
+  "name": "BelSuite Outbound SDR",
+  "objective": "book_appointments",
+  "industry": "SaaS",
+  "style": "consultative",
+  "objectionPlaybook": [
+    "Not interested right now",
+    "Send me details by email",
+    "We already have a vendor"
+  ],
+  "qualificationQuestions": [
+    "What growth target matters most this quarter?",
+    "Do you have a dedicated operator for outbound?"
+  ],
+  "memoryConfig": { "retainTurns": 24 }
+}
+```
+
+**Response:**
+```json
+{
+  "id": "evt_abc123",
+  "name": "BelSuite Outbound SDR",
+  "objective": "book_appointments",
+  "industry": "SaaS",
+  "style": "consultative",
+  "objectionPlaybook": ["Not interested right now"],
+  "qualificationQuestions": ["What growth target matters most this quarter?"],
+  "createdAt": "2026-04-01T12:00:00.000Z"
+}
+```
+
+**Status Codes:**
+- 201: Agent created
+- 400: Validation error
+
+---
+
+#### List Voice Agents
+
+**GET /api/ai-calling/agents**
+
+Return all voice agents for the tenant.
+
+**Response:** Array of voice agent objects (same shape as create response).
+
+---
+
+### Calls
+
+#### Start AI Call
+
+**POST /api/ai-calling/calls/start**
+
+Queue an outbound call via Twilio Voice. An AI-generated opening script is produced before the call is dispatched to the BullMQ worker.
+
+**Request:**
+```json
+{
+  "voiceAgentId": "evt_abc123",
+  "lead": {
+    "fullName": "Jane Smith",
+    "companyName": "Acme Corp",
+    "phone": "+12025551234",
+    "timezone": "America/New_York"
+  },
+  "campaignId": "camp_xyz",
+  "objective": "book a growth strategy call"
+}
+```
+
+**Response:**
+```json
+{
+  "callId": "evt_call456",
+  "status": "queued",
+  "openingScript": "Hi Jane, this is BelSuite..."
+}
+```
+
+**Status Codes:**
+- 201: Call queued
+- 404: Voice agent not found
+
+---
+
+#### List Calls
+
+**GET /api/ai-calling/calls**
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | number | Page number (default 1) |
+| `limit` | number | Items per page (default 20, max 200) |
+| `status` | string | Filter by `queued` / `in_progress` / `completed` / `failed` / `booked` |
+| `q` | string | Full-text search across call payload |
+
+**Response:**
+```json
+{
+  "items": [...],
+  "page": 1,
+  "limit": 20,
+  "total": 47
+}
+```
+
+---
+
+#### Get Call Detail
+
+**GET /api/ai-calling/calls/:callId**
+
+Returns the call record plus the full conversation memory (up to last 24 turns).
+
+---
+
+#### Submit Conversation Turn
+
+**POST /api/ai-calling/calls/:callId/turn**
+
+Feed a customer speech transcript into the AI agent, receive AI reply and lead qualification score.
+
+**Request:**
+```json
+{
+  "transcript": "Pricing is our main concern right now.",
+  "intentHint": "pricing_objection"
+}
+```
+
+**Response:**
+```json
+{
+  "callId": "evt_call456",
+  "agentReply": "That makes sense — a lot of teams feel that way. The good news is most see ROI within the first 60 days. What growth target are you working toward this quarter?",
+  "qualification": {
+    "score": 72,
+    "intent": "high",
+    "budgetSignal": "concerned",
+    "timelineSignal": "unknown",
+    "authoritySignal": "likely",
+    "summary": "Pricing objection raised but intent is high. Pursue appointment."
+  }
+}
+```
+
+---
+
+#### Book Appointment
+
+**POST /api/ai-calling/calls/book-appointment**
+
+**Request:**
+```json
+{
+  "callId": "evt_call456",
+  "appointmentAt": "2026-04-03T14:00:00.000Z",
+  "timezone": "America/New_York",
+  "notes": "Interested in growth automation package"
+}
+```
+
+**Response:**
+```json
+{
+  "callId": "evt_call456",
+  "status": "booked",
+  "appointmentAt": "2026-04-03T14:00:00.000Z",
+  "timezone": "America/New_York"
+}
+```
+
+---
+
+### Stats
+
+#### Get Calling Stats
+
+**GET /api/ai-calling/stats**
+
+**Query params:** `days` (number, default 30)
+
+**Response:**
+```json
+{
+  "periodDays": 30,
+  "totals": {
+    "calls": 142,
+    "booked": 31,
+    "bookingRate": 21.83,
+    "transcribed": 98
+  },
+  "byProviderStatus": [
+    { "status": "completed", "count": 87 },
+    { "status": "no-answer", "count": 34 },
+    { "status": "busy", "count": 21 }
+  ]
+}
+```
+
+---
+
+### Webhooks (Public — Twilio-signed)
+
+These endpoints accept POST callbacks directly from Twilio. No JWT is required but every request is validated against the `TWILIO_AUTH_TOKEN` HMAC-SHA1 signature.
+
+#### Voice Status Callback
+
+**POST /api/ai-calling/webhooks/twilio/voice**
+
+Receives Twilio `CallStatus`, `SpeechResult`, and `From` / `To` fields. If a `SpeechResult` is present, it is automatically piped into the conversation turn handler.
+
+#### Recording Available Callback
+
+**POST /api/ai-calling/webhooks/twilio/recording**
+
+Receives `RecordingUrl`, `RecordingSid`, and duration. Automatically queues a Whisper transcription job.
+
+**Both webhook responses return:**
+```json
+{
+  "accepted": true,
+  "matched": true,
+  "callId": "evt_call456",
+  "providerCallSid": "CA...",
+  "signatureValid": true
+}
+```
+
+---
+
+### Event Types (Audit Log)
+
+| Event | Description |
+|-------|-------------|
+| `ai.voice_agent.created` | Voice agent persona created |
+| `ai.call.created` | Call record created and script generated |
+| `ai.call.dispatched` | Call dispatched to Twilio |
+| `ai.call.provider.status` | Twilio status callback received |
+| `ai.call.turn.customer` | Customer speech stored |
+| `ai.call.turn.agent` | AI agent reply stored |
+| `ai.call.appointment.booked` | Appointment booked from call |
+| `ai.call.recording.available` | Recording URL received from Twilio |
+| `ai.call.recording.transcribed` | Whisper transcription completed |
+
+---
+
 ## Support
 
 - Documentation: docs.belsuite.com
@@ -831,5 +1098,5 @@ Official SDKs coming soon:
 ---
 
 **API Version**: v1
-**Last Updated**: 2024-01-01
+**Last Updated**: 2026-04-01
 **Status**: Production Ready

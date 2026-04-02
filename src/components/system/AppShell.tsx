@@ -6,10 +6,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   BadgeDollarSign,
   BarChart3,
+  BookOpen,
   ChevronLeft,
   LayoutDashboard,
   Menu,
   Megaphone,
+  TrendingUp,
   Shield,
   Share2,
   Sparkles,
@@ -30,7 +32,9 @@ const NAV_ITEMS = [
   { id: 'ugc', label: 'UGC', href: '/ugc', Icon: Wand2 },
   { id: 'billing', label: 'Billing', href: '/billing', Icon: BadgeDollarSign },
   { id: 'ai', label: 'AI', href: '/ai/dashboard', Icon: Sparkles },
+  { id: 'funnel-engine', label: 'Funnels', href: '/funnel-engine', Icon: TrendingUp },
   { id: 'admin', label: 'Admin', href: '/admin', Icon: Shield },
+  { id: 'api-docs', label: 'API Docs', href: '/api-docs', Icon: BookOpen },
 ] as const;
 
 function NavItems({ activeRoute, collapsed, onNavigate }: { activeRoute: string; collapsed: boolean; onNavigate?: () => void }) {
