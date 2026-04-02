@@ -4,6 +4,7 @@ import { AIModule } from '../ai/ai.module';
 import { PrismaService } from '../database/prisma.service';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsDashboardService } from './services/analytics-dashboard.service';
+import { AnalyticsIntelligenceService } from './services/analytics-intelligence.service';
 import { AnalyticsPipelineService } from './services/analytics-pipeline.service';
 import { AnalyticsRecommendationService } from './services/analytics-recommendation.service';
 import { AnalyticsTrackingService } from './services/analytics-tracking.service';
@@ -16,6 +17,7 @@ import { AnalyticsTrackingService } from './services/analytics-tracking.service'
     AnalyticsPipelineService,
     AnalyticsTrackingService,
     AnalyticsDashboardService,
+    AnalyticsIntelligenceService,
     AnalyticsRecommendationService,
   ],
   exports: [AnalyticsDashboardService, AnalyticsTrackingService],

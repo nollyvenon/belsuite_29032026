@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
   const [topContentQuery, setTopContentQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('ALL');
   const [activeModule, setActiveModule] = useState<(typeof MODULES)[number]>('CONTENT');
-  const { dashboard, insights, loading, error, reload } = useAnalyticsDashboard(days);
+  const { dashboard, insights, intelligence, loading, error, reload } = useAnalyticsDashboard(days);
   const { dashboard: compareDashboard, loading: compareLoading } = useAnalyticsDashboard(compareDays);
 
   const filteredTopContent = dashboard?.topContent.filter((item) => {
@@ -78,6 +78,10 @@ export default function AnalyticsPage() {
   const availableSources = dashboard
     ? ['ALL', ...new Set(dashboard.revenueAttribution.map((item) => item.source))]
     : ['ALL'];
+
+  const topCampaigns = intelligence?.campaignPerformance?.slice(0, 5) ?? [];
+  const topChannels = intelligence?.channelPerformance?.slice(0, 5) ?? [];
+  const churnRisks = intelligence?.aiInsights?.churn?.slice(0, 3) ?? [];
 
   const handleExport = async (format: 'json' | 'csv') => {
     if (!dashboard) return;
@@ -247,6 +251,134 @@ export default function AnalyticsPage() {
                     </div>
                   );
                 })}
+              </div>
+            ) : null}
+
+            {intelligence ? (
+              <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
+                  <h2 className="text-base font-semibold text-white">Campaign Performance + ROI</h2>
+                  <p className="mt-1 text-sm text-zinc-500">Track winning campaigns, profitability, and spend efficiency.</p>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                      <p className="text-xs text-zinc-500">Spend</p>
+                      <p className="mt-1 text-lg font-semibold text-white">${intelligence.roi.spend.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                      <p className="text-xs text-zinc-500">Campaign Revenue</p>
+                      <p className="mt-1 text-lg font-semibold text-white">${intelligence.roi.campaignRevenue.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                      <p className="text-xs text-zinc-500">Net ROI</p>
+                      <p className="mt-1 text-lg font-semibold text-white">{intelligence.roi.netROI}%</p>
+                    </div>
+                    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                      <p className="text-xs text-zinc-500">Payback Signal</p>
+                      <p className="mt-1 text-lg font-semibold capitalize text-white">{intelligence.roi.paybackSignal}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {topCampaigns.map((campaign) => (
+                      <div key={campaign.campaignId} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr] gap-3 rounded-xl border border-white/5 bg-black/20 px-3 py-2.5 text-sm">
+                        <span className="truncate text-zinc-200">{campaign.campaignName}</span>
+                        <span className="text-zinc-400">ROI {campaign.roi}%</span>
+                        <span className="text-zinc-400">ROAS {campaign.roas}</span>
+                        <span className="text-zinc-500">CVR {campaign.cvr}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
+                    <h3 className="text-base font-semibold text-white">Lead Conversion Rate</h3>
+                    <p className="mt-1 text-sm text-zinc-500">Lead-to-customer efficiency across tracked events.</p>
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                        <p className="text-xs text-zinc-500">Leads</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{intelligence.leadConversion.leads}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                        <p className="text-xs text-zinc-500">Customers</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{intelligence.leadConversion.customers}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                        <p className="text-xs text-zinc-500">Rate</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{intelligence.leadConversion.leadToCustomerRate}%</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
+                    <h3 className="text-base font-semibold text-white">Channel Performance</h3>
+                    <div className="mt-3 space-y-2">
+                      {topChannels.map((channel) => (
+                        <div key={channel.channel} className="flex items-center justify-between rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-sm">
+                          <span className="text-zinc-300">{channel.channel}</span>
+                          <span className="text-zinc-500">${channel.revenue.toLocaleString()} · {channel.share}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {intelligence ? (
+              <div className="grid gap-6 xl:grid-cols-2">
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-5">
+                  <h3 className="text-base font-semibold text-emerald-300">What is Working / Not Working</h3>
+
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.16em] text-emerald-300/70">Working</p>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-200">
+                        {intelligence.aiInsights.working.map((item, index) => (
+                          <li key={index}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.16em] text-amber-300/80">Not Working</p>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-200">
+                        {intelligence.aiInsights.notWorking.map((item, index) => (
+                          <li key={index}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 border-t border-white/10 pt-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-sky-300/80">Recommendations</p>
+                    <ul className="mt-2 space-y-1 text-sm text-zinc-200">
+                      {intelligence.aiInsights.recommendations.map((item, index) => (
+                        <li key={index}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-5">
+                  <h3 className="text-base font-semibold text-red-300">Predict Churn</h3>
+                  <p className="mt-1 text-sm text-zinc-400">Risk segments based on billing health and conversion/revenue trend shifts.</p>
+                  <div className="mt-4 space-y-2">
+                    {churnRisks.map((risk, index) => (
+                      <div key={`${risk.segment}-${index}`} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-zinc-200">{risk.segment}</p>
+                          <span className="rounded-full border border-red-400/30 bg-red-500/10 px-2 py-0.5 text-xs text-red-300">
+                            {risk.riskScore}/100
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-zinc-400">{risk.reason}</p>
+                        <p className="mt-2 text-xs text-zinc-300">{risk.recommendedAction}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : null}
 

@@ -13,6 +13,7 @@ import { Tenant } from '../common/decorators/tenant.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { AnalyticsRangeQueryDto, TrackAnalyticsEventDto } from './dto/analytics.dto';
 import { AnalyticsDashboardService } from './services/analytics-dashboard.service';
+import { AnalyticsIntelligenceService } from './services/analytics-intelligence.service';
 import { AnalyticsRecommendationService } from './services/analytics-recommendation.service';
 import { AnalyticsTrackingService } from './services/analytics-tracking.service';
 
@@ -22,6 +23,7 @@ export class AnalyticsController {
   constructor(
     private readonly tracking: AnalyticsTrackingService,
     private readonly dashboard: AnalyticsDashboardService,
+    private readonly intelligence: AnalyticsIntelligenceService,
     private readonly recommendations: AnalyticsRecommendationService,
   ) {}
 
@@ -94,5 +96,14 @@ export class AnalyticsController {
     @Query() query: AnalyticsRangeQueryDto,
   ) {
     return this.recommendations.getRecommendations(organizationId, userId, Number(query.days) || 30);
+  }
+
+  @Get('intelligence')
+  getIntelligence(
+    @Tenant() organizationId: string,
+    @CurrentUser('sub') userId: string,
+    @Query() query: AnalyticsRangeQueryDto,
+  ) {
+    return this.intelligence.getIntelligence(organizationId, userId, Number(query.days) || 30);
   }
 }

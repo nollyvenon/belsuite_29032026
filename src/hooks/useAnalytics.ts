@@ -84,6 +84,52 @@ export interface AnalyticsDashboardResponse {
   topContent: TopContentItem[];
 }
 
+export interface AnalyticsIntelligence {
+  periodDays: number;
+  campaignPerformance: Array<{
+    campaignId: string;
+    campaignName: string;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    spend: number;
+    revenue: number;
+    ctr: number;
+    cvr: number;
+    roas: number;
+    roi: number;
+  }>;
+  roi: {
+    spend: number;
+    campaignRevenue: number;
+    collectedRevenue: number;
+    netROI: number;
+    paybackSignal: string;
+  };
+  leadConversion: {
+    leads: number;
+    customers: number;
+    leadToCustomerRate: number;
+  };
+  channelPerformance: Array<{
+    channel: string;
+    revenue: number;
+    conversions: number;
+    share: number;
+  }>;
+  aiInsights: {
+    working: string[];
+    notWorking: string[];
+    recommendations: string[];
+    churn: Array<{
+      segment: string;
+      riskScore: number;
+      reason: string;
+      recommendedAction: string;
+    }>;
+  };
+}
+
 export interface AnalyticsTrackEventInput {
   eventType: string;
   contentId?: string;
@@ -159,6 +205,7 @@ export function trackAnalyticsEvent(body: AnalyticsTrackEventInput) {
 export function useAnalyticsDashboard(days = 30) {
   const [dashboard, setDashboard] = useState<AnalyticsDashboardResponse | null>(null);
   const [insights, setInsights] = useState<AnalyticsInsight[]>([]);
+  const [intelligence, setIntelligence] = useState<AnalyticsIntelligence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,12 +213,14 @@ export function useAnalyticsDashboard(days = 30) {
     setLoading(true);
     setError(null);
     try {
-      const [dashboardData, insightsData] = await Promise.all([
+      const [dashboardData, insightsData, intelligenceData] = await Promise.all([
         apiFetch<AnalyticsDashboardResponse>(`/dashboard?days=${days}`),
         apiFetch<AnalyticsInsight[]>(`/recommendations?days=${days}`),
+        apiFetch<AnalyticsIntelligence>(`/intelligence?days=${days}`),
       ]);
       setDashboard(dashboardData);
       setInsights(insightsData);
+      setIntelligence(intelligenceData);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -186,6 +235,7 @@ export function useAnalyticsDashboard(days = 30) {
   return {
     dashboard,
     insights,
+    intelligence,
     loading,
     error,
     reload: load,
