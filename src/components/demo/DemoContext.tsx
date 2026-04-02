@@ -16,6 +16,8 @@ interface DemoContextType {
   setIsGenerating: (val: boolean) => void;
   generatedContent: string;
   setGeneratedContent: (val: string) => void;
+    showConversionModal: boolean;
+    setShowConversionModal: (val: boolean) => void;
 }
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
@@ -26,6 +28,16 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
 
+    const [showConversionModal, setShowConversionModal] = useState(false);
+
+    // Show conversion modal after 2 minutes
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setShowConversionModal(true);
+      }, 120000); // 2 minutes
+
+      return () => clearTimeout(timer);
+    }, []);
   // Simulate new leads coming in
   useEffect(() => {
     const interval = setInterval(() => {
@@ -57,6 +69,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setIsGenerating,
       generatedContent,
       setGeneratedContent,
+        showConversionModal,
+        setShowConversionModal,
     }}>
       {children}
     </DemoContext.Provider>

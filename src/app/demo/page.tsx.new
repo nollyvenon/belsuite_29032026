@@ -4,11 +4,11 @@ import React from 'react';
 import { DemoProvider, useDemo } from '@/components/demo/DemoContext';
 import { DemoLayout } from '@/components/demo/DemoLayout';
 import { DashboardViewEnhanced } from '@/components/demo/DashboardViewEnhanced';
-import { LeadsViewEnhanced } from '@/components/demo/LeadsViewEnhanced';
+import { LeadsView } from '@/components/demo/LeadsView';
 import { AIViewEnhanced } from '@/components/demo/AIViewEnhanced';
-import { AutomationViewEnhanced } from '@/components/demo/AutomationViewEnhanced';
-import { AnalyticsViewEnhanced } from '@/components/demo/AnalyticsViewEnhanced';
-import { UsageViewEnhanced } from '@/components/demo/UsageViewEnhanced';
+import { AutomationView } from '@/components/demo/AutomationView';
+import { AnalyticsView } from '@/components/demo/AnalyticsView';
+import { UsageView } from '@/components/demo/UsageView';
 
 const DemoContent = () => {
   const { activeTab } = useDemo();
@@ -17,15 +17,15 @@ const DemoContent = () => {
     case 'dashboard':
       return <DashboardViewEnhanced />;
     case 'leads':
-      return <LeadsViewEnhanced />;
+      return <LeadsView />;
     case 'ai':
       return <AIViewEnhanced />;
     case 'automation':
-      return <AutomationViewEnhanced />;
+      return <AutomationView />;
     case 'analytics':
-      return <AnalyticsViewEnhanced />;
+      return <AnalyticsView />;
     case 'usage':
-      return <UsageViewEnhanced />;
+      return <UsageView />;
     default:
       return <DashboardViewEnhanced />;
   }
