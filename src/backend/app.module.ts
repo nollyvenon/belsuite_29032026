@@ -24,6 +24,11 @@ import { MarketingAutomationModule } from './marketing-automation/marketing-auto
 import { AICallingModule } from './ai-calling/ai-calling.module';
 import { FunnelEngineModule } from './funnel-engine/funnel-engine.module';
 import { AIAutopilotModule } from './ai-autopilot/ai-autopilot.module';
+import { DealsModule } from './deals/deals.module';
+import { RankTrackerModule } from './rank-tracker/rank-tracker.module';
+import { CallCenterModule } from './call-center/call-center.module';
+import { RevenueIntelligenceModule } from './revenue-intelligence/revenue-intelligence.module';
+import { ReferralEngineModule } from './referral-engine/referral-engine.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -100,6 +105,11 @@ class StorageModule {}
     AICallingModule,
     FunnelEngineModule,
     AIAutopilotModule,
+    DealsModule,
+    RankTrackerModule,
+    CallCenterModule,
+    RevenueIntelligenceModule,
+    ReferralEngineModule,
   ],
   providers: [
     DatabaseConfig,

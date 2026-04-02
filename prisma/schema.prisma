@@ -2624,6 +2624,212 @@ model UGCProject {
   @@index([createdAt])
 }
 
+// --- Deal (HubSpot-replacement: Revenue-attached opportunities) ---------------
+
+enum DealStage {
+  PROSPECTING
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum DealPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Deal {
+  id              String       @id @default(cuid())
+  organizationId  String
+  userId          String
+  title           String       @db.VarChar(255)
+  contactEmail    String?      @db.VarChar(255)
+  contactName     String?      @db.VarChar(255)
+  companyName     String?      @db.VarChar(255)
+  stage           DealStage    @default(PROSPECTING)
+  priority        DealPriority @default(MEDIUM)
+  value           Float        @default(0)
+  currency        String       @db.VarChar(8) @default("USD")
+  probability     Int          @default(20)
+  expectedCloseAt DateTime?
+  closedAt        DateTime?
+  ownerId         String?
+  sourceLeadId    String?
+  pipelineName    String       @db.VarChar(128) @default("Sales")
+  lostReason      String?      @db.VarChar(255)
+  tags            String?      @db.Text
+  notes           String?      @db.Text
+  aiScore         Int?
+  aiNotes         String?      @db.Text
+  properties      String?      @db.Text
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  activities      ContactActivity[]
+
+  @@index([organizationId, stage])
+  @@index([organizationId, ownerId])
+  @@index([organizationId, expectedCloseAt])
+}
+
+// --- Contact Activity Timeline -----------------------------------------------
+
+enum ActivityType {
+  EMAIL_SENT
+  EMAIL_OPENED
+  EMAIL_CLICKED
+  CALL_MADE
+  CALL_RECEIVED
+  NOTE_ADDED
+  DEAL_CREATED
+  DEAL_STAGE_CHANGED
+  MEETING_SCHEDULED
+  FORM_SUBMITTED
+  PAGE_VISITED
+  TASK_CREATED
+  TASK_COMPLETED
+  SMS_SENT
+  SEQUENCE_ENROLLED
+}
+
+model ContactActivity {
+  id              String       @id @default(cuid())
+  organizationId  String
+  contactEmail    String       @db.VarChar(255)
+  contactName     String?      @db.VarChar(255)
+  activityType    ActivityType
+  dealId          String?
+  deal            Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  subject         String?      @db.VarChar(512)
+  body            String?      @db.Text
+  metadata        String?      @db.Text
+  performedBy     String?      @db.VarChar(255)
+  createdAt       DateTime     @default(now())
+
+  @@index([organizationId, contactEmail])
+  @@index([organizationId, activityType])
+  @@index([organizationId, createdAt])
+  @@index([dealId])
+}
+
+// --- Keyword Rank Tracking (Ahrefs-replacement) ------------------------------
+
+model KeywordRank {
+  id              String   @id @default(cuid())
+  organizationId  String
+  keyword         String   @db.VarChar(512)
+  domain          String   @db.VarChar(255)
+  position        Int?
+  previousPos     Int?
+  searchVolume    Int?
+  difficulty      Int?
+  url             String?  @db.VarChar(2048)
+  country         String   @db.VarChar(8) @default("us")
+  device          String   @db.VarChar(16) @default("desktop")
+  features        String?  @db.Text
+  trackedAt       DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([organizationId, keyword])
+  @@index([organizationId, domain])
+  @@index([organizationId, trackedAt])
+}
+
+// --- Inbound Call (Call Center replacement) ----------------------------------
+
+enum InboundCallStatus {
+  RINGING
+  ANSWERED
+  MISSED
+  VOICEMAIL
+  TRANSFERRED
+  COMPLETED
+}
+
+model InboundCall {
+  id              String            @id @default(cuid())
+  organizationId  String
+  fromNumber      String            @db.VarChar(64)
+  toNumber        String            @db.VarChar(64)
+  callerName      String?           @db.VarChar(255)
+  status          InboundCallStatus @default(RINGING)
+  agentId         String?
+  queueName       String?           @db.VarChar(128)
+  durationSeconds Int               @default(0)
+  recordingUrl    String?           @db.Text
+  transcription   String?           @db.Text
+  aiSummary       String?           @db.Text
+  sentiment       String?           @db.VarChar(32)
+  tags            String?           @db.Text
+  notes           String?           @db.Text
+  externalCallId  String?           @db.VarChar(255)
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime          @default(now())
+
+  @@index([organizationId, status])
+  @@index([organizationId, agentId])
+  @@index([organizationId, createdAt])
+  @@index([fromNumber])
+}
+
+// --- Referral Engine ---------------------------------------------------------
+
+enum ReferralStatus {
+  PENDING
+  SIGNED_UP
+  CONVERTED
+  PAID
+  EXPIRED
+}
+
+model ReferralLink {
+  id              String     @id @default(cuid())
+  organizationId  String
+  referrerId      String
+  code            String     @unique @db.VarChar(64)
+  campaignName    String?    @db.VarChar(128)
+  rewardType      String     @db.VarChar(32) @default("credit")
+  rewardValue     Float      @default(0)
+  maxUses         Int?
+  totalClicks     Int        @default(0)
+  totalSignups    Int        @default(0)
+  totalConverted  Int        @default(0)
+  expiresAt       DateTime?
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  referrals       Referral[]
+
+  @@index([organizationId, referrerId])
+  @@index([code])
+}
+
+model Referral {
+  id              String         @id @default(cuid())
+  organizationId  String
+  linkId          String
+  link            ReferralLink   @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  referredEmail   String?        @db.VarChar(255)
+  referredUserId  String?
+  status          ReferralStatus @default(PENDING)
+  ipAddress       String?        @db.VarChar(64)
+  userAgent       String?        @db.Text
+  rewardPaid      Float          @default(0)
+  convertedAt     DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@index([organizationId, linkId])
+  @@index([organizationId, status])
+  @@index([referredEmail])
+}
+
 // --- UGC Script ---------------------------------------------------------------
 
 model UGCScript {
