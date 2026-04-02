@@ -277,8 +277,12 @@ export class SocialController {
 
   /** List all failed publish results for the org, with post context. */
   @Get('failed')
-  listFailedResults(@CurrentUser() user: AuthUser) {
-    return this.retryDashboard.listFailed(user.orgId);
+  listFailedResults(
+    @CurrentUser() user: AuthUser,
+    @Query('sortBy') sortBy?: 'createdAt' | 'attemptCount' | 'platform' | 'nextRetryAt',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.retryDashboard.listFailed(user.orgId, sortBy, sortOrder);
   }
 
   /** Manually trigger a retry for a specific PostPublishResult. */

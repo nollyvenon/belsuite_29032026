@@ -9,6 +9,10 @@ import { AIViewEnhanced } from '@/components/demo/AIViewEnhanced';
 import { AutomationViewEnhanced } from '@/components/demo/AutomationViewEnhanced';
 import { AnalyticsViewEnhanced } from '@/components/demo/AnalyticsViewEnhanced';
 import { UsageViewEnhanced } from '@/components/demo/UsageViewEnhanced';
+import { IntegrationsSetup } from '@/components/demo/IntegrationsSetup';
+import { AdvancedAutomationBuilder } from '@/components/demo/AdvancedAutomationBuilder';
+import { VideoWalkthroughs } from '@/components/demo/VideoWalkthroughs';
+import { LiveCustomerMetrics } from '@/components/demo/LiveCustomerMetrics';
 
 const DemoContent = () => {
   const { activeTab } = useDemo();
@@ -26,6 +30,14 @@ const DemoContent = () => {
       return <AnalyticsViewEnhanced />;
     case 'usage':
       return <UsageViewEnhanced />;
+    case 'integrations':
+      return <IntegrationsSetup />;
+    case 'builder':
+      return <AdvancedAutomationBuilder />;
+    case 'videos':
+      return <VideoWalkthroughs />;
+    case 'metrics':
+      return <LiveCustomerMetrics />;
     default:
       return <DashboardViewEnhanced />;
   }

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
-import { PlayCircle, Rocket, Video, Captions, AudioLines, BadgeCheck } from 'lucide-react';
+import { PlayCircle, Rocket, Video, Captions, AudioLines, BadgeCheck, ArrowUpDown, Calendar, SortAsc } from 'lucide-react';
 import { useUGCStudio } from '@/hooks/useUGC';
 import { passthroughImageLoader } from '@/lib/image-loader';
 
@@ -16,8 +16,34 @@ export function RenderQueuePanel({ projectId }: { projectId: string }) {
     backgroundMusic: false,
     aspectRatio: '9:16',
   });
+  const [sortBy, setSortBy] = useState<'date' | 'status' | 'provider'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const latestRender = useMemo(() => project?.renders?.[0] ?? null, [project?.renders]);
+  const handleSortChange = (newSortBy: 'date' | 'status' | 'provider') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+  };
+
+  const sortedRenders = useMemo(() => {
+    if (!project?.renders) return [];
+    return [...project.renders].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'date') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortBy === 'status') {
+        comparison = a.status.localeCompare(b.status);
+      } else if (sortBy === 'provider') {
+        comparison = a.provider.localeCompare(b.provider);
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+  }, [project?.renders, sortBy, sortOrder]);
+
+  const latestRender = useMemo(() => sortedRenders[0] ?? null, [sortedRenders]);
 
   if (loading) {
     return <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-10 text-center text-zinc-500">Loading render state...</div>;
@@ -95,9 +121,41 @@ export function RenderQueuePanel({ projectId }: { projectId: string }) {
         </div>
 
         <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
-          <h3 className="text-base font-semibold text-white mb-4">Render History</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-white">Render History</h3>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-zinc-500">Sort:</span>
+              <button
+                onClick={() => handleSortChange('date')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                  sortBy === 'date' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Calendar className="w-3 h-3" /> Date
+                {sortBy === 'date' && <ArrowUpDown className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'rotate-0' : 'rotate-180'}`} />}
+              </button>
+              <button
+                onClick={() => handleSortChange('status')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                  sortBy === 'status' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <SortAsc className="w-3 h-3" /> Status
+                {sortBy === 'status' && <ArrowUpDown className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'rotate-0' : 'rotate-180'}`} />}
+              </button>
+              <button
+                onClick={() => handleSortChange('provider')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                  sortBy === 'provider' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <SortAsc className="w-3 h-3" /> Provider
+                {sortBy === 'provider' && <ArrowUpDown className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'rotate-0' : 'rotate-180'}`} />}
+              </button>
+            </div>
+          </div>
           <div className="space-y-3">
-            {project?.renders?.length ? project.renders.map((render) => (
+            {sortedRenders.length ? sortedRenders.map((render) => (
               <div key={render.id} className="rounded-xl border border-white/5 bg-black/20 px-4 py-3 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium text-white">{render.provider}</p>

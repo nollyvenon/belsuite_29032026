@@ -128,6 +128,101 @@ If you're serious about scaling your business, AI adoption isn't optional—it's
 I'm sharing exactly how I did this with select founders, agencies, and creators.
 
 [Learn About Belsuite] → The platform I built for this exact problem.`,
+
+  video: `[VIDEO SCRIPT - 60 seconds]
+
+SCENE 1 (0-15s) - Problem
+Voiceover: "What would you do if you could cut your marketing workload in half?"
+[B-roll: Creator stressed, working late]
+
+SCENE 2 (15-35s) - Solution
+Voiceover: "Meet Belsuite. AI-powered marketing that works while you sleep."
+[B-roll: Demo of Belsuite dashboard]
+Visual: "Generate → Optimize → Post → Analyze"
+
+SCENE 3 (35-50s) - Results
+Voiceover: "1000+ creators went from $0 to 6-figures using Belsuite."
+[B-roll: Success stories, testimonials]
+On-screen text: "+3x Revenue | -80% Time | +5x Content"
+
+SCENE 4 (50-60s) - CTA
+Voiceover: "Try Belsuite free for 14 days. No credit card required."
+[B-roll: Sign-up flow]
+End-screen: "Start Your Free Trial at Belsuite.com"`,
+
+  script: `OUTBOUND SALES CALL SCRIPT - AI-Generated
+
+[INTRODUCTION]
+"Hi [Name], this is [Your Name] with Belsuite. I'm reaching out because I saw your recent LinkedIn activity in [Industry], and I thought you'd find this valuable - especially given [Specific Pain Point]."
+
+[DISCOVERY]
+"Quick question: How much time do you personally spend on content creation and marketing each week?"
+[Listen for answer - typically 15-25 hours]
+
+"And out of that time, how much actually results in new customers or leads?"
+
+[PAIN POINT]
+"That's pretty typical. Most [Industry] professionals we work with spend 20+ hours weekly on content but only see results from about 30% of it."
+
+[SOLUTION]
+"That's exactly why we built Belsuite. It's an AI platform that handles your content creation and distribution on autopilot."
+
+[PROOF]
+"We've helped companies like [Example] go from [Before] to [After] in just 90 days."
+
+[CLOSE]
+"Would it make sense to spend 15 minutes next week so I can show you exactly how this would work for [Company]?"`,
+
+  blog: `# How AI-Powered Marketing Automation Can 3x Your Revenue (In 90 Days)
+
+Publishing date: Today | Reading time: 8 minutes
+
+## The Painful Truth About Manual Marketing
+
+Last year, Sarah was running a successful agency. But she was drowning.
+
+Her team spent 30+ hours every week creating content for clients. Social posts, email campaigns, blog articles. The work was endless, and the results? Inconsistent.
+
+"We'd create content, post it, and hope something stuck," she told me. "We had no system. No way to know what was actually working."
+
+Sound familiar?
+
+## The AI Revolution is Here
+
+Then Sarah discovered Belsuite—an AI-powered marketing automation platform.
+
+Within 30 days: Her team reduced content creation time from 30 hours to 8 hours per week.
+Within 60 days: Client campaign performance improved by 34% (measured by engagement and conversions).
+Within 90 days: Revenue increased by 247% because they could now handle 3x more clients without hiring.
+
+"It's like having an entire creative team that never sleeps," Sarah said.
+
+## Why AI Content Works (And Humans Make It Even Better)
+
+Here's the secret: AI isn't replacing creative professionals. It's amplifying them.
+
+AI handles the boring stuff: generating variations, optimizing headlines, scheduling posts at peak times. Humans handle the strategic stuff: brand voice, audience insights, campaign strategy.
+
+The result? More content. Better results. Less stress.
+
+## How to Get Started (The Right Way)
+
+If you're thinking about adopting AI for your marketing, here's what actually works:
+
+1. **Start with one channel** (don't try to automate everything overnight)
+2. **Measure everything** (establish baseline metrics first)
+3. **Iterate constantly** (what works for one audience might not work for another)
+4. **Invest in strategy** (AI is a tool, not a strategy replacement)
+
+## Ready to 3x Your Revenue?
+
+Belsuite offers a free 14-day trial. No credit card required.
+
+[Start Your Free Trial] ← Most users see results within the first week.
+
+---
+
+P.S. We're running a special cohort-based training on "AI Marketing Strategy" this month. If you're serious about scaling with AI, [apply here].`,
 };
 
 export const MOCK_AUTOMATIONS = [

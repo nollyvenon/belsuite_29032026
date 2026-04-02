@@ -468,6 +468,7 @@ export interface FailedResult {
   errorMessage?: string;
   attemptCount: number;
   lastAttemptAt: string;
+  nextRetryAt?: string;
   post: {
     id: string;
     content: string;
@@ -497,13 +498,19 @@ export function useRetryDashboard() {
   const [stats, setStats]       = useState<PublishStats | null>(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [sortBy, setSortBy]     = useState<'createdAt' | 'attemptCount' | 'platform' | 'nextRetryAt'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const params = new URLSearchParams();
+      if (sortBy) params.set('sortBy', sortBy);
+      if (sortOrder) params.set('sortOrder', sortOrder);
+      
       const [failedData, statsData] = await Promise.all([
-        apiFetch<FailedResult[]>('/api/social/failed'),
+        apiFetch<FailedResult[]>(`/api/social/failed?${params}`),
         apiFetch<PublishStats>('/api/social/stats'),
       ]);
       setFailed(failedData);
@@ -513,7 +520,7 @@ export function useRetryDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sortBy, sortOrder]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -527,7 +534,10 @@ export function useRetryDashboard() {
     setFailed((prev) => prev.filter((r) => r.id !== resultId));
   }, []);
 
-  return { failed, stats, loading, error, reload: load, retryResult, dismissResult };
+  return { 
+    failed, stats, loading, error, reload: load, retryResult, dismissResult,
+    sortBy, setSortBy, sortOrder, setSortOrder,
+  };
 }
 
 // ── WhatsApp recipients hook ──────────────────────────────────────────────────

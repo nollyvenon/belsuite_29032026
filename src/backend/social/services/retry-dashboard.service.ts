@@ -33,14 +33,25 @@ export class RetryDashboardService {
    * Returns the 50 most recent failed PostPublishResults for the org,
    * enriched with post captions and account platform names.
    */
-  async listFailed(orgId: string) {
+  async listFailed(
+    orgId: string,
+    sortBy: 'createdAt' | 'attemptCount' | 'platform' | 'nextRetryAt' = 'createdAt',
+    sortOrder: 'asc' | 'desc' = 'desc',
+  ) {
+    const orderByMap: Record<string, any> = {
+      createdAt: { createdAt: sortOrder },
+      attemptCount: { attemptCount: sortOrder },
+      platform: { account: { platform: sortOrder } },
+      nextRetryAt: [{ nextRetryAt: { sort: sortOrder, nulls: 'last' as const } }],
+    };
+
     const results = await this.prisma.postPublishResult.findMany({
       where: {
         post: { organizationId: orgId },
         status: PublishStatus.FAILED,
         dismissedAt: null,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: orderByMap[sortBy],
       take: 50,
       include: {
         post: {
@@ -67,6 +78,7 @@ export class RetryDashboardService {
       errorMessage: r.errorMessage,
       attemptCount: r.attemptCount,
       lastAttemptAt: r.createdAt,
+      nextRetryAt: r.nextRetryAt,
       post: r.post,
       account: r.account,
     }));

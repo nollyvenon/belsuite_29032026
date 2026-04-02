@@ -15,6 +15,10 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  ArrowUpDown,
+  Calendar,
+  Hash,
+  Globe,
 } from 'lucide-react';
 import type { FailedResult, PublishStats } from '@/hooks/useSocial';
 import { useRetryDashboard } from '@/hooks/useSocial';
@@ -249,8 +253,42 @@ function FailedCard({
 // ── Main RetryView ────────────────────────────────────────────────────────────
 
 export function RetryView() {
-  const { failed, stats, loading, error, reload, retryResult, dismissResult } =
+  const { failed, stats, loading, error, reload, retryResult, dismissResult, sortBy, setSortBy, sortOrder, setSortOrder } =
     useRetryDashboard();
+
+  const handleSortChange = (newSortBy: 'createdAt' | 'attemptCount' | 'platform' | 'nextRetryAt') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+  };
+
+  const SortButton = ({
+    sortKey,
+    label,
+    icon: Icon,
+  }: {
+    sortKey: 'createdAt' | 'attemptCount' | 'platform' | 'nextRetryAt';
+    label: string;
+    icon: React.ElementType;
+  }) => (
+    <button
+      onClick={() => handleSortChange(sortKey)}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+        sortBy === sortKey
+          ? 'bg-indigo-600 text-white'
+          : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+      }`}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+      {sortBy === sortKey && (
+        <ArrowUpDown className={`h-3 w-3 ${sortOrder === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
+      )}
+    </button>
+  );
 
   return (
     <div className="space-y-6">
@@ -262,14 +300,25 @@ export function RetryView() {
             Re-queue individual failures or dismiss them after investigating.
           </p>
         </div>
-        <button
-          onClick={reload}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-300 hover:border-white/20 hover:text-white disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={reload}
+            disabled={loading}
+            className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-300 hover:border-white/20 hover:text-white disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Sort controls */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-500">Sort by:</span>
+        <SortButton sortKey="createdAt" label="Date" icon={Calendar} />
+        <SortButton sortKey="attemptCount" label="Attempts" icon={Hash} />
+        <SortButton sortKey="platform" label="Platform" icon={Globe} />
+        <SortButton sortKey="nextRetryAt" label="Retry Time" icon={Clock} />
       </div>
 
       {/* Stats */}

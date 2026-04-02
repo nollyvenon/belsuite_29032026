@@ -1,0 +1,47 @@
+
+> belsuite@1.0.0 dev
+> concurrently "npm run dev:backend" "npm run dev:frontend"
+
+(node:24532) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[1] 
+[1] > belsuite@1.0.0 dev:frontend
+[1] > next dev -p 3000
+[1] 
+[0] 
+[0] > belsuite@1.0.0 dev:backend
+[0] > nest start --watch
+[0] 
+[1] ▲ Next.js 16.2.1 (Turbopack)
+[1] - Local:         http://localhost:3000
+[1] - Network:       http://172.20.10.4:3000
+[1] - Environments: .env
+[1] ✓ Ready in 1956ms
+[1] Creating turbopack project { dir: 'c:\\Files\\DevelopedApps\\belsuite', testMode: true }
+[0] 
+[0]  Info  Webpack is building your sources...
+[0] 
+[1] 
+[0] webpack 5.97.1 compiled [1m[32msuccessfully[39m[22m in 6794 ms
+[0] (node:34356) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+[0] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0] Type-checking in progress...
+[0] node:internal/modules/cjs/loader:1424
+[0]   throw err;
+[0]   ^
+[0] 
+[0] Error: Cannot find module 'c:\Files\DevelopedApps\belsuite\dist\backend\main'
+[0]     at Module._resolveFilename (node:internal/modules/cjs/loader:1421:15)
+[0]     at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+[0]     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+[0]     at Module._load (node:internal/modules/cjs/loader:1227:37)
+[0]     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+[0]     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+[0]     at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+[0]     at node:internal/main/run_main_module:33:47 {
+[0]   code: 'MODULE_NOT_FOUND',
+[0]   requireStack: []
+[0] }
+[0] 
+[0] Node.js v24.12.0
+[0] No errors found.

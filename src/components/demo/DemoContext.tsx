@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Lead, MOCK_LEADS, MOCK_STATS, MOCK_ACTIVITY } from '@/lib/demo-data';
 
-type Tab = 'dashboard' | 'leads' | 'ai' | 'automation' | 'analytics' | 'usage';
+type Tab = 'dashboard' | 'leads' | 'ai' | 'automation' | 'analytics' | 'usage' | 'integrations' | 'builder' | 'videos' | 'metrics';
 
 interface DemoContextType {
   activeTab: Tab;

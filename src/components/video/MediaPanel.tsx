@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Upload, Film, Music, Image, FileText, Mic, Trash2, Loader2, Wand2,
+  ArrowUpDown, Calendar, Hash, SortAsc,
 } from 'lucide-react';
 import type { MediaAsset } from '@/hooks/useVideoProject';
 
@@ -84,6 +85,8 @@ export function MediaPanel({
   const inputRef  = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'type'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -97,7 +100,28 @@ export function MediaPanel({
     }
   };
 
-  const grouped = assets.reduce<Record<string, MediaAsset[]>>((acc, a) => {
+  const handleSortChange = (newSortBy: 'date' | 'name' | 'type') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+  };
+
+  const sortedAssets = [...assets].sort((a, b) => {
+    let comparison = 0;
+    if (sortBy === 'date') {
+      comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    } else if (sortBy === 'name') {
+      comparison = a.name.localeCompare(b.name);
+    } else if (sortBy === 'type') {
+      comparison = a.mediaType.localeCompare(b.mediaType);
+    }
+    return sortOrder === 'desc' ? -comparison : comparison;
+  });
+
+  const grouped = sortedAssets.reduce<Record<string, MediaAsset[]>>((acc, a) => {
     const key = a.mediaType;
     (acc[key] ??= []).push(a);
     return acc;
@@ -143,25 +167,58 @@ export function MediaPanel({
 
       {/* Asset list */}
       <div className="flex-1 overflow-y-auto">
-        {assets.length === 0 ? (
+        {sortedAssets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
             <Wand2 className="w-7 h-7 text-zinc-700 mb-2" />
             <p className="text-xs text-zinc-500">No assets yet</p>
             <p className="text-[10px] text-zinc-600 mt-1">Upload videos, images, or audio to use in your project</p>
           </div>
         ) : (
-          <AnimatePresence>
-            {Object.entries(grouped).map(([type, list]) => (
-              <div key={type}>
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-                  {type.replace('_', ' ')}
-                </p>
-                {list.map((a) => (
-                  <AssetRow key={a.id} asset={a} onDelete={() => onDelete(a.id)} />
-                ))}
-              </div>
-            ))}
-          </AnimatePresence>
+          <>
+            {/* Sort controls */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 mb-2">
+              <span className="text-[10px] text-zinc-500">Sort:</span>
+              <button
+                onClick={() => handleSortChange('date')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                  sortBy === 'date' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Calendar className="w-3 h-3" /> Date
+                {sortBy === 'date' && <ArrowUpDown className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'rotate-0' : 'rotate-180'}`} />}
+              </button>
+              <button
+                onClick={() => handleSortChange('name')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                  sortBy === 'name' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <SortAsc className="w-3 h-3" /> Name
+                {sortBy === 'name' && <ArrowUpDown className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'rotate-0' : 'rotate-180'}`} />}
+              </button>
+              <button
+                onClick={() => handleSortChange('type')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                  sortBy === 'type' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Hash className="w-3 h-3" /> Type
+                {sortBy === 'type' && <ArrowUpDown className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'rotate-0' : 'rotate-180'}`} />}
+              </button>
+            </div>
+            <AnimatePresence>
+              {Object.entries(grouped).map(([type, list]) => (
+                <div key={type}>
+                  <p className="px-3 pt-3 pb-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
+                    {type.replace('_', ' ')}
+                  </p>
+                  {list.map((a) => (
+                    <AssetRow key={a.id} asset={a} onDelete={() => onDelete(a.id)} />
+                  ))}
+                </div>
+              ))}
+            </AnimatePresence>
+          </>
         )}
       </div>
     </div>

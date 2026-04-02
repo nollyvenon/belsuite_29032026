@@ -82,6 +82,12 @@ export const DemoLayout = ({ children }: { children: React.ReactNode }) => {
           <SidebarItem icon={Zap} label="Automation" tab="automation" active={activeTab === 'automation'} onClick={(t: any) => { setActiveTab(t); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={BarChart3} label="Analytics" tab="analytics" active={activeTab === 'analytics'} onClick={(t: any) => { setActiveTab(t); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={Cpu} label="Usage" tab="usage" active={activeTab === 'usage'} onClick={(t: any) => { setActiveTab(t); setIsMobileMenuOpen(false); }} />
+          
+          <div className="my-2 px-2 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Advanced</div>
+          <SidebarItem icon={Sparkles} label="Builder" tab="builder" active={activeTab === 'builder'} onClick={(t: any) => { setActiveTab(t); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={Zap} label="Integrations" tab="integrations" active={activeTab === 'integrations'} onClick={(t: any) => { setActiveTab(t); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={BarChart3} label="Live Metrics" tab="metrics" active={activeTab === 'metrics'} onClick={(t: any) => { setActiveTab(t); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={Sparkles} label="Tutorials" tab="videos" active={activeTab === 'videos'} onClick={(t: any) => { setActiveTab(t); setIsMobileMenuOpen(false); }} />
         </div>
       </motion.aside>
 
@@ -105,6 +111,13 @@ export const DemoLayout = ({ children }: { children: React.ReactNode }) => {
           <SidebarItem icon={Zap} label="Automation" tab="automation" active={activeTab === 'automation'} onClick={setActiveTab} />
           <SidebarItem icon={BarChart3} label="Analytics" tab="analytics" active={activeTab === 'analytics'} onClick={setActiveTab} />
           <SidebarItem icon={Cpu} label="Usage" tab="usage" active={activeTab === 'usage'} onClick={setActiveTab} />
+          
+          {/* New Items */}
+          <div className="my-2 px-2 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Advanced</div>
+          <SidebarItem icon={Sparkles} label="Builder" tab="builder" active={activeTab === 'builder'} onClick={setActiveTab} />
+          <SidebarItem icon={Zap} label="Integrations" tab="integrations" active={activeTab === 'integrations'} onClick={setActiveTab} />
+          <SidebarItem icon={BarChart3} label="Live Metrics" tab="metrics" active={activeTab === 'metrics'} onClick={setActiveTab} />
+          <SidebarItem icon={Sparkles} label="Tutorials" tab="videos" active={activeTab === 'videos'} onClick={setActiveTab} />
         </div>
 
         <div className="p-4 border-t dark:border-white/10 border-black/5">
