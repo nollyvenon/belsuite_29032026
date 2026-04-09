@@ -15,6 +15,7 @@ function OAuthCallbackContent() {
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
+        if (!searchParams) return;
         const code = searchParams.get('code');
         const state = searchParams.get('state');
         const error = searchParams.get('error');

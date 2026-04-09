@@ -799,7 +799,7 @@ describe('TeamsModule Integration Tests', () => {
         },
       });
 
-      expect(member.role).toBe(TeamRole.ADMIN);
+      expect(member?.role).toBe(TeamRole.ADMIN);
     });
   });
 

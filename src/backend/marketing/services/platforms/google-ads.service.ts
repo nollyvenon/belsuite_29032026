@@ -94,7 +94,7 @@ export class GoogleAdsService {
       r.replace('customers/', ''),
     );
 
-    const saved = [];
+    const saved: Awaited<ReturnType<typeof this.prisma.adPlatformAccount.upsert>>[] = [];
     for (const customerId of customerIds) {
       const info = await this.getCustomerInfo(
         tokenData.access_token,

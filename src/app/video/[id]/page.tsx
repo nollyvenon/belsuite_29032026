@@ -238,7 +238,7 @@ function Toast({ message, type }: { message: string; type: 'success' | 'error' }
 export default function VideoEditorPage() {
   const params   = useParams();
   const router   = useRouter();
-  const projectId = params.id as string;
+  const projectId = (params?.id ?? '') as string;
 
   const {
     project, loading, error, generating, rendering,

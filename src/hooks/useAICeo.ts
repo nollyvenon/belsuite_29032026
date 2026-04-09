@@ -73,7 +73,7 @@ export type DecisionType =
   | 'feature_recommendation'
   | 'growth_strategy';
 
-function getAuthHeader() {
+function getAuthHeader(): Record<string, string> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

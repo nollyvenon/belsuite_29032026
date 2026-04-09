@@ -82,7 +82,7 @@ export class FacebookAdsService {
     );
 
     const accounts = accountsRes.data ?? [];
-    const saved = [];
+    const saved: Awaited<ReturnType<typeof this.prisma.adPlatformAccount.upsert>>[] = [];
 
     for (const account of accounts) {
       const record = await this.prisma.adPlatformAccount.upsert({

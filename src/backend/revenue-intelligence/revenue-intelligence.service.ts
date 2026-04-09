@@ -25,13 +25,13 @@ export class RevenueIntelligenceService {
             where: { subscriptionId: subscription.id, status: 'COMPLETED', createdAt: { gte: since } },
             select: { amount: true, currency: true, createdAt: true },
           })
-        : Promise.resolve([]),
+        : Promise.resolve([] as Array<{ amount: number; currency: string; createdAt: Date }>),
       subscription
         ? this.prisma.payment.findMany({
             where: { subscriptionId: subscription.id, status: 'COMPLETED', createdAt: { gte: prevPeriodStart, lt: since } },
             select: { amount: true },
           })
-        : Promise.resolve([]),
+        : Promise.resolve([] as Array<{ amount: number }>),
       this.prisma.subscription.findMany({
         where: { organizationId },
         select: { status: true, planId: true, createdAt: true, cancelledAt: true },
@@ -44,9 +44,9 @@ export class RevenueIntelligenceService {
       }),
     ]);
 
-    const totalRevenue = payments.reduce((s, p) => s + p.amount, 0);
-    const prevRevenue = prevPayments.reduce((s, p) => s + p.amount, 0);
-    const revenueGrowth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
+    const totalRevenue = payments.reduce((s: number, p) => s + (p.amount as number), 0);
+    const prevRevenue = prevPayments.reduce((s: number, p) => s + (p.amount as number), 0);
+    const revenueGrowth = (prevRevenue as number) > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
 
     const activeSubscriptions = allSubscriptions.filter((s) => s.status === 'ACTIVE').length;
     const cancelledSubscriptions = allSubscriptions.filter((s) => s.cancelledAt).length;
@@ -55,7 +55,7 @@ export class RevenueIntelligenceService {
       : 0;
 
     // MRR estimate: total payments / days * 30
-    const mrr = days > 0 ? this.round2((totalRevenue / days) * 30) : 0;
+    const mrr = days > 0 ? this.round2(((totalRevenue as number) / days) * 30) : 0;
     const arr = this.round2(mrr * 12);
 
     // Deal pipeline

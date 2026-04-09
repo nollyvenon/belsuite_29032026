@@ -296,7 +296,11 @@ export const MOCK_ANALYTICS = {
 
 export const MOCK_USAGE = {
   tokensUsed: 84200,
+  tokenLimit: 100000,
   tokensLimit: 100000,
+  costUsed: 42.10,
+  costLimit: 100,
+  breakdown: { blog: 30000, ad: 20000, social: 34200 } as Record<string, number>,
   percentUsed: 84.2,
   costEstimate: 42.10,
   monthlyBudget: 100,

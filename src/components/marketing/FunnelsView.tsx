@@ -79,7 +79,7 @@ export function FunnelsView() {
       await generateFunnel({
         businessName: aiForm.businessName,
         productOrService: aiForm.productOrService,
-        targetAudience: aiForm.targetAudience || undefined,
+        targetAudience: aiForm.targetAudience || '',
         objective: aiForm.objective,
         funnelType: aiForm.funnelType,
       });

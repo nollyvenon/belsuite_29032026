@@ -207,7 +207,7 @@ export class OrganizationsDataAdapter {
   }
 
   private identifyLifecycleOpportunities(conversions: Record<string, number>): string[] {
-    const opportunities = [];
+    const opportunities: string[] = [];
     if (conversions.awarenessToConsideration < 30) {
       opportunities.push('Improve onboarding to boost awareness→consideration conversion');
     }

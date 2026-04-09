@@ -31,7 +31,8 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "strictNullChecks": true
   },
   "include": [
     "src/**/*",
@@ -42,6 +43,7 @@
   "exclude": [
     "node_modules",
     "dist",
+    "src/backend/**/*.spec.ts",
     "src/backend/email/examples/**/*",
     "src/backend/email/services/email-service-orchestrator.ts",
     "src/backend/email/services/multi-provider.service.ts"

@@ -93,8 +93,8 @@ function AccountCard({
       <div className="relative">
         {account.avatar ? (
           <Image
-            src={account.avatar}
-            alt={account.displayName}
+            src={account.avatar!}
+            alt={account.displayName ?? ''}
             width={48}
             height={48}
             className="rounded-full object-cover"
