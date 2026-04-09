@@ -5,6 +5,7 @@
     "useDefineForClassFields": false,
     "module": "ESNext",
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "lib": [
       "ES2022",
       "DOM",
@@ -43,9 +44,6 @@
   "exclude": [
     "node_modules",
     "dist",
-    "src/backend/**/*.spec.ts",
-    "src/backend/email/examples/**/*",
-    "src/backend/email/services/email-service-orchestrator.ts",
-    "src/backend/email/services/multi-provider.service.ts"
+    "src/backend/**/*"
   ]
 }

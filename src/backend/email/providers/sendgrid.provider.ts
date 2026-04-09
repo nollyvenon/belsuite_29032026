@@ -4,7 +4,7 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import * as sgMail from '@sendgrid/mail';
+const sgMail = require('@sendgrid/mail');
 import { IEmailProvider } from '../interfaces/email-provider.interface';
 import {
   EmailProvider,

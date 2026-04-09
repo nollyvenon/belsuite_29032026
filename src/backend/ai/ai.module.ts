@@ -3,7 +3,8 @@
  * Orchestrates all AI-related services and controllers
  */
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { AIAutopilotModule } from '../ai-autopilot/ai-autopilot.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
@@ -23,6 +24,7 @@ import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
+    forwardRef(() => AIAutopilotModule),
     // Infrastructure
     CommonModule,
     DatabaseModule,

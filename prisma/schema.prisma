@@ -1,3 +1,55 @@
+// ============================================================================
+// CONTENT ACTIVITY LOG
+// ============================================================================
+
+model ContentActivityLog {
+  id            String   @id @default(cuid())
+  contentId     String
+  content       Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  organizationId String
+  userId        String
+    user          User     @relation("UserContentActivityLogs", fields: [userId], references: [id], onDelete: Cascade)
+  action        ContentActionType
+  message       String?  @db.Text // Optional: custom message or comment
+  meta          String?  @db.Text // Optional: JSON metadata
+  createdAt     DateTime @default(now())
+
+  @@index([contentId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+enum ContentActionType {
+  CREATE
+  UPDATE
+  DELETE
+  PUBLISH
+  RESTORE
+  COMMENT
+  SCHEDULE
+  AUTOSAVE
+  OTHER
+}
+// ============================================================================
+// CONTENT VERSIONING
+// ============================================================================
+
+model ContentVersion {
+  id            String   @id @default(cuid())
+  contentId     String
+  title         String   @db.VarChar(255)
+  description   String?  @db.Text
+  body          String?  @db.Text
+  createdBy     String
+    creator       User     @relation("UserContentVersions", fields: [createdBy], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([contentId])
+  @@index([createdBy])
+  @@index([createdAt])
+}
 // Belsuite - Multi-Tenant SaaS Platform
 // Comprehensive database schema for enterprise features
 
@@ -15,6 +67,7 @@ datasource db {
 // ============================================================================
 
 model User {
+    contentVersions       ContentVersion[] @relation("UserContentVersions")
   id                    String    @id @default(cuid())
   email                 String    @unique @db.VarChar(255)
   emailVerified         DateTime?
@@ -657,6 +710,7 @@ model Content {
   workflow              Workflow?
   analyticsEvents       AnalyticsEvent[]
 
+
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([creatorId])
@@ -785,6 +839,7 @@ model AnalyticsEvent {
   userId                String?   // Nullable for anonymous events
   properties            String?   @db.Text // JSON: Custom event properties
   timestamp             DateTime  @default(now())
+
 
   @@index([organizationId])
   @@index([contentId])

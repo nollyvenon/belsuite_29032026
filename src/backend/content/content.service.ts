@@ -1,3 +1,21 @@
+  /**
+   * Diff two content versions (returns changed fields)
+   */
+  async diffVersions(versionIdA: string, versionIdB: string) {
+    const [a, b] = await Promise.all([
+      this.prisma.contentVersion.findUnique({ where: { id: versionIdA } }),
+      this.prisma.contentVersion.findUnique({ where: { id: versionIdB } }),
+    ]);
+    if (!a || !b) throw new NotFoundException('One or both versions not found');
+    const diff: Record<string, { from: any; to: any }> = {};
+    for (const field of ['title', 'description', 'body']) {
+      if (a[field] !== b[field]) {
+        diff[field] = { from: a[field], to: b[field] };
+      }
+    }
+    return diff;
+  }
+
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateContentDto, UpdateContentDto } from './dto/content.dto';
@@ -111,12 +129,89 @@ export class ContentService {
       throw new ForbiddenException('Cannot modify content');
     }
 
+    // Save version before update
+    await this.prisma.contentVersion.create({
+      data: {
+        contentId: content.id,
+        title: content.title,
+        description: content.description,
+        body: content.content,
+        createdBy: userId,
+      },
+    });
+
     const updated = await this.prisma.content.update({
       where: { id: contentId },
       data: updateDto,
     });
 
     return updated;
+  }
+
+  /**
+   * Get all versions for a content item
+   */
+  async getVersions(contentId: string) {
+    return this.prisma.contentVersion.findMany({
+      where: { contentId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Autosave a draft (does not update main content, just saves a temp version)
+   */
+  async autosaveDraft(
+    contentId: string,
+    organizationId: string,
+    userId: string,
+    updateDto: UpdateContentDto,
+  ) {
+    const content = await this.getContent(contentId, organizationId);
+    if (content.creatorId !== userId) {
+      throw new ForbiddenException('Cannot autosave content');
+    }
+    // Save a version with autosave flag (could add a field if needed)
+    const version = await this.prisma.contentVersion.create({
+      data: {
+        contentId: content.id,
+        title: updateDto.title ?? content.title,
+        description: updateDto.description ?? content.description,
+        body: updateDto.content ?? content.content,
+        createdBy: userId,
+        // Optionally: autosave: true (if schema supports)
+      },
+    });
+    return { success: true, versionId: version.id };
+  }
+
+  /**
+   * Restore a previous version
+   */
+  async restoreVersion(versionId: string, userId: string) {
+    const version = await this.prisma.contentVersion.findUnique({ where: { id: versionId } });
+    if (!version) throw new NotFoundException('Version not found');
+    // Update content with version data
+    await this.prisma.content.update({
+      where: { id: version.contentId },
+      data: {
+        title: version.title,
+        description: version.description,
+        content: version.body,
+        updatedAt: new Date(),
+      },
+    });
+    // Optionally, save a new version for the restore action
+    await this.prisma.contentVersion.create({
+      data: {
+        contentId: version.contentId,
+        title: version.title,
+        description: version.description,
+        body: version.body,
+        createdBy: userId,
+      },
+    });
+    return version;
   }
 
   /**
@@ -152,6 +247,12 @@ export class ContentService {
 
     if (content.creatorId !== userId) {
       throw new ForbiddenException('Cannot publish content');
+    }
+    if (content.status === 'PUBLISHED') {
+      throw new ForbiddenException('Content is already published');
+    }
+    if (!content.title || !content.content) {
+      throw new ForbiddenException('Content must have a title and body to be published');
     }
 
     const published = await this.prisma.content.update({

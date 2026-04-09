@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
+import { forwardRef } from '@nestjs/common';
 import { AIModule } from '../ai/ai.module';
 import { PrismaService } from '../database/prisma.service';
 import { AIAutopilotController } from './ai-autopilot.controller';
@@ -10,7 +11,7 @@ import { AI_AUTOPILOT_QUEUE, AIAutopilotProcessor } from './processors/ai-autopi
 
 @Module({
   imports: [
-    AIModule,
+    forwardRef(() => AIModule),
     ScheduleModule.forRoot(),
     BullModule.registerQueue({
       name: AI_AUTOPILOT_QUEUE,

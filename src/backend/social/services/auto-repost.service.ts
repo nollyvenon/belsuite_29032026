@@ -8,7 +8,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PostStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { SOCIAL_QUEUE } from '../processors/social-post.processor';
+// import { SOCIAL_QUEUE } from '../processors/social-post.processor';
 import { PublishJobPayload } from '../types/social.types';
 
 const REPOST_CHECK_REPEAT_KEY = 'auto-repost-check';
@@ -19,7 +19,7 @@ export class AutoRepostService implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(SOCIAL_QUEUE) private readonly queue: Queue,
+    @InjectQueue('social-publishing') private readonly queue: Queue,
   ) {}
 
   async onModuleInit() {

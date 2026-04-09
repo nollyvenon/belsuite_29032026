@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { AIAutopilotService } from '../ai-autopilot.service';
+import { Inject, forwardRef } from '@nestjs/common';
 
 export const AI_AUTOPILOT_QUEUE = 'ai-autopilot';
 
@@ -18,7 +19,7 @@ export interface AIAutopilotJobPayload {
 export class AIAutopilotProcessor extends WorkerHost {
   private readonly logger = new Logger(AIAutopilotProcessor.name);
 
-  constructor(private readonly autopilotService: AIAutopilotService) {
+  constructor(@Inject(forwardRef(() => AIAutopilotService)) private readonly autopilotService: AIAutopilotService) {
     super();
   }
 
