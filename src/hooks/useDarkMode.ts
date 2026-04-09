@@ -2,23 +2,36 @@
 
 import { useState, useEffect } from 'react';
 
-export function useDarkMode() {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return document.documentElement.classList.contains('dark');
-    }
-    return false; // Default to light mode as requested
-  });
+const STORAGE_KEY = 'belsuite-theme';
 
+function getInitialDark(): boolean {
+  if (typeof window === 'undefined') return false;
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) return stored === 'dark';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+export function useDarkMode() {
+  const [isDark, setIsDark] = useState<boolean>(false);
+
+  // Sync from storage/system on mount (avoids SSR mismatch)
   useEffect(() => {
+    setIsDark(getInitialDark());
+  }, []);
+
+  // Apply class + persist whenever state changes
+  useEffect(() => {
+    const root = document.documentElement;
     if (isDark) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
+      localStorage.setItem(STORAGE_KEY, 'dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      localStorage.setItem(STORAGE_KEY, 'light');
     }
   }, [isDark]);
 
-  const toggle = () => setIsDark(!isDark);
+  const toggle = () => setIsDark((prev) => !prev);
 
   return { isDark, toggle };
 }

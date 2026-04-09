@@ -245,14 +245,15 @@ export const Hero = () => {
           {/* CTAs */}
           <FadeIn delay={0.22}>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <motion.button
+              <motion.a
+                href="/billing"
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-2.5 px-8 py-4 text-base font-bold text-white rounded-full bg-primary orange-glow hover:brightness-110 transition-all group"
               >
                 Start Free — No Card Needed
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </motion.button>
+              </motion.a>
               <Link
                 href="/demo"
                 className="flex items-center gap-2.5 px-8 py-4 text-base font-bold rounded-full border dark:border-white/12 border-black/10 hover:bg-black/4 dark:hover:bg-white/4 transition-all group"

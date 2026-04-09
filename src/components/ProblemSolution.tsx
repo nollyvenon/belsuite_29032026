@@ -121,10 +121,10 @@ export const ProblemSolution = () => {
               </div>
 
               <div className="px-8 pb-8">
-                <button className="w-full flex items-center justify-center gap-2 py-4 text-sm font-bold text-white rounded-2xl bg-primary hover:brightness-110 transition-all orange-glow group">
+                <a href="/billing" className="w-full flex items-center justify-center gap-2 py-4 text-sm font-bold text-white rounded-2xl bg-primary hover:brightness-110 transition-all orange-glow group">
                   Switch to Belsuite Today — Free for 14 Days
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </button>
+                </a>
               </div>
             </div>
           </FadeIn>

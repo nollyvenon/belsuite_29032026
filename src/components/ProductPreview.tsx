@@ -410,10 +410,10 @@ export const ProductPreview = () => {
         <FadeIn delay={0.25}>
           <div className="mt-10 text-center">
             <p className="text-sm text-gray-400 mb-4">Ready to experience the full platform?</p>
-            <button className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-primary text-white font-bold hover:brightness-110 transition-all orange-glow group">
+            <a href="/billing" className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-primary text-white font-bold hover:brightness-110 transition-all orange-glow group">
               Start Your Free Trial
               <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </button>
+            </a>
           </div>
         </FadeIn>
       </div>
