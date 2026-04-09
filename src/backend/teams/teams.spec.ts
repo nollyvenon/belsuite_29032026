@@ -1,14 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
-import { TeamsService } from '../teams.service';
-import { TeamsController } from '../teams.controller';
-import { TeamPermissionGuard } from '../../common/guards/team-permission.guard';
-import { TeamRoleGuard } from '../../common/guards/team-role.guard';
-import { JwtAuthGuard } from '../../common/guards/jwt.guard';
-import { TenantGuard } from '../../common/guards/tenant.guard';
+import { PrismaService } from '../database/prisma.service';
+import { TeamsService } from './teams.service';
+import { TeamsController } from './teams.controller';
+import { TeamPermissionGuard } from '../common/guards/team-permission.guard';
+import { TeamRoleGuard } from '../common/guards/team-role.guard';
+import { JwtAuthGuard } from '../common/guards/jwt.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Reflector } from '@nestjs/core';
 import { TeamRole } from '@prisma/client';
+import { TeamRoleEnum } from './dto/team.dto';
 
 /**
  * Teams Module Integration Tests
@@ -118,9 +119,14 @@ describe('TeamsModule Integration Tests', () => {
         id: 'orgmember_1',
         organizationId: mockOrganizationId,
         userId: mockUserId,
-        role: 'OWNER',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        roleId: 'role_1',
+        joinedAt: new Date(),
+        invitedBy: null,
+        status: 'ACTIVE',
+        roleName: 'OWNER',
+        permissions: ['team:read', 'team:update'],
+        // isActive removed, not in type
+        // updatedAt removed, not in type
       });
 
       const mockCreatedTeam = {
@@ -174,6 +180,11 @@ describe('TeamsModule Integration Tests', () => {
           joinedAt: new Date(),
           lastActivityAt: new Date(),
           permissions: ['team:read', 'team:update'],
+          invitedBy: null,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          invitedAt: null,
         },
       ]);
 
@@ -184,6 +195,7 @@ describe('TeamsModule Integration Tests', () => {
           name: 'Content Team',
           slug: 'content-team',
           description: 'Team description',
+          metadata: null,
           isPublic: false,
           requiresApproval: true,
           maxMembers: 50,
@@ -216,6 +228,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -235,6 +248,11 @@ describe('TeamsModule Integration Tests', () => {
           joinedAt: new Date(),
           lastActivityAt: new Date(),
           permissions: ['team:read', 'team:update'],
+          invitedBy: null,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          invitedAt: null,
         },
         {
           id: 'member_2',
@@ -244,21 +262,48 @@ describe('TeamsModule Integration Tests', () => {
           joinedAt: new Date(),
           lastActivityAt: new Date(),
           permissions: ['content:create', 'content:update'],
+          invitedBy: null,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          invitedAt: null,
         },
       ]);
 
       jest.spyOn(prismaService.user, 'findMany').mockResolvedValue([
         {
           id: mockUserId,
+          status: 'ACTIVE',
           email: 'owner@example.com',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          avatar: null,
+          timezone: 'UTC',
+          emailVerified: null,
           firstName: 'John',
           lastName: 'Doe',
+          lastLogin: null,
+          passwordHash: '',
+          phoneNumber: null,
+          preferredLanguage: 'en',
         },
         {
           id: mockUser2Id,
+          status: 'ACTIVE',
           email: 'editor@example.com',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          avatar: null,
+          timezone: 'UTC',
+          emailVerified: null,
           firstName: 'Jane',
           lastName: 'Smith',
+          lastLogin: null,
+          passwordHash: '',
+          phoneNumber: null,
+          preferredLanguage: 'en',
         },
       ]);
 
@@ -284,6 +329,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -300,11 +346,17 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUserId,
         role: TeamRole.OWNER,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
         permissions: ['team:read', 'team:update'],
+        invitedBy: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       jest.spyOn(prismaService.team, 'update').mockResolvedValue({
+        metadata: null,
         id: mockTeamId,
         organizationId: mockOrganizationId,
         name: updateTeamDto.name,
@@ -338,6 +390,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -354,8 +407,13 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUserId,
         role: TeamRole.OWNER,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:read', 'team:update', 'team:delete'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       jest.spyOn(prismaService.team, 'update').mockResolvedValue({
@@ -372,6 +430,7 @@ describe('TeamsModule Integration Tests', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         archivedAt: new Date(),
+        metadata: null,
       });
 
       const result = await teamsService.archiveTeam(mockOrganizationId, mockTeamId, mockUserId);
@@ -384,7 +443,7 @@ describe('TeamsModule Integration Tests', () => {
     it('should invite member to team', async () => {
       const inviteDto = {
         email: 'newmember@example.com',
-        role: TeamRole.EDITOR,
+        role: TeamRoleEnum.EDITOR,
         message: 'Welcome to our team!',
       };
 
@@ -394,6 +453,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -410,8 +470,13 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUserId,
         role: TeamRole.OWNER,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:manage_members'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       jest.spyOn(prismaService.teamInvitation, 'findUnique').mockResolvedValue(null);
@@ -425,7 +490,11 @@ describe('TeamsModule Integration Tests', () => {
         token: 'token_123',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         message: inviteDto.message,
+        status: 'PENDING',
         acceptedAt: null,
+        acceptedByUserId: null,
+        declinedAt: null,
+        revokedAt: null,
         createdAt: new Date(),
       });
 
@@ -440,9 +509,20 @@ describe('TeamsModule Integration Tests', () => {
       const token = 'valid_token_123';
       const user = {
         id: mockUser2Id,
+        status: 'ACTIVE' as any,
         email: 'newmember@example.com',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        avatar: null,
+        timezone: 'UTC',
+        emailVerified: null,
         firstName: 'Jane',
         lastName: 'Doe',
+        lastLogin: null,
+        passwordHash: '',
+        phoneNumber: null,
+        preferredLanguage: 'en',
       };
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(user);
@@ -456,7 +536,11 @@ describe('TeamsModule Integration Tests', () => {
         token: token,
         expiresAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Not expired
         message: 'Welcome!',
+        status: 'PENDING',
         acceptedAt: null,
+        acceptedByUserId: null,
+        declinedAt: null,
+        revokedAt: null,
         createdAt: new Date(),
       });
 
@@ -466,6 +550,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -477,13 +562,18 @@ describe('TeamsModule Integration Tests', () => {
       });
 
       jest.spyOn(prismaService, '$transaction').mockResolvedValue({
-        id: 'member_2',
+        id: 'member_1',
         teamId: mockTeamId,
-        userId: mockUser2Id,
-        role: TeamRole.EDITOR,
+        userId: mockUserId,
+        role: TeamRole.OWNER,
         joinedAt: new Date(),
         lastActivityAt: new Date(),
-        permissions: ['content:create', 'content:update'],
+        permissions: ['team:read', 'team:update'],
+        invitedBy: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
       });
 
       const result = await teamsService.acceptInvitation(mockOrganizationId, token, mockUser2Id);
@@ -500,6 +590,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -516,16 +607,26 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUserId,
         role: TeamRole.OWNER,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:manage_members'],
-      }).mockResolvedValueOnce({
-        id: 'member_2',
-        teamId: mockTeamId,
-        userId: mockUser2Id,
-        role: TeamRole.EDITOR,
-        joinedAt: new Date(),
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
         lastActivityAt: new Date(),
+      }).mockResolvedValueOnce({
+        id: 'member_1',
+        teamId: mockTeamId,
+        userId: mockUserId,
+        role: TeamRole.OWNER,
+        joinedAt: new Date(),
+        invitedBy: null,
         permissions: ['content:create'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       jest.spyOn(prismaService, '$transaction').mockResolvedValue(undefined);
@@ -542,6 +643,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -558,16 +660,26 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUserId,
         role: TeamRole.OWNER,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:manage_members'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       }).mockResolvedValueOnce({
         id: 'member_2',
         teamId: mockTeamId,
         userId: mockUser2Id,
         role: TeamRole.EDITOR,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['content:create'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       jest.spyOn(prismaService.teamMember, 'update').mockResolvedValue({
@@ -576,8 +688,13 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUser2Id,
         role: TeamRole.ADMIN,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:manage_members', 'team:update'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       const result = await teamsService.updateMemberRole(
@@ -585,7 +702,7 @@ describe('TeamsModule Integration Tests', () => {
         mockTeamId,
         'member_2',
         mockUserId,
-        { role: TeamRole.ADMIN },
+        { role: TeamRoleEnum.ADMIN },
       );
 
       expect(result.role).toBe(TeamRole.ADMIN);
@@ -600,6 +717,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -616,8 +734,13 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUser2Id,
         role: TeamRole.VIEWER,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:read'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       const updateDto = {
@@ -640,6 +763,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -656,8 +780,13 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUserId,
         role: TeamRole.ADMIN,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:read', 'team:update', 'team:manage_members'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       // Admin should be able to get their team role
@@ -682,6 +811,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -698,8 +828,13 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUserId,
         role: TeamRole.ADMIN,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['team:manage_workflows'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       jest.spyOn(prismaService.teamWorkflow, 'create').mockResolvedValue({
@@ -749,6 +884,7 @@ describe('TeamsModule Integration Tests', () => {
         name: 'Content Team',
         slug: 'content-team',
         description: 'Team description',
+        metadata: null,
         isPublic: false,
         requiresApproval: true,
         maxMembers: 50,
@@ -765,8 +901,13 @@ describe('TeamsModule Integration Tests', () => {
         userId: mockUser2Id,
         role: TeamRole.CONTRIBUTOR,
         joinedAt: new Date(),
-        lastActivityAt: new Date(),
+        invitedBy: null,
         permissions: ['approval:submit'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invitedAt: null,
+        lastActivityAt: new Date(),
       });
 
       jest.spyOn(prismaService.teamWorkflow, 'findUnique').mockResolvedValue({

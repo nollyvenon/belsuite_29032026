@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="39" failures="0" errors="0" time="142.07">
+  <testsuite name="New Capabilities Controllers" errors="0" failures="0" skipped="0" timestamp="2026-04-06T19:22:18" time="127.478" tests="5">
+    <testcase classname="New Capabilities Controllers DealsController delegates create/list to service" name="New Capabilities Controllers DealsController delegates create/list to service" time="0.023">
+    </testcase>
+    <testcase classname="New Capabilities Controllers RankTrackerController delegates track/research to service" name="New Capabilities Controllers RankTrackerController delegates track/research to service" time="0.002">
+    </testcase>
+    <testcase classname="New Capabilities Controllers CallCenterController delegates log/summarize to service" name="New Capabilities Controllers CallCenterController delegates log/summarize to service" time="0.002">
+    </testcase>
+    <testcase classname="New Capabilities Controllers RevenueIntelligenceController delegates metrics request with default days" name="New Capabilities Controllers RevenueIntelligenceController delegates metrics request with default days" time="0.002">
+    </testcase>
+    <testcase classname="New Capabilities Controllers ReferralEngineController keeps signup public and delegates secured operations" name="New Capabilities Controllers ReferralEngineController keeps signup public and delegates secured operations" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="CampaignApprovalService" errors="0" failures="0" skipped="0" timestamp="2026-04-06T19:22:20" time="126.721" tests="13">
+    <testcase classname="CampaignApprovalService submitForApproval creates a workflow approval and increments submission count" name="CampaignApprovalService submitForApproval creates a workflow approval and increments submission count" time="0.05">
+    </testcase>
+    <testcase classname="CampaignApprovalService submitForApproval throws NotFoundException when campaign does not belong to org" name="CampaignApprovalService submitForApproval throws NotFoundException when campaign does not belong to org" time="0.231">
+    </testcase>
+    <testcase classname="CampaignApprovalService submitForApproval throws BadRequestException when workflow not found or inapplicable" name="CampaignApprovalService submitForApproval throws BadRequestException when workflow not found or inapplicable" time="0.046">
+    </testcase>
+    <testcase classname="CampaignApprovalService submitForApproval throws ConflictException when a PENDING approval already exists" name="CampaignApprovalService submitForApproval throws ConflictException when a PENDING approval already exists" time="0.02">
+    </testcase>
+    <testcase classname="CampaignApprovalService listCampaignApprovals returns approvals for the campaign" name="CampaignApprovalService listCampaignApprovals returns approvals for the campaign" time="0.051">
+    </testcase>
+    <testcase classname="CampaignApprovalService listCampaignApprovals throws NotFoundException when campaign not in org" name="CampaignApprovalService listCampaignApprovals throws NotFoundException when campaign not in org" time="0.005">
+    </testcase>
+    <testcase classname="CampaignApprovalService respondToApproval approves when sufficient approvals are received" name="CampaignApprovalService respondToApproval approves when sufficient approvals are received" time="0.01">
+    </testcase>
+    <testcase classname="CampaignApprovalService respondToApproval rejects immediately on any REJECTED response" name="CampaignApprovalService respondToApproval rejects immediately on any REJECTED response" time="0.006">
+    </testcase>
+    <testcase classname="CampaignApprovalService respondToApproval throws NotFoundException when approval does not exist" name="CampaignApprovalService respondToApproval throws NotFoundException when approval does not exist" time="0.006">
+    </testcase>
+    <testcase classname="CampaignApprovalService respondToApproval throws ForbiddenException for a different org" name="CampaignApprovalService respondToApproval throws ForbiddenException for a different org" time="0.005">
+    </testcase>
+    <testcase classname="CampaignApprovalService respondToApproval throws ConflictException when approval is already resolved" name="CampaignApprovalService respondToApproval throws ConflictException when approval is already resolved" time="0.046">
+    </testcase>
+    <testcase classname="CampaignApprovalService respondToApproval throws ForbiddenException when user is not a team approver" name="CampaignApprovalService respondToApproval throws ForbiddenException when user is not a team approver" time="0.006">
+    </testcase>
+    <testcase classname="CampaignApprovalService respondToApproval throws ConflictException when user has already responded" name="CampaignApprovalService respondToApproval throws ConflictException when user has already responded" time="0.005">
+    </testcase>
+  </testsuite>
+  <testsuite name="CampaignManagerService — cloneCampaign" errors="0" failures="0" skipped="0" timestamp="2026-04-06T19:22:19" time="126.835" tests="6">
+    <testcase classname="CampaignManagerService — cloneCampaign cloneCampaign creates a copy of the campaign in DRAFT status with all ads cloned" name="CampaignManagerService — cloneCampaign cloneCampaign creates a copy of the campaign in DRAFT status with all ads cloned" time="0.137">
+    </testcase>
+    <testcase classname="CampaignManagerService — cloneCampaign cloneCampaign uses provided name when specified" name="CampaignManagerService — cloneCampaign cloneCampaign uses provided name when specified" time="0.013">
+    </testcase>
+    <testcase classname="CampaignManagerService — cloneCampaign cloneCampaign overrides dates when provided" name="CampaignManagerService — cloneCampaign cloneCampaign overrides dates when provided" time="0.071">
+    </testcase>
+    <testcase classname="CampaignManagerService — cloneCampaign cloneCampaign throws NotFoundException when source campaign does not belong to org" name="CampaignManagerService — cloneCampaign cloneCampaign throws NotFoundException when source campaign does not belong to org" time="0.285">
+    </testcase>
+    <testcase classname="CampaignManagerService — cloneCampaign cloneCampaign publishes a marketing.campaign.cloned event" name="CampaignManagerService — cloneCampaign cloneCampaign publishes a marketing.campaign.cloned event" time="0.048">
+    </testcase>
+    <testcase classname="CampaignManagerService — cloneCampaign createCampaign publishes a marketing.campaign.created event" name="CampaignManagerService — cloneCampaign createCampaign publishes a marketing.campaign.created event" time="0.013">
+    </testcase>
+  </testsuite>
+  <testsuite name="New Capabilities Permission Metadata" errors="0" failures="0" skipped="0" timestamp="2026-04-06T19:22:19" time="127.268" tests="9">
+    <testcase classname="New Capabilities Permission Metadata DealsController requires manage permission for mutating endpoints" name="New Capabilities Permission Metadata DealsController requires manage permission for mutating endpoints" time="0.022">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata DealsController requires read permission for read endpoints" name="New Capabilities Permission Metadata DealsController requires read permission for read endpoints" time="0.002">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata RankTrackerController requires manage permission for mutating endpoints" name="New Capabilities Permission Metadata RankTrackerController requires manage permission for mutating endpoints" time="0.001">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata RankTrackerController requires read permission for read endpoints" name="New Capabilities Permission Metadata RankTrackerController requires read permission for read endpoints" time="0.002">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata CallCenterController requires manage permission for mutating endpoints" name="New Capabilities Permission Metadata CallCenterController requires manage permission for mutating endpoints" time="0.002">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata CallCenterController requires read permission for read endpoints" name="New Capabilities Permission Metadata CallCenterController requires read permission for read endpoints" time="0.001">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata RevenueIntelligenceController requires read permission for metrics" name="New Capabilities Permission Metadata RevenueIntelligenceController requires read permission for metrics" time="0.001">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata ReferralEngineController requires permission for secured endpoints" name="New Capabilities Permission Metadata ReferralEngineController requires permission for secured endpoints" time="0.003">
+    </testcase>
+    <testcase classname="New Capabilities Permission Metadata ReferralEngineController keeps public endpoints free of permission metadata" name="New Capabilities Permission Metadata ReferralEngineController keeps public endpoints free of permission metadata" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="New Capabilities HTTP" errors="0" failures="0" skipped="0" timestamp="2026-04-06T19:22:19" time="132.369" tests="6">
+    <testcase classname="New Capabilities HTTP GET /deals/stats returns deal stats" name="New Capabilities HTTP GET /deals/stats returns deal stats" time="0.233">
+    </testcase>
+    <testcase classname="New Capabilities HTTP GET /rank-tracker/stats returns rank tracker stats" name="New Capabilities HTTP GET /rank-tracker/stats returns rank tracker stats" time="0.045">
+    </testcase>
+    <testcase classname="New Capabilities HTTP GET /call-center/stats returns call center stats" name="New Capabilities HTTP GET /call-center/stats returns call center stats" time="0.062">
+    </testcase>
+    <testcase classname="New Capabilities HTTP GET /revenue/metrics returns revenue metrics" name="New Capabilities HTTP GET /revenue/metrics returns revenue metrics" time="0.084">
+    </testcase>
+    <testcase classname="New Capabilities HTTP GET /referrals/stats returns referral stats" name="New Capabilities HTTP GET /referrals/stats returns referral stats" time="0.031">
+    </testcase>
+    <testcase classname="New Capabilities HTTP POST /referrals/signup is public and works without auth user" name="New Capabilities HTTP POST /referrals/signup is public and works without auth user" time="0.168">
+    </testcase>
+  </testsuite>
+</testsuites>
