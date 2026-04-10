@@ -94,7 +94,8 @@ model User {
   notifications         Notification[]
   contentCreated        Content[] @relation("ContentCreator")
   savedContent          SavedContent[]
-  
+  contentActivityLogs   ContentActivityLog[] @relation("UserContentActivityLogs")
+
   // AI features
   aiUsages              AIUsage[]
   promptTemplates       PromptTemplate[]
@@ -709,7 +710,7 @@ model Content {
   savedBy               SavedContent[]
   workflow              Workflow?
   analyticsEvents       AnalyticsEvent[]
-
+  activityLogs          ContentActivityLog[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -3362,4 +3363,357 @@ model AICEOConfig {
 
   @@index([organizationId])
   @@index([enabled])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI GATEWAY — Model Registry, Request Log, Budget, Health, Feature Assignments
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Catalogue of AI models available to the gateway
+model AIGatewayModel {
+  id          String @id @default(cuid())
+  provider    String // OPENAI | CLAUDE | GEMINI | LOCAL
+  modelId     String // exact API identifier (e.g. "gpt-4o", "claude-sonnet-4-6")
+  displayName String
+  description String @default("")
+
+  // Capability tags (text | image_generation | code | audio | embedding | moderation …)
+  capabilities   String[]
+  assignedFeatures String[] @default([])
+
+  // Pricing — USD per token
+  costPerInputToken  Float @default(0)
+  costPerOutputToken Float @default(0)
+
+  // Scoring (0–1)
+  qualityScore Float @default(0.5)
+  speedScore   Float @default(0.5)
+
+  // Context limits
+  contextWindow    Int @default(4096)
+  maxOutputTokens  Int @default(1024)
+
+  // Runtime config
+  rateLimitPerMinute Int     @default(60)
+  supportsStreaming  Boolean @default(true)
+  supportsImages     Boolean @default(false)
+  isEnabled          Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  requests            AIGatewayRequest[]
+  health              AIProviderHealth?
+  featureAssignments  AIFeatureModelAssignment[] @relation("PrimaryModel")
+  fallbackAssignments AIFeatureModelAssignment[] @relation("FallbackModel")
+
+  @@unique([provider, modelId])
+  @@index([provider])
+  @@index([isEnabled])
+}
+
+// Every AI call routed through the gateway is logged here
+model AIGatewayRequest {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  feature        String   // e.g. "content_studio", "ai_ads"
+  taskType       String   // GatewayTask enum value
+  provider       String
+  modelId        String
+  model          AIGatewayModel @relation(fields: [modelId], references: [id])
+
+  // Token usage
+  inputTokens  Int @default(0)
+  outputTokens Int @default(0)
+  totalTokens  Int @default(0)
+
+  // Cost
+  costUsd Float @default(0)
+
+  // Performance
+  latencyMs Int @default(0)
+
+  // Cache / failover flags
+  cacheHit     Boolean @default(false)
+  failoverUsed Boolean @default(false)
+  failoverFrom String?  // first model that failed
+
+  // Status
+  success      Boolean @default(true)
+  errorCode    String?
+  errorMessage String? @db.Text
+
+  // Dedup / audit
+  promptHash String?  // SHA-256 of prompt (for cache key tracing)
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([modelId])
+  @@index([feature])
+  @@index([taskType])
+  @@index([createdAt])
+  @@index([success])
+  @@index([cacheHit])
+}
+
+// Per-org, per-plan, or global spending caps.
+// Resolution order (highest → lowest priority):
+//   1. organizationId match (org-specific override)
+//   2. planTier match      (e.g. FREE orgs all share one config)
+//   3. global default      (organizationId IS NULL AND planTier IS NULL)
+model AIBudgetConfig {
+  id             String  @id @default(cuid())
+
+  // Scope — at most one of these is set; both null = global default
+  organizationId String?           // org-specific override
+  planTier       String?           // FREE | STARTER | PROFESSIONAL | ENTERPRISE
+
+  dailyLimitUsd      Float?
+  monthlyLimitUsd    Float?
+  perRequestLimitUsd Float?
+
+  alertThresholdPct Float   @default(80)   // log warning at this % of limit
+  blockOnExceed     Boolean @default(false) // hard-block when limit hit
+  notifyEmail       String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, planTier])  // prevents duplicate scope entries
+  @@index([organizationId])
+  @@index([planTier])
+  @@index([isActive])
+}
+
+// Rolling health metrics per model (persisted from in-memory circuit breakers)
+model AIProviderHealth {
+  id      String @id @default(cuid())
+  modelId String @unique
+  model   AIGatewayModel @relation(fields: [modelId], references: [id])
+
+  isHealthy           Boolean @default(true)
+  consecutiveFailures Int     @default(0)
+  successRatePct      Float   @default(100)
+  avgLatencyMs        Float   @default(0)
+  p95LatencyMs        Float   @default(0)
+  totalRequests       Int     @default(0)
+  totalFailures       Int     @default(0)
+
+  circuitBreakerState String  @default("CLOSED")  // CLOSED | OPEN | HALF_OPEN
+  circuitOpenedAt     DateTime?
+  nextRetryAt         DateTime?
+
+  lastSuccessAt DateTime?
+  lastFailureAt DateTime?
+  lastError     String?  @db.Text
+
+  updatedAt DateTime @updatedAt
+
+  @@index([isHealthy])
+  @@index([circuitBreakerState])
+}
+
+// Maps a BelSuite feature to its primary (and optional fallback) AI model
+model AIFeatureModelAssignment {
+  id           String @id @default(cuid())
+  feature      String @unique  // e.g. "content_studio", "ai_ads", "ugc_generator"
+  featureLabel String @default("") // human-readable label
+
+  primaryModelId  String
+  primaryModel    AIGatewayModel  @relation("PrimaryModel",  fields: [primaryModelId],  references: [id])
+
+  fallbackModelId String?
+  fallbackModel   AIGatewayModel? @relation("FallbackModel", fields: [fallbackModelId], references: [id])
+
+  // Routing overrides for this feature
+  strategy           String  @default("balanced")  // cheapest | fastest | best_quality | balanced
+  maxCostPerRequest  Float?
+  maxLatencyMs       Int?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([feature])
+  @@index([isActive])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI ASSISTANTS — Memory, Tasks, YouTube, Social Queue, Calendar
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AssistantType {
+  SIERRA   // Executive strategy assistant
+  DONNA    // Operations manager assistant
+  YOUTUBE  // YouTube automation
+  SOCIAL   // Social media assistant
+  CALENDAR // Calendar & scheduling
+}
+
+// Conversation thread — one per session / topic
+model AIConversation {
+  id             String        @id @default(cuid())
+  organizationId String
+  userId         String?
+  assistantType  AssistantType
+  title          String?       // auto-generated from first message
+  summary        String?       @db.Text // rolling summary for long threads
+  isActive       Boolean       @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages AIMessage[]
+
+  @@index([organizationId])
+  @@index([assistantType])
+  @@index([userId])
+  @@index([isActive])
+}
+
+// Individual message within a conversation
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // user | assistant | system | tool_result
+  content        String         @db.Text
+  metadata       Json?          // model, tokens, costUsd, taskId, etc.
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+// Long-lived context per org + assistant (survives across conversations)
+model AIAssistantContext {
+  id             String        @id @default(cuid())
+  organizationId String
+  assistantType  AssistantType
+  contextData    Json          // facts, preferences, goals, recent actions
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, assistantType])
+  @@index([organizationId])
+}
+
+// Async tasks submitted by assistants (BullMQ-backed)
+model AIAssistantTask {
+  id             String        @id @default(cuid())
+  organizationId String
+  userId         String?
+  assistantType  AssistantType
+  taskType       String        // GENERATE_CONTENT | SCHEDULE_POST | SEND_DM | CREATE_EVENT | etc.
+  status         String        @default("PENDING") // PENDING | PROCESSING | DONE | FAILED | CANCELLED
+  priority       Int           @default(5)
+  payload        Json
+  result         Json?
+  errorMessage   String?       @db.Text
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([taskType])
+  @@index([assistantType])
+  @@index([scheduledAt])
+}
+
+// YouTube end-to-end automation job
+model YouTubeAutomationJob {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  topic          String
+  targetAudience String?
+  durationSecs   Int?
+
+  // AI-generated outputs
+  script            String?  @db.Text
+  scriptApproved    Boolean  @default(false)
+  seoTitle          String?
+  seoDescription    String?  @db.Text
+  seoTags           String[]
+  thumbnailConcepts Json?    // array of concept objects
+
+  // Upload tracking
+  videoFilePath  String?
+  videoUrl       String?
+  youtubeVideoId String?
+  publishAt      DateTime?
+  status         String   @default("DRAFT")
+  // DRAFT | SCRIPTING | SCRIPT_READY | SEO_DONE | UPLOADING | UPLOADED | PUBLISHED | FAILED
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([publishAt])
+}
+
+// Social media post/reply/DM queue
+model SocialMediaQueueItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  platform       String   // TWITTER | INSTAGRAM | LINKEDIN | FACEBOOK | TIKTOK | YOUTUBE
+  contentType    String   // POST | REPLY | DM | STORY | REEL
+  content        String   @db.Text
+  mediaUrls      String[]
+  hashtags       String[]
+  targetHandle   String?  // for replies / DMs
+  parentPostId   String?  // platform post ID for replies
+  scheduledAt    DateTime?
+  publishedAt    DateTime?
+  status         String   @default("QUEUED")
+  // QUEUED | SCHEDULED | PUBLISHED | FAILED | CANCELLED
+  engagementData Json?
+  errorMessage   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([platform])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+// AI-managed calendar events (separate from user-created events)
+model AICalendarEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  description    String?  @db.Text
+  eventType      String   // CAMPAIGN | CONTENT | MEETING | REMINDER | DEADLINE | REVIEW
+  startAt        DateTime
+  endAt          DateTime?
+  allDay         Boolean  @default(false)
+  timezone       String   @default("UTC")
+  reminders      Json?    // [{ minutesBefore: 30, method: "email" }]
+  recurrence     Json?    // { frequency, interval, until, daysOfWeek }
+  campaignId     String?
+  isAIGenerated  Boolean  @default(true)
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([startAt])
+  @@index([eventType])
+  @@index([campaignId])
 }
