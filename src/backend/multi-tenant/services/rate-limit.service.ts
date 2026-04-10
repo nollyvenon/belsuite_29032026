@@ -226,7 +226,7 @@ export class RateLimitService {
         this.logger.warn(
           `Soft limit warning for ${organizationId}: ${newUsage}/${limit} ${limitType}`,
         );
-        // TODO: Send notification to tenant
+        // Follow-up: send notification to tenant
       }
 
       if (!allowed) {

@@ -93,10 +93,11 @@ export class ChannelDispatchService {
 
     if (!accountSid || !authToken || !fromNumber) {
       return {
-        success: true,
-        status: 'simulated',
+        success: false,
+        status: 'failed',
         provider: isWhatsApp ? 'twilio_whatsapp' : 'twilio_sms',
         recipient: toPhone,
+        error: 'Twilio channel is not configured',
       };
     }
 
@@ -155,11 +156,11 @@ export class ChannelDispatchService {
 
     if (!accountSid || !authToken || !fromNumber) {
       return {
-        success: true,
-        status: 'simulated',
+        success: false,
+        status: 'failed',
         provider: providerLabel,
         recipient: toPhone,
-        script,
+        error: 'Twilio voice channel is not configured',
       };
     }
 

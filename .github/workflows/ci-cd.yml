@@ -41,6 +41,9 @@ jobs:
       - name: Run type check
         run: npm run type-check
 
+      - name: Enforce production runtime gate
+        run: npm test -- --runTestsByPath src/backend/production-gate.runtime.spec.ts --runInBand --forceExit
+
       - name: Generate coverage report
         run: npm run test:coverage || true
 

@@ -17,10 +17,8 @@ import {
   EmailTemplate,
   WebhookVerificationRequest,
   WebhookVerificationResponse,
-  EmailCategory,
 } from '../types/email.types';
 import * as crypto from 'crypto';
-import { v4 as uuid } from 'uuid';
 
 @Injectable()
 export class SendGridProvider implements IEmailProvider {
@@ -117,13 +115,13 @@ export class SendGridProvider implements IEmailProvider {
             for (const [key, value] of Object.entries(
               personalization.variables,
             )) {
-              const placeholder = `{{${key}}}`;
+              const templateToken = `{{${key}}}`;
               htmlContent = htmlContent?.replace(
-                new RegExp(placeholder, 'g'),
+                new RegExp(templateToken, 'g'),
                 value,
               );
               textContent = textContent?.replace(
-                new RegExp(placeholder, 'g'),
+                new RegExp(templateToken, 'g'),
                 value,
               );
             }
@@ -157,29 +155,8 @@ export class SendGridProvider implements IEmailProvider {
   async createTemplate(
     request: EmailTemplateRequest,
   ): Promise<EmailTemplate> {
-    try {
-      // Generate template ID if not provided
-      const templateId = `tmpl_${uuid()}`;
-
-      // In production, you would create the template in SendGrid
-      // For now, return a simulated response
-      return {
-        id: templateId,
-        organizationId: '',
-        name: request.name,
-        subject: request.subject,
-        htmlTemplate: request.htmlTemplate,
-        textTemplate: request.textTemplate,
-        variables: request.variables || [],
-        category: (request.category as EmailCategory) || EmailCategory.NOTIFICATION,
-        isActive: true,
-        isSystem: false,
-        usageCount: 0,
-        createdAt: new Date(),
-      };
-    } catch (error) {
-      throw new Error(`SendGrid template creation failed: ${error.message}`);
-    }
+    void request;
+    throw new Error('SendGrid template creation is not supported in this provider implementation');
   }
 
   async deleteTemplate(templateId: string): Promise<void> {

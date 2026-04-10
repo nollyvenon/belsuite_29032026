@@ -67,6 +67,53 @@ export class AnalyticsDashboardService {
     return this.buildOverview(await this.loadBundle(organizationId, days), days);
   }
 
+  async getInsights(organizationId: string, days = 30) {
+    const bundle = await this.loadBundle(organizationId, days);
+    const overview = this.buildOverview(bundle, days);
+    const topContent = this.buildTopContent(bundle, 5);
+    const revenueAttribution = this.buildRevenueAttribution(bundle).slice(0, 5);
+
+    return [
+      {
+        type: 'engagement_rate',
+        value: overview.engagementRate,
+        message: `Engagement rate is ${overview.engagementRate}% over ${days} days.`,
+      },
+      {
+        type: 'revenue',
+        value: overview.totalRevenue,
+        message: `Collected revenue is $${overview.totalRevenue.toFixed(2)} in the selected window.`,
+      },
+      {
+        type: 'top_channel',
+        value: revenueAttribution[0]?.source ?? 'DIRECT',
+        message: `Top attributed channel: ${revenueAttribution[0]?.source ?? 'DIRECT'}.`,
+      },
+      {
+        type: 'top_content',
+        value: topContent[0]?.title ?? 'N/A',
+        message: `Highest-scoring content: ${topContent[0]?.title ?? 'N/A'}.`,
+      },
+    ];
+  }
+
+  async getChannelMetrics(organizationId: string, days = 30) {
+    const rows = this.buildRevenueAttribution(await this.loadBundle(organizationId, days));
+    const channelMap: Record<string, number> = {};
+    for (const row of rows) {
+      channelMap[row.source] = this.round2((channelMap[row.source] ?? 0) + row.revenue);
+    }
+    return channelMap;
+  }
+
+  async getRoi(organizationId: string, days = 30) {
+    const bundle = await this.loadBundle(organizationId, days);
+    const spend = bundle.campaignPerformance.reduce((sum, row) => sum + (row.spend ?? 0), 0);
+    const revenue = bundle.payments.reduce((sum, item) => sum + Math.max(item.amount - item.refundedAmount, 0), 0);
+    if (spend <= 0) return 0;
+    return this.round2(revenue / spend);
+  }
+
   private async loadBundle(organizationId: string, days: number): Promise<AnalyticsBundle> {
     const since = this.getSince(days);
 

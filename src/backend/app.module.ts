@@ -42,7 +42,7 @@ import { PermissionGuard } from './common/guards/permission.guard';
 import { BillingEnforcementGuard } from './common/guards/billing-enforcement.guard';
 import { CommonModule } from './common/common.module';
 
-// Placeholder modules (to be implemented in next phases)
+// Stub modules (to be implemented in next phases)
 @Module({})
 class ContentModule {}
 

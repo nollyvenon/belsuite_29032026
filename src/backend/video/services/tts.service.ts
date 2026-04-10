@@ -1,10 +1,10 @@
 /**
  * Text-to-Speech Service
  * Uses OpenAI TTS (tts-1 / tts-1-hd) to generate voiceovers.
- * Falls back to a mock response when OPENAI_API_KEY is absent (dev mode).
+ * Requires OpenAI API credentials to generate TTS output.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -33,13 +33,13 @@ export class TtsService {
     const key = process.env['OPENAI_API_KEY'];
     this.client = key ? new OpenAI({ apiKey: key }) : null;
     if (!this.client) {
-      this.logger.warn('OPENAI_API_KEY not set — TTS running in mock mode');
+      this.logger.warn('OPENAI_API_KEY not set for TTS');
     }
   }
 
   /**
    * Generate speech audio for the given text.
-   * Returns the path to a temporary mp3 file. Caller must clean up.
+   * Returns the path to an mp3 file. Caller must clean up.
    */
   async synthesize(text: string, options: TtsOptions = {}): Promise<TtsResult> {
     const tmpFile = path.join(
@@ -47,9 +47,7 @@ export class TtsService {
       `bel-tts-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`,
     );
 
-    if (!this.client) {
-      return this.mockTts(text, tmpFile);
-    }
+    if (!this.client) throw new ServiceUnavailableException('TTS provider is not configured');
 
     const voice  = options.voice ?? 'nova';
     const model  = options.model ?? 'tts-1';
@@ -85,18 +83,4 @@ export class TtsService {
       .filter(Boolean);
   }
 
-  // ── Private ───────────────────────────────────────────────────────────────
-
-  private mockTts(text: string, outputPath: string): TtsResult {
-    // Write a minimal valid (silent) mp3 header so downstream doesn't fail
-    // in dev environments without an API key.
-    const silentMp3 = Buffer.from(
-      'fffb9000000000000000000000000000000000000000000000000000000000000000',
-      'hex',
-    );
-    fs.writeFileSync(outputPath, silentMp3);
-    const wordCount  = text.split(/\s+/).length;
-    const durationMs = Math.round((wordCount / 150) * 60_000);
-    return { audioPath: outputPath, durationMs };
-  }
 }

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface RenderSettings {
@@ -45,6 +45,7 @@ export interface RenderExecutionResult {
 @Injectable()
 export class RenderProviderService {
   private readonly logger = new Logger(RenderProviderService.name);
+  private readonly isProduction = process.env.NODE_ENV === 'production';
 
   constructor(private readonly config: ConfigService) {}
 
@@ -52,7 +53,7 @@ export class RenderProviderService {
     project: RenderProjectContext,
     settings: RenderSettings,
   ): Promise<RenderExecutionResult> {
-    const provider = String(project.avatar?.provider ?? 'MOCK').toUpperCase();
+    const provider = String(project.avatar?.provider ?? 'HEYGEN').toUpperCase();
 
     try {
       if (provider === 'HEYGEN') {
@@ -63,12 +64,13 @@ export class RenderProviderService {
         return await this.renderWithDid(project, settings);
       }
     } catch (error) {
-      this.logger.warn(
-        `Provider render failed for ${provider}, falling back to mock output: ${(error as Error).message}`,
-      );
+      this.logger.warn(`Provider render failed for ${provider}: ${(error as Error).message}`);
+      if (this.isProduction) {
+        throw new ServiceUnavailableException(`Render provider ${provider} failed`);
+      }
     }
 
-    return this.renderMock(project);
+    return this.renderLocal(project);
   }
 
   private async renderWithHeyGen(
@@ -78,7 +80,10 @@ export class RenderProviderService {
     const apiKey = this.config.get<string>('HEYGEN_API_KEY');
     const avatarId = project.avatar?.externalId;
     if (!apiKey || !avatarId) {
-      return this.renderMock(project);
+      if (this.isProduction) {
+        throw new ServiceUnavailableException('HEYGEN provider not configured');
+      }
+      return this.renderLocal(project);
     }
 
     const url = this.config.get<string>('HEYGEN_RENDER_URL') ?? 'https://api.heygen.com/v2/video/generate';
@@ -145,7 +150,10 @@ export class RenderProviderService {
     const apiKey = this.config.get<string>('DID_API_KEY');
     const sourceUrl = project.avatar?.previewVideoUrl ?? project.avatar?.thumbnailUrl;
     if (!apiKey || !sourceUrl) {
-      return this.renderMock(project);
+      if (this.isProduction) {
+        throw new ServiceUnavailableException('DID provider not configured');
+      }
+      return this.renderLocal(project);
     }
 
     const url = this.config.get<string>('DID_RENDER_URL') ?? 'https://api.d-id.com/talks';
@@ -194,12 +202,12 @@ export class RenderProviderService {
     };
   }
 
-  private renderMock(project: RenderProjectContext): RenderExecutionResult {
+  private renderLocal(project: RenderProjectContext): RenderExecutionResult {
     const videoUrl = `https://cdn.belsuite.ai/ugc/${project.organizationId}/${project.projectId}/render.mp4`;
     const thumbnailUrl = `https://cdn.belsuite.ai/ugc/${project.organizationId}/${project.projectId}/render.jpg`;
 
     return {
-      provider: 'mock',
+      provider: 'local',
       status: 'COMPLETE',
       progress: 100,
       externalJobId: null,

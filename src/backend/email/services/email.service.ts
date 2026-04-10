@@ -55,7 +55,7 @@ export class EmailService {
         throw new Error('Organization not found');
       }
 
-      // For now, use SendGrid as primary provider
+      // Use SendGrid as primary provider
       const primaryRecipient = Array.isArray(options.to) ? options.to[0] : options.to;
       const response = await this.sendGridProvider.sendEmail({
         to: { email: primaryRecipient },

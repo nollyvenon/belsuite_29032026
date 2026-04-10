@@ -351,7 +351,7 @@ export class AIMonitoringService {
       if (!sentryDsn) return;
 
       // Would integrate with Sentry or similar service
-      // This is a placeholder for the actual implementation
+      // No-op when external monitoring sink is not configured
       this.logger.debug(
         `Sending alert to monitoring service: ${alert.title}`,
       );

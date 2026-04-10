@@ -19,6 +19,15 @@ export class BillingDataAdapter {
       // Get subscriptions for the organization
       const subscriptions = await this.prisma.subscription.findMany({
         where: { organizationId },
+        include: {
+          plan: {
+            select: {
+              id: true,
+              name: true,
+              pricePerMonth: true,
+            },
+          },
+        },
       });
 
       // Get invoices for revenue tracking
@@ -30,9 +39,8 @@ export class BillingDataAdapter {
 
       // Calculate MRR (Monthly Recurring Revenue)
       const activeSubscriptions = subscriptions.filter((s) => s.status === 'ACTIVE' || s.status === 'TRIAL');
-      const mrr = activeSubscriptions.reduce((sum, s) => {
-        // Each active subscription contributes to MRR
-        return sum + 100; // Placeholder - would need pricing data
+      const mrr = activeSubscriptions.reduce((sum, subscription) => {
+        return sum + Number(subscription.plan?.pricePerMonth ?? 0);
       }, 0);
 
       // Calculate ARR (Annual Recurring Revenue)
@@ -146,28 +154,37 @@ export class BillingDataAdapter {
       // Get subscription distribution by plan
       const subscriptions = await this.prisma.subscription.findMany({
         where: { organizationId, status: 'ACTIVE' },
+        include: {
+          plan: {
+            select: {
+              id: true,
+              name: true,
+              pricePerMonth: true,
+            },
+          },
+        },
       });
 
       // Group by plan ID
       const planGroups = subscriptions.reduce(
         (acc, sub) => {
-          const planId = sub.planId || 'default';
+          const planId = sub.planId || 'unassigned';
           if (!acc[planId]) {
-            acc[planId] = { count: 0, revenue: 0 };
+            acc[planId] = { count: 0, revenue: 0, name: sub.plan?.name || 'Unassigned plan' };
           }
           acc[planId].count++;
-          acc[planId].revenue += 100; // Placeholder
+          acc[planId].revenue += Number(sub.plan?.pricePerMonth ?? 0);
           return acc;
         },
-        {} as Record<string, { count: number; revenue: number }>,
+        {} as Record<string, { count: number; revenue: number; name: string }>,
       );
 
       const totalSubscriptions = subscriptions.length;
       const currentTiers = Object.entries(planGroups)
         .map(([planId, data]) => {
-          const typedData = data as { count: number; revenue: number };
+          const typedData = data as { count: number; revenue: number; name: string };
           return {
-            name: planId,
+            name: typedData.name || planId,
             price: typedData.revenue / Math.max(typedData.count, 1),
             monthlyRecurringRevenue: typedData.revenue,
             subscriberCount: typedData.count,
@@ -279,20 +296,32 @@ export class BillingDataAdapter {
   private async getTopRevenueDrivers(organizationId: string) {
     const subscriptions = await this.prisma.subscription.findMany({
       where: { organizationId, status: 'ACTIVE' },
+      include: {
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            pricePerMonth: true,
+          },
+        },
+      },
     });
 
-    const drivers: Record<string, number> = {};
-    subscriptions.forEach((sub) => {
-      const planId = sub.planId || 'default';
-      drivers[planId] = (drivers[planId] || 0) + 100;
+    const drivers: Record<string, { revenue: number; label: string }> = {};
+    subscriptions.forEach((subscription) => {
+      const planId = subscription.planId || 'unassigned';
+      if (!drivers[planId]) {
+        drivers[planId] = { revenue: 0, label: subscription.plan?.name || 'Unassigned plan' };
+      }
+      drivers[planId].revenue += Number(subscription.plan?.pricePerMonth ?? 0);
     });
 
-    const totalRevenue = Object.values(drivers).reduce((a, b) => a + b, 0);
+    const totalRevenue = Object.values(drivers).reduce((sum, driver) => sum + driver.revenue, 0);
 
     return Object.entries(drivers)
-      .map(([feature, revenue]) => ({
-        feature,
-        contribution: totalRevenue > 0 ? (revenue as number) / totalRevenue : 0,
+      .map(([feature, driver]) => ({
+        feature: driver.label || feature,
+        contribution: totalRevenue > 0 ? driver.revenue / totalRevenue : 0,
       }))
       .sort((a, b) => b.contribution - a.contribution)
       .slice(0, 5);

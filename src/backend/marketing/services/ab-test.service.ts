@@ -263,7 +263,7 @@ export class ABTestService {
       case 'cpc':
         return (v) => (v.clicks > 0 ? -(v.spend / v.clicks) : 0); // negative = lower is better
       case 'roas':
-        return (_v) => 0; // placeholder — roas requires revenue tracking
+        return (_v) => 0; // roas requires revenue tracking
       default:
         return (v) => (v.impressions > 0 ? v.clicks / v.impressions : 0);
     }

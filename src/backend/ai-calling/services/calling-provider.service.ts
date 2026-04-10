@@ -40,8 +40,8 @@ export class CallingProviderService {
     if (!sid || !token || !from || !baseUrl) {
       return {
         provider: 'twilio_voice',
-        status: 'simulated',
-        providerCallSid: `sim_${Date.now()}`,
+        status: 'failed',
+        error: 'Twilio voice provider is not configured',
       };
     }
 

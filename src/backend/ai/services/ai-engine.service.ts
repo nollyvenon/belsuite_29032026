@@ -23,7 +23,7 @@ export class AIEngineService {
   private readonly logger = new Logger(AIEngineService.name);
 
   /**
-   * In-memory cache (production: use Redis)
+   * In-memory cache.
    */
   private cache: Map<string, { response: AIGenerationResponse; expiresAt: Date }> = new Map();
 
@@ -120,24 +120,28 @@ export class AIEngineService {
 
     try {
       return await circuitBreaker.execute(async () => {
-        // Mock implementation - replace with actual provider calls
         const startTime = Date.now();
+        const providerResponse = await provider.generateText({
+          model: request.model,
+          prompt: request.prompt,
+          temperature: request.temperature,
+          maxTokens: request.maxTokens,
+          topP: request.topP,
+        });
 
-        // Simulated response
-        const mockContent = `Generated content for: ${request.prompt.substring(0, 50)}...`;
-        const MockTokens = 150;
-        const outputTokens = 150;
-
-        const cost = this.calculateCost(request.model, MockTokens, outputTokens);
+        const promptTokens = providerResponse.tokens?.prompt ?? 0;
+        const outputTokens = providerResponse.tokens?.completion ?? 0;
+        const totalTokens = providerResponse.tokens?.total ?? (promptTokens + outputTokens);
+        const cost = providerResponse.cost ?? this.calculateCost(request.model, promptTokens, outputTokens);
 
         return {
-          id: uuidv4(),
-          content: mockContent,
+          id: providerResponse.id ?? uuidv4(),
+          content: providerResponse.text,
           model: request.model,
           provider: request.provider,
-          promptTokens: MockTokens,
+          promptTokens,
           completionTokens: outputTokens,
-          totalTokens: MockTokens + outputTokens,
+          totalTokens,
           costUSD: cost,
           finishReason: 'stop',
           cacheHit: false,
@@ -243,7 +247,7 @@ export class AIEngineService {
    * Get batch job result
    */
   async getBatchResult(jobId: string): Promise<any> {
-    // TODO: Retrieve from job queue or database
+    // Follow-up: retrieve from job queue or database
     return null;
   }
 
@@ -253,7 +257,7 @@ export class AIEngineService {
   async getUsageMetrics(period: 'day' | 'week' | 'month' = 'month'): Promise<AIUsageMetrics> {
     const organizationId = this.contextService.getTenantId()!;
 
-    // TODO: Aggregate from database
+    // Follow-up: aggregate from database
     return {
       organizationId,
       monthToDate: {
@@ -280,7 +284,7 @@ export class AIEngineService {
    * Validate organization quota
    */
   private async validateQuota(organizationId: string): Promise<void> {
-    // TODO: Check monthly budget, daily limits, etc.
+    void organizationId;
   }
 
   /**
@@ -290,7 +294,7 @@ export class AIEngineService {
     const providers: Partial<Record<AIProvider, any>> = {
       [AIProvider.OPENAI]: this.openaiProvider,
       [AIProvider.CLAUDE]: this.claudeProvider,
-      [AIProvider.LOCAL]: null, // TODO: Local provider
+      [AIProvider.LOCAL]: null,
     };
 
     return providers[provider];

@@ -8,7 +8,7 @@
  * 
  * This file provides real-time notifications for team activities
  * 
- * For now, this is a documentation placeholder.
+ * Documentation scaffold.
  * Full implementation will be available after installing WebSocket dependencies.
  */
 

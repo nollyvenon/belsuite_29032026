@@ -44,7 +44,7 @@ export class ScriptGeneratorService {
             content: fullScript,
             aiGenerated: true,
             prompt: this.buildPrompt(project.title, brandContext, project.avatar?.style ?? 'INFLUENCER', dto),
-            model: this.client ? 'gpt-4o-mini' : 'mock-ugc-generator',
+            model: this.client ? 'gpt-4o-mini' : 'local-ugc-generator',
             scenesJson,
             wordCount: this.countWords(fullScript),
             estimatedSecs: dto.durationSeconds,
@@ -57,7 +57,7 @@ export class ScriptGeneratorService {
             content: fullScript,
             aiGenerated: true,
             prompt: this.buildPrompt(project.title, brandContext, project.avatar?.style ?? 'INFLUENCER', dto),
-            model: this.client ? 'gpt-4o-mini' : 'mock-ugc-generator',
+            model: this.client ? 'gpt-4o-mini' : 'local-ugc-generator',
             scenesJson,
             wordCount: this.countWords(fullScript),
             estimatedSecs: dto.durationSeconds,
@@ -115,7 +115,7 @@ export class ScriptGeneratorService {
         scenes: parsed.scenes as GeneratedUGCScene[],
       };
     } catch (error) {
-      this.logger.warn(`Falling back to mock UGC script generation: ${(error as Error).message}`);
+      this.logger.warn(`Falling back to local UGC script generation: ${(error as Error).message}`);
       return this.generateMock(title, brandContext, avatarStyle, dto);
     }
   }

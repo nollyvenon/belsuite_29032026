@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AIService } from '../ai/ai.service';
 import { AIModel } from '../ai/types/ai.types';
@@ -167,6 +166,9 @@ export class FunnelEngineService {
   // ─── Lead Capture ───────────────────────────────────────────────────────────
 
   async captureLead(dto: CaptureLeadDto, organizationId?: string) {
+    if (!organizationId && process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('organizationId is required in production');
+    }
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
     const event = await this.prisma.analyticsEvent.create({

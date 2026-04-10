@@ -145,25 +145,28 @@ export class FlutterwaveProvider implements IPaymentProvider {
   async createCustomer(
     request: CreateCustomerRequest,
   ): Promise<CustomerResponse> {
-    // Flutterwave doesn't have a customer creation endpoint
-    // Customers are implicitly created during transactions
-    // Return a mock customer response
-    return {
-      externalCustomerId: `flutterwave_${uuid()}`,
-      email: request.email,
-      provider: PaymentProvider.FLUTTERWAVE,
-    };
+    try {
+      const response = await this.client.post('/customers', {
+        email: request.email,
+        name: request.name,
+        phone_number: request.phone,
+      });
+      const data = response.data?.data ?? {};
+      return {
+        externalCustomerId: String(data.id ?? data.customer_code ?? request.email),
+        email: data.email ?? request.email,
+        provider: PaymentProvider.FLUTTERWAVE,
+      };
+    } catch (error) {
+      throw new Error(`Flutterwave customer creation failed: ${(error as Error).message}`);
+    }
   }
 
   async addPaymentMethod(
     customerId: string,
     request: PaymentMethodRequest,
   ): Promise<PaymentMethodResponse> {
-    // Payment methods in Flutterwave are created during transaction
-    return {
-      externalPaymentMethodId: `flutterwave_pm_${customerId}`,
-      provider: PaymentProvider.FLUTTERWAVE,
-    };
+    throw new Error('Flutterwave does not support direct payment method attachment via this integration');
   }
 
   async createSubscription(

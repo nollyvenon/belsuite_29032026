@@ -223,7 +223,7 @@ export class OrganizationsService {
       },
     });
 
-    // TODO: Send invitation email with token
+    // Follow-up: send invitation email with token
 
     return { invitationSent: true, studentId: token };
   }

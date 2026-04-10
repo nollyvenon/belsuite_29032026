@@ -359,7 +359,7 @@ export class AuthService {
       data: { userId: user.id, token, expiresAt },
     });
 
-    // TODO: inject EmailService and send email with link
+    // Follow-up: inject EmailService and send email with link
     this.logger.log(`Password reset token issued for ${user.email} — send to email`);
   }
 
@@ -551,7 +551,7 @@ export class AuthService {
     await this.prisma.emailVerificationToken.create({
       data: { userId, email, token, expiresAt },
     });
-    // TODO: send email with link /auth/verify-email?token={token}
+    // Follow-up: send email with link /auth/verify-email?token={token}
   }
 
   private async assertNotPasswordHistory(userId: string, newPassword: string): Promise<void> {

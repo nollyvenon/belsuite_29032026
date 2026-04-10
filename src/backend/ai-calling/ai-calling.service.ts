@@ -330,7 +330,12 @@ export class AICallingService {
     });
 
     if (payload.SpeechResult) {
-      await this.handleConversationTurn(dispatched.organizationId, dispatched.userId || 'system', callId, {
+      const effectiveUserId =
+        dispatched.userId ?? (process.env.NODE_ENV === 'production' ? null : 'system');
+      if (!effectiveUserId) {
+        throw new Error('Missing userId in production voice callback');
+      }
+      await this.handleConversationTurn(dispatched.organizationId, effectiveUserId, callId, {
         transcript: payload.SpeechResult,
         metadata: {
           confidence: payload.Confidence,

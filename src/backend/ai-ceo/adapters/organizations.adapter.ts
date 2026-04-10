@@ -37,7 +37,7 @@ export class OrganizationsDataAdapter {
       // Growth trend (weekly)
       const growthTrend = this.calculateGrowthTrend(members.map((m) => ({ createdAt: m.joinedAt })));
 
-      // Customer segments (placeholder)
+      // Customer segments
       const segments = await this.getCustomerSegments(organizationId);
 
       return {

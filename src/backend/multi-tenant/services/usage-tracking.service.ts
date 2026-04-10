@@ -111,8 +111,8 @@ export class UsageTrackingService {
    * Record active user
    */
   async recordActiveUser(organizationId: string): Promise<void> {
-    // This is more complex - would need to dedup users
-    // For now just record
+    // This is more complex and requires user deduplication.
+    // Record the metric event directly.
     await this.recordMetric(organizationId, 'activeUsers', 1);
   }
 

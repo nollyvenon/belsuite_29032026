@@ -299,7 +299,7 @@ Only return valid JSON.`;
     }
 
     if (dto.channel !== 'email') {
-      status = 'simulated';
+      status = 'failed';
     }
 
     const event = await this.prisma.analyticsEvent.create({

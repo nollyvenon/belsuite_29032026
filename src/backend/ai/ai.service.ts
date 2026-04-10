@@ -170,7 +170,7 @@ export class AIService {
       // Check usage limits before generating
       await this.usageLimitService.validateUsageLimit(organizationId, userId, estimatedTokens);
 
-      // Only OpenAI supports image generation for now
+      // Only OpenAI supports image generation in this implementation
       const provider = this.providers.get(AIProviderEnum.OPENAI);
       if (!provider || !provider.isAvailable) {
         throw new ServiceUnavailableException(

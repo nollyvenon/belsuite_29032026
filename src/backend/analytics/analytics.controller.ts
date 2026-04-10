@@ -106,4 +106,28 @@ export class AnalyticsController {
   ) {
     return this.intelligence.getIntelligence(organizationId, userId, Number(query.days) || 30);
   }
+
+  @Get('insights')
+  getInsights(
+    @Tenant() organizationId: string,
+    @Query() query: AnalyticsRangeQueryDto,
+  ) {
+    return this.dashboard.getInsights(organizationId, Number(query.days) || 30);
+  }
+
+  @Get('channels')
+  getChannels(
+    @Tenant() organizationId: string,
+    @Query() query: AnalyticsRangeQueryDto,
+  ) {
+    return this.dashboard.getChannelMetrics(organizationId, Number(query.days) || 30);
+  }
+
+  @Get('roi')
+  getRoi(
+    @Tenant() organizationId: string,
+    @Query() query: AnalyticsRangeQueryDto,
+  ) {
+    return this.dashboard.getRoi(organizationId, Number(query.days) || 30);
+  }
 }

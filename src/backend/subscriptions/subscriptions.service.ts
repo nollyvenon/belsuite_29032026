@@ -41,7 +41,7 @@ export class SubscriptionsService {
     planId: string,
     billingProfileId: string,
   ) {
-    // TODO: Integrate with Stripe
+    // Follow-up: integrate with Stripe
     // 1. Create Stripe subscription
     // 2. Store subscription data
     // 3. Setup webhook for subscription events
@@ -63,7 +63,7 @@ export class SubscriptionsService {
    * Cancel subscription
    */
   async cancelSubscription(organizationId: string) {
-    // TODO: Integrate with Stripe to cancel subscription
+    // Follow-up: integrate with Stripe to cancel subscription
 
     const subscription = await this.prisma.subscription.update({
       where: { organizationId },

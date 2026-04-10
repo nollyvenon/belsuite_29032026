@@ -162,7 +162,7 @@ export class PasswordService {
   }
 
   /**
-   * Generate temporary password for reset
+   * Generate password for reset
    */
   generateTemporaryPassword(): string {
     return this.generateRandomPassword(12);

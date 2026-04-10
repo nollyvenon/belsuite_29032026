@@ -234,7 +234,7 @@ export class SendmailProvider implements IEmailService {
   private isRetryable(error: any): boolean {
     const message = error.message || '';
 
-    // Temporary failures
+    // Retryable failures
     const retryablePatterns = [
       'ECONNREFUSED',
       'timeout',

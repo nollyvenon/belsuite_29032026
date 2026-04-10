@@ -139,7 +139,7 @@ export class SceneGeneratorService {
 
     const [width, height] = this.resolveResolution(req.aspectRatio ?? '16:9');
 
-    // Video track — placeholder black clips per scene
+    // Video track — black clips per scene
     const videoClips: VideoClip[] = [];
     const audioClips: AudioClip[] = [];
     const textClips:  TextClip[]  = [];
@@ -150,7 +150,7 @@ export class SceneGeneratorService {
       const dur     = sceneData[i].durationMs;
       const startMs = cursor;
 
-      // Video placeholder (will be replaced when AI image generation runs)
+      // Video clip baseline (replaced when AI image generation runs)
       videoClips.push({
         kind:         'video',
         id:           `vclip-${scene.id}`,

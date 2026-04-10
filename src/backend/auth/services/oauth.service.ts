@@ -299,9 +299,7 @@ export class OAuthService {
         throw new BadRequestException('No refresh token available');
       }
 
-      // In production, call provider's token endpoint to refresh
-      // For now, return existing accessToken
-      return oauthAccount.accessToken ?? '';
+      throw new BadRequestException(`Token refresh is not implemented for provider ${provider}`);
     } catch (error: unknown) {
       this.logger.error(`OAuth token refresh failed: ${(error as Error).message}`, (error as Error).stack);
       throw error;
@@ -309,7 +307,7 @@ export class OAuthService {
   }
 
   /**
-   * Generate placeholder hash for OAuth-only accounts
+   * Generate synthetic hash for OAuth-only accounts
    */
   private generatePlaceholderHash(): string {
     return 'oauth_account'; // No password set

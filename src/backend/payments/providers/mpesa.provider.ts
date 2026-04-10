@@ -20,6 +20,7 @@ import {
   WebhookVerificationRequest,
   WebhookVerificationResponse,
 } from '../types/payment.types';
+import { ServiceUnavailableException } from '@nestjs/common';
 
 @Injectable()
 export class MpesaProvider implements IPaymentProvider {
@@ -58,19 +59,9 @@ export class MpesaProvider implements IPaymentProvider {
     ).replace(/\s+/g, '');
 
     if (!this.isConfigured() || !phone) {
-      return {
-        id: `mpesa_${uuid()}`,
-        externalPaymentId: `mpesa_sim_${Date.now()}`,
-        status: PaymentStatus.PENDING,
-        amount: request.amount,
-        currency: request.currency,
-        provider: PaymentProvider.MPESA,
-        metadata: {
-          ...(request.metadata || {}),
-          simulated: true,
-          reason: !phone ? 'Missing MSISDN / paymentMethodId' : 'MPESA credentials not configured',
-        },
-      };
+      throw new ServiceUnavailableException(
+        !phone ? 'Missing MSISDN/payment method for M-Pesa checkout' : 'M-Pesa provider is not configured',
+      );
     }
 
     const token = await this.getAccessToken();

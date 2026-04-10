@@ -4,6 +4,7 @@
  */
 
 import { Injectable, BadRequestException, ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { resolveTxt } from 'node:dns/promises';
 import { PrismaService } from '../../database/prisma.service';
 import { DomainType } from '@prisma/client';
 
@@ -250,8 +251,6 @@ export class DomainMappingService {
     }
 
     try {
-      // In production, would query actual DNS records
-      // For demo, assume verified after API call (implement real DNS check in production)
       const verified = await this.checkDNSRecord(
         domain.domain || domain.subdomain || '',
         domain.dnsVerificationToken,
@@ -281,10 +280,15 @@ export class DomainMappingService {
    * Helper: Check DNS record
    */
   private async checkDNSRecord(domain: string, token: string): Promise<boolean> {
-    // This is a placeholder. In production, use DNS lookup library
-    // For now, simulate with a log message
-    this.logger.log(`Checking DNS for ${domain} with token ${token.substring(0, 10)}...`);
-    return true;
+    this.logger.log(`Checking DNS TXT records for ${domain}`);
+    try {
+      const records = await resolveTxt(domain);
+      const flattened = records.map((chunk) => chunk.join('')).map((entry) => entry.trim());
+      return flattened.some((entry) => entry.includes(token));
+    } catch (error) {
+      this.logger.warn(`DNS lookup failed for ${domain}: ${(error as Error).message}`);
+      return false;
+    }
   }
 
   /**

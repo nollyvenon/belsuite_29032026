@@ -4,8 +4,7 @@
   "version": "1.0.0",
   "author": "Belsuite Team",
   "private": true,
-  
-  "engines": {      
+  "engines": {
     "node": ">=18.17.0",
     "npm": ">=9.0.0"
   },
@@ -44,6 +43,7 @@
     "@nestjs/schedule": "^4.1.2",
     "@nestjs/swagger": "^7.1.17",
     "@nestjs/throttler": "^6.5.0",
+    "@prisma/adapter-pg": "^7.7.0",
     "@sendgrid/mail": "^8.1.6",
     "@stripe/stripe-js": "^3.0.0",
     "aws-sdk": "^2.1500.0",
@@ -73,6 +73,7 @@
     "openai": "^6.33.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pg": "^8.20.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -95,7 +96,8 @@
     "@nestjs/cli": "^10.3.0",
     "@nestjs/schematics": "^10.0.3",
     "@nestjs/testing": "^10.3.0",
-    "@prisma/client": "^6.15.0",
+    "@prisma/client": "^7.7.0",
+    "@tailwindcss/postcss": "^4.2.2",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",
@@ -121,9 +123,8 @@
     "jest-junit": "^16.0.0",
     "postcss": "^8.5.8",
     "prettier": "^3.1.1",
-    "prisma": "^6.15.0",
+    "prisma": "^7.7.0",
     "supertest": "^7.2.2",
-    "@tailwindcss/postcss": "^4.2.2",
     "tailwindcss": "^4.2.2",
     "ts-jest": "^29.1.1",
     "ts-loader": "^9.5.1",

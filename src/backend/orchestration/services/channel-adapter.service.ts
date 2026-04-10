@@ -13,6 +13,7 @@ export interface NormalizedInboundMessage {
 @Injectable()
 export class ChannelAdapterService {
   private readonly logger = new Logger(ChannelAdapterService.name);
+  private readonly isProduction = process.env.NODE_ENV === 'production';
 
   constructor(private readonly config: ConfigService) {}
 
@@ -25,6 +26,9 @@ export class ChannelAdapterService {
       msg?.organizationId ||
       this.config.get<string>('TELEGRAM_DEFAULT_ORGANIZATION_ID');
     if (!organizationId) {
+      if (this.isProduction) {
+        throw new Error('Telegram payload missing organizationId in production');
+      }
       this.logger.warn('Telegram payload dropped: organizationId not resolvable');
       return null;
     }
@@ -51,7 +55,12 @@ export class ChannelAdapterService {
       const organizationId =
         payload?.organizationId ||
         this.config.get<string>('WHATSAPP_DEFAULT_ORGANIZATION_ID');
-      if (!organizationId) return null;
+      if (!organizationId) {
+        if (this.isProduction) {
+          throw new Error('WhatsApp payload missing organizationId in production');
+        }
+        return null;
+      }
       return {
         organizationId,
         channel: 'whatsapp',
@@ -71,7 +80,12 @@ export class ChannelAdapterService {
       const organizationId =
         payload?.organizationId ||
         this.config.get<string>('WHATSAPP_DEFAULT_ORGANIZATION_ID');
-      if (!organizationId) return null;
+      if (!organizationId) {
+        if (this.isProduction) {
+          throw new Error('WhatsApp payload missing organizationId in production');
+        }
+        return null;
+      }
       return {
         organizationId,
         channel: 'whatsapp',

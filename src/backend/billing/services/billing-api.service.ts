@@ -370,10 +370,10 @@ export class BillingApiService {
       case PaymentProvider.SOFORT: {
         const amountUsd = dto.amountUsd ?? (await this.resolveBundleAmount(dto.bundleId));
         if (!amountUsd) throw new BadRequestException('amountUsd or bundleId is required for Sofort checkout');
-        const mockedSubscription = await this.ensureCheckoutSubscription(organizationId);
+        const checkoutSubscription = await this.ensureCheckoutSubscription(organizationId);
         const payment = await this.paymentService.createPayment(PaymentProvider.SOFORT, {
           organizationId,
-          subscriptionId: mockedSubscription.id,
+          subscriptionId: checkoutSubscription.id,
           amount: amountUsd,
           currency: dto.currency ?? 'EUR',
           metadata: {

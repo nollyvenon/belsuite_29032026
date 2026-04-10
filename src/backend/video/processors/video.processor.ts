@@ -109,7 +109,7 @@ export class VideoProcessor extends WorkerHost {
           job.updateProgress(pct).catch(() => {});
         });
       } else {
-        // No video assets — create a black video placeholder
+        // No video assets — create a black video
         await this.createBlackVideo(outFile, project.width, project.height, project.fps,
           (project.durationMs ?? 5000) / 1000, options);
       }

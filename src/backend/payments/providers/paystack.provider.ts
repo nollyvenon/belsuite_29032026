@@ -151,13 +151,7 @@ export class PaystackProvider implements IPaymentProvider {
     customerId: string,
     request: PaymentMethodRequest,
   ): Promise<PaymentMethodResponse> {
-    // Paystack doesn't have direct payment method storage like other providers
-    // Payment methods are created during transaction initialization
-    // Return a placeholder response
-    return {
-      externalPaymentMethodId: `paystack_pm_${customerId}`,
-      provider: PaymentProvider.PAYSTACK,
-    };
+    throw new Error('Paystack does not support direct payment method attachment via this integration');
   }
 
   async createSubscription(

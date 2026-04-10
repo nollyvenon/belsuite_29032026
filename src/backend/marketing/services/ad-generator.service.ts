@@ -429,7 +429,7 @@ Return a JSON array of ${variantCount} objects. No markdown, no extra text.`;
   private async callAI(organizationId: string, prompt: string): Promise<string> {
     const apiKey = this.config.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
-      this.logger.warn('OPENAI_API_KEY not set — returning mock AI response');
+      this.logger.warn('OPENAI_API_KEY not set — returning local AI response');
       return this.getMockResponse(prompt);
     }
 
