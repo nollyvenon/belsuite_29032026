@@ -3717,3 +3717,87 @@ model AICalendarEvent {
   @@index([eventType])
   @@index([campaignId])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTEGRATIONS — Connections, OAuth state, webhook log
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Per-org connected integration with encrypted token storage
+model IntegrationConnection {
+  id             String @id @default(cuid())
+  organizationId String
+  provider       String // GOOGLE | FACEBOOK | TWITTER | LINKEDIN | TIKTOK | WHATSAPP | TELEGRAM | SMS_TWILIO | SMS_AFRICAS_TALKING
+  providerUserId String? // user/page/channel ID at the provider
+
+  // Encrypted tokens (AES-256-GCM, base64)
+  accessToken     String?  @db.Text
+  refreshToken    String?  @db.Text
+  tokenExpiresAt  DateTime?
+
+  // OAuth metadata
+  scopes          String[] @default([])
+  accountName     String?  // display name / page name
+  accountEmail    String?
+  accountAvatar   String?
+
+  // Sub-account identifiers (e.g. Facebook Page ID, Twitter handle)
+  accountId       String?
+  accountHandle   String?
+  metadata        Json?
+
+  status          String   @default("ACTIVE") // ACTIVE | EXPIRED | REVOKED | ERROR
+  lastUsedAt      DateTime?
+  lastErrorAt     DateTime?
+  lastError       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  webhooks        IncomingWebhookLog[]
+
+  @@unique([organizationId, provider, accountId])
+  @@index([organizationId])
+  @@index([provider])
+  @@index([status])
+}
+
+// Short-lived OAuth state for CSRF protection during OAuth flows
+model OAuthState {
+  id             String @id @default(cuid())
+  state          String @unique  // random nonce
+  codeVerifier   String?         // PKCE verifier
+  organizationId String
+  userId         String?
+  provider       String
+  redirectUri    String?
+  metadata       Json?           // extra params to carry through flow
+  expiresAt      DateTime
+  used           Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([state])
+  @@index([expiresAt])
+}
+
+// Immutable log of every incoming webhook event
+model IncomingWebhookLog {
+  id             String  @id @default(cuid())
+  connectionId   String?
+  connection     IntegrationConnection? @relation(fields: [connectionId], references: [id])
+  organizationId String?
+  provider       String
+  eventType      String
+  payload        Json
+  headers        Json?
+  signatureValid Boolean @default(false)
+  processed      Boolean @default(false)
+  processingError String? @db.Text
+  receivedAt     DateTime @default(now())
+
+  @@index([provider])
+  @@index([organizationId])
+  @@index([eventType])
+  @@index([processed])
+  @@index([receivedAt])
+}

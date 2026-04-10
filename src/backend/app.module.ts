@@ -31,6 +31,7 @@ import { RevenueIntelligenceModule } from './revenue-intelligence/revenue-intell
 import { ReferralEngineModule } from './referral-engine/referral-engine.module';
 import { AIGatewayModule }     from './ai-gateway/ai-gateway.module';
 import { AIAssistantsModule }  from './ai-assistants/ai-assistants.module';
+import { IntegrationsModule }  from './integrations/integrations.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -118,6 +119,9 @@ class StorageModule {}
 
     // AI Assistant Services (SierrAI, DonnaAI, YouTube, Social, Calendar)
     AIAssistantsModule,
+
+    // Integrations (Google, Social, Communication, OAuth, Webhooks)
+    IntegrationsModule,
   ],
   providers: [
     DatabaseConfig,
