@@ -96,6 +96,11 @@ model User {
   savedContent          SavedContent[]
   contentActivityLogs   ContentActivityLog[] @relation("UserContentActivityLogs")
 
+  // Video editing
+  videoProjects         VideoProject[] @relation("VideoProjectCreator")
+  videoVersions         VideoProjectVersion[] @relation("VideoVersionCreator")
+  sharedVideoProjects   VideoProjectShare[] @relation("SharedVideoProjects")
+
   // AI features
   aiUsages              AIUsage[]
   promptTemplates       PromptTemplate[]
@@ -4138,4 +4143,395 @@ model IncomingWebhookLog {
   @@index([eventType])
   @@index([processed])
   @@index([receivedAt])
+}
+
+// ============================================================================
+// AI-POWERED VIDEO CREATION & EDITING ENGINE
+// ============================================================================
+
+model VideoProject {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgVideos", fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy         String
+  creator           User     @relation("VideoProjectCreator", fields: [createdBy], references: [id])
+
+  title             String   @db.VarChar(255)
+  description       String?  @db.Text
+  thumbnail        String?  // URL to thumbnail image
+
+  // Project metadata
+  duration          Float?   // Total duration in seconds (calculated)
+  aspectRatio       AspectRatio @default(LANDSCAPE_16_9)
+  resolution        String   @default("1080p") // 720p, 1080p, 4K
+  fps               Int      @default(30)
+
+  // Status tracking
+  status            VideoProjectStatus @default(DRAFT)
+  editingState      Json?   // Serialized editing timeline & clips
+  renderProgress    Float    @default(0) // 0-100%
+
+  // Rendering & output
+  sourceVideos      VideoClip[] @relation("ProjectClips")
+  renders           VideoRender[]
+  exportSettings    VideoExportSettings?
+
+  // Collaboration & versioning
+  versions          VideoProjectVersion[]
+  sharedWith        VideoProjectShare[]
+  commentCount      Int      @default(0)
+
+  // AI features
+  autoEditingResults AutoEditingJob?
+  aiScriptGenerated String?  @db.Text
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastEditedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model VideoClip {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           VideoProject @relation("ProjectClips", fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Source video
+  sourceUrl         String   @db.Text // S3 or external URL
+  fileName          String   @db.VarChar(255)
+  fileSize          Float    // bytes
+  duration          Float    // seconds
+  width             Int
+  height            Int
+
+  // Clip properties
+  startTime         Float    @default(0)     // Trim start (seconds)
+  endTime           Float?                   // Trim end (seconds)
+  displayOrder      Int      @default(0)    // Position in timeline
+  speed             Float    @default(1.0)  // 0.5x, 1x, 2x, etc.
+  volume            Float    @default(100)  // 0-100%
+  opacity           Float    @default(100)  // 0-100%
+
+  // Transformations
+  rotation          Int      @default(0)    // 0, 90, 180, 270
+  flipHorizontal    Boolean  @default(false)
+  flipVertical      Boolean  @default(false)
+
+  // Positioning & scaling
+  x                 Float    @default(0)    // Position in timeline (seconds)
+  scaleX            Float    @default(1.0)
+  scaleY            Float    @default(1.0)
+
+  // Effects & filters
+  brightness        Float    @default(100)  // 0-200%
+  contrast          Float    @default(100)  // 0-200%
+  saturation        Float    @default(100)  // 0-200%
+  hue               Float    @default(0)    // -180 to 180
+
+  // Transitions
+  transitionIn      TransitionType?
+  transitionOut     TransitionType?
+  transitionDuration Float   @default(0.5) // seconds
+
+  // Audio
+  hasAudio          Boolean  @default(true)
+  audioTracks       AudioTrack[]
+
+  // Background removal & effects
+  backgroundRemoved Boolean  @default(false)
+  backgroundRemovalResult Json? // Confidence scores, etc.
+
+  // AI features
+  autoCaption       VideoCaption?
+  sceneDectected    SceneDetection?
+  highlightScore    Float?  // AI highlight detection score (0-1)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([displayOrder])
+}
+
+model AudioTrack {
+  id                String   @id @default(cuid())
+  clipId            String
+  clip              VideoClip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  sourceUrl         String   @db.Text
+  fileName          String   @db.VarChar(255)
+  duration          Float    // seconds
+
+  trackType         AudioTrackType @default(ORIGINAL) // ORIGINAL, MUSIC, SFX, VOICEOVER
+  volume            Float    @default(100)
+  startTime         Float    @default(0)
+  fadeIn            Float    @default(0)  // seconds
+  fadeOut           Float    @default(0)  // seconds
+
+  // Music metadata (if using stock music library)
+  musicTitle        String?
+  musicArtist       String?
+  licensedFor       String?  // "social", "commercial", etc.
+
+  createdAt         DateTime @default(now())
+
+  @@index([clipId])
+}
+
+model VideoCaption {
+  id                String   @id @default(cuid())
+  clipId            String   @unique
+  clip              VideoClip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  // Caption source
+  sourceType        CaptionSourceType @default(AUTO // AUTO, UPLOAD, MANUAL
+  transcriptUrl     String?  @db.Text // URL to SRT/VTT file
+  transcript        String?  @db.Text // JSON array of caption objects
+
+  // Styling
+  font              String   @default("Arial")
+  fontSize          Int      @default(24)
+  color             String   @default("#FFFFFF")
+  backgroundColor   String?
+  position          CaptionPosition @default(BOTTOM)
+  opacity           Float    @default(100)
+
+  // Auto-styling settings
+  autoStyle         Boolean  @default(false)
+  stylePreset       String?  // "modern", "classic", "bold", etc.
+
+  // Language & TTS
+  language          String   @default("en")
+  textToSpeech      Boolean  @default(false)
+  ttVoice           String?  // Voice ID for TTS
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SceneDetection {
+  id                String   @id @default(cuid())
+  clipId            String   @unique
+  clip              VideoClip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  scenes            Json     // Array of { startTime, endTime, confidence, label }
+  sceneCount        Int
+
+  createdAt         DateTime @default(now())
+}
+
+model VideoRender {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Render settings
+  format            VideoFormat @default(MP4)
+  quality           VideoQuality @default(HIGH)
+  bitrate           String   // "5M", "10M", etc.
+
+  // Status tracking
+  status            RenderStatus @default(QUEUED)
+  progress          Float    @default(0) // 0-100%
+
+  // Output
+  outputUrl         String?  @db.Text // S3 URL when complete
+  fileSize          Float?   // bytes
+  duration          Float?   // seconds
+
+  // Rendering metadata
+  startedAt         DateTime?
+  completedAt       DateTime?
+  errorMessage      String?  @db.Text
+  processingTime    Float?   // seconds
+
+  // Usage tracking
+  creditsCost       Float?   // For cost calculation
+
+  createdAt         DateTime @default(now())
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model VideoExportSettings {
+  id                String   @id @default(cuid())
+  projectId         String   @unique
+  project           VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Export presets (for different platforms)
+  instagramFormat   ExportPreset?  // 1080x1350 (Portrait), 1080x1080 (Square), 1920x1080 (Landscape)
+  tiktokFormat      ExportPreset?  // 1080x1920 (Portrait)
+  youtubeFormat     ExportPreset?  // 1920x1080 (16:9)
+  linkedinFormat    ExportPreset?  // 1200x628 (16:9)
+
+  // Default export settings
+  defaultFormat     VideoFormat @default(MP4)
+  defaultQuality    VideoQuality @default(HIGH)
+  defaultAspectRatio AspectRatio @default(LANDSCAPE_16_9)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model VideoProjectVersion {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  versionNumber     Int
+  name              String?  @db.VarChar(255)
+  editingState      Json    // Serialized state snapshot
+
+  createdBy         String
+  creator           User     @relation("VideoVersionCreator", fields: [createdBy], references: [id])
+
+  createdAt         DateTime @default(now())
+
+  @@unique([projectId, versionNumber])
+  @@index([projectId])
+}
+
+model VideoProjectShare {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId            String
+  user              User     @relation("SharedVideoProjects", fields: [userId], references: [id], onDelete: Cascade)
+
+  permission        SharePermission @default(VIEW)
+  sharedAt          DateTime @default(now())
+  expiresAt         DateTime?
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model AutoEditingJob {
+  id                String   @id @default(cuid())
+  projectId         String   @unique
+  project           VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // AI Analysis
+  status            AutoEditingStatus @default(PENDING)
+  analysisType      String   // "highlight_reel", "auto_cut", "scene_sync"
+
+  // Results
+  suggestedClips    Json?    // Array of suggested edits with timestamps
+  suggestedEffects  Json?    // Array of suggested transitions/effects
+  suggestedMusic    Json?    // Array of music suggestions
+
+  // Application
+  appliedEdits      Int      @default(0)
+  confidence        Float?   // Average confidence score (0-1)
+
+  // Generation method
+  aiModel           String   // "gpt-4-vision", "claude-video", etc.
+  scriptInput       String?  @db.Text // User-provided script for AI to follow
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ============================================================================
+// VIDEO ENUMS & TYPES
+// ============================================================================
+
+enum AspectRatio {
+  LANDSCAPE_16_9
+  LANDSCAPE_4_3
+  PORTRAIT_9_16
+  SQUARE_1_1
+  ULTRAWIDE_21_9
+  CUSTOM
+}
+
+enum VideoProjectStatus {
+  DRAFT
+  EDITING
+  RENDERING
+  COMPLETED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TransitionType {
+  NONE
+  FADE
+  SLIDE
+  ZOOM
+  WIPE
+  BLUR
+  GLITCH
+  MORPH
+}
+
+enum AudioTrackType {
+  ORIGINAL
+  MUSIC
+  SFX
+  VOICEOVER
+}
+
+enum CaptionSourceType {
+  AUTO       // Speech-to-text
+  UPLOAD     // SRT/VTT file
+  MANUAL     // Manually typed
+}
+
+enum CaptionPosition {
+  TOP
+  MIDDLE
+  BOTTOM
+}
+
+enum VideoFormat {
+  MP4
+  MOV
+  AVI
+  WebM
+  MKV
+}
+
+enum VideoQuality {
+  LOW      // 480p, 3Mbps
+  MEDIUM   // 720p, 6Mbps
+  HIGH     // 1080p, 12Mbps
+  ULTRA    // 4K, 25Mbps
+}
+
+enum RenderStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AutoEditingStatus {
+  PENDING
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
+enum SharePermission {
+  VIEW
+  EDIT
+  ADMIN
+}
+
+type ExportPreset {
+  width             Int
+  height            Int
+  format            VideoFormat
+  quality           VideoQuality
+  notes             String?
 }
