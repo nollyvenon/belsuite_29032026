@@ -101,6 +101,39 @@ interface RequestLog {
   model: { displayName: string; provider: string };
 }
 
+interface ControlProfile {
+  mode: 'CHEAP' | 'BALANCED' | 'PREMIUM';
+  dynamicEnabled: boolean;
+  weights: {
+    cost: number;
+    quality: number;
+    speed: number;
+  };
+  cheapProviders: string[];
+  premiumProviders: string[];
+}
+
+interface FeatureToggle {
+  key: string;
+  enabled: boolean;
+}
+
+interface ConsumptionGuide {
+  counts: Record<string, number>;
+  byCategory: Record<string, Array<{
+    id: string;
+    displayName: string;
+    provider: string;
+    modelId: string;
+    free: boolean;
+    inputPer1K: number;
+    outputPer1K: number;
+    inputPer1M: number;
+    outputPer1M: number;
+    exampleCost1kIn1kOut: number;
+  }>>;
+}
+
 // ─── Tab navigation ───────────────────────────────────────────────────────────
 
 const TABS = [
@@ -110,6 +143,7 @@ const TABS = [
   { id: 'budgets',      label: 'Budgets',         icon: DollarSign },
   { id: 'assignments',  label: 'Feature Routing', icon: Zap },
   { id: 'requests',     label: 'Request Log',     icon: List },
+  { id: 'consumption',  label: 'Token Guide',     icon: Eye },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -174,6 +208,9 @@ export default function AIGatewayDashboard() {
   const [requests, setRequests]   = useState<RequestLog[]>([]);
   const [reqTotal, setReqTotal]   = useState(0);
   const [reqPage, setReqPage]     = useState(0);
+  const [controlProfile, setControlProfile] = useState<ControlProfile | null>(null);
+  const [featureToggles, setFeatureToggles] = useState<FeatureToggle[]>([]);
+  const [consumptionGuide, setConsumptionGuide] = useState<ConsumptionGuide | null>(null);
 
   // Budget editor
   const [editBudget, setEditBudget] = useState<Partial<BudgetConfig>>({});
@@ -192,8 +229,16 @@ export default function AIGatewayDashboard() {
         fetch(`${BASE}/budgets`).then(r => r.json()),
         fetch(`${BASE}/feature-assignments`).then(r => r.json()),
       ]);
+      const [profile, toggles] = await Promise.all([
+        fetch(`${BASE}/control-profile`).then((r) => r.json()),
+        fetch(`${BASE}/feature-toggles`).then((r) => r.json()),
+      ]);
+      const guide = await fetch(`${BASE}/model-consumption-guide`).then((r) => r.json());
       setStats(s); setCacheStats(cs); setModels(m);
       setHealth(h); setBudgets(b); setAssignments(a);
+      setControlProfile(profile);
+      setFeatureToggles(toggles);
+      setConsumptionGuide(guide);
     } catch {/* dev mode — data not loaded yet */} finally {
       setLoading(false);
     }
@@ -237,6 +282,24 @@ export default function AIGatewayDashboard() {
     setBudgetSaving(false);
     setEditBudget({});
     load();
+  };
+
+  const saveControlProfile = async (next: Partial<ControlProfile>) => {
+    await fetch(`${BASE}/control-profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(next),
+    });
+    load();
+  };
+
+  const setToggle = async (key: string, enabled: boolean) => {
+    await fetch(`${BASE}/feature-toggles`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, enabled }),
+    });
+    setFeatureToggles((prev) => prev.map((t) => (t.key === key ? { ...t, enabled } : t)));
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -295,6 +358,38 @@ export default function AIGatewayDashboard() {
           {/* ── OVERVIEW ─────────────────────────────────────────────────── */}
           {tab === 'overview' && (
             <div className="space-y-8">
+              {controlProfile && (
+                <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold">AI Control Center</h3>
+                      <p className="text-xs text-gray-300 mt-1">Dynamic provider mode: cheap vs premium with runtime routing impact.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(['CHEAP', 'BALANCED', 'PREMIUM'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => saveControlProfile({ mode })}
+                          className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                            controlProfile.mode === mode ? 'bg-orange-500 text-black font-medium' : 'bg-white/10 hover:bg-white/20'
+                          }`}
+                        >
+                          {mode}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => saveControlProfile({ dynamicEnabled: !controlProfile.dynamicEnabled })}
+                        className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                          controlProfile.dynamicEnabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-gray-300'
+                        }`}
+                      >
+                        Dynamic {controlProfile.dynamicEnabled ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* KPI row */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard icon={Zap}       label="Today's Requests"  value={String(stats?.todayRequests ?? '—')} sub={`$${stats?.todayCostUsd.toFixed(4) ?? '0'} cost`} />
@@ -359,6 +454,27 @@ export default function AIGatewayDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <h3 className="font-semibold mb-4">Feature Toggles</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {featureToggles.length === 0 ? (
+                    <p className="text-xs text-gray-400">No explicit toggles set yet (all features default enabled).</p>
+                  ) : (
+                    featureToggles.map((t) => (
+                      <div key={t.key} className="rounded-lg border border-white/10 bg-black/20 p-3 flex items-center justify-between">
+                        <span className="text-xs font-mono">{t.key}</span>
+                        <button
+                          onClick={() => setToggle(t.key, !t.enabled)}
+                          className={`px-2 py-1 rounded text-xs ${t.enabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-300'}`}
+                        >
+                          {t.enabled ? 'Enabled' : 'Disabled'}
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -835,6 +951,65 @@ export default function AIGatewayDashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {tab === 'consumption' && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <h3 className="font-semibold mb-2">Token Consumption Guide</h3>
+                <p className="text-xs text-gray-400">
+                  Includes free/open catalogs (HuggingFace, DeepSeek, Qwen) and premium providers (OpenAI, Claude, HeyGen-class integrations).
+                </p>
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                  {Object.entries(consumptionGuide?.counts ?? {}).map(([key, value]) => (
+                    <div key={key} className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
+                      <p className="text-white text-base font-semibold">{value}</p>
+                      <p className="text-gray-400">{key}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {Object.entries(consumptionGuide?.byCategory ?? {}).map(([category, rows]) => (
+                <div key={category} className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                  <div className="p-4 border-b border-white/10">
+                    <h4 className="font-semibold capitalize">{category}</h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-white/10 text-gray-400">
+                          <th className="text-left p-3">Model</th>
+                          <th className="text-left p-3">Provider</th>
+                          <th className="text-right p-3">Input / 1K</th>
+                          <th className="text-right p-3">Output / 1K</th>
+                          <th className="text-right p-3">Input / 1M</th>
+                          <th className="text-right p-3">Output / 1M</th>
+                          <th className="text-right p-3">1K in + 1K out</th>
+                          <th className="text-center p-3">Free</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {rows.map((r) => (
+                          <tr key={r.id}>
+                            <td className="p-3">
+                              <p className="font-medium">{r.displayName}</p>
+                              <p className="text-[10px] text-gray-500">{r.modelId}</p>
+                            </td>
+                            <td className="p-3">{r.provider}</td>
+                            <td className="p-3 text-right font-mono">${r.inputPer1K.toFixed(6)}</td>
+                            <td className="p-3 text-right font-mono">${r.outputPer1K.toFixed(6)}</td>
+                            <td className="p-3 text-right font-mono">${r.inputPer1M.toFixed(4)}</td>
+                            <td className="p-3 text-right font-mono">${r.outputPer1M.toFixed(4)}</td>
+                            <td className="p-3 text-right font-mono">${r.exampleCost1kIn1kOut.toFixed(6)}</td>
+                            <td className="p-3 text-center">{r.free ? 'yes' : 'no'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </motion.div>

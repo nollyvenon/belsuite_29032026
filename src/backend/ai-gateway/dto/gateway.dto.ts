@@ -192,6 +192,88 @@ export class UpsertFeatureAssignmentDto {
   isActive?: boolean;
 }
 
+export class UpdateControlProfileDto {
+  @IsEnum(['CHEAP', 'BALANCED', 'PREMIUM'])
+  @IsOptional()
+  mode?: 'CHEAP' | 'BALANCED' | 'PREMIUM';
+
+  @IsBoolean()
+  @IsOptional()
+  dynamicEnabled?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(1)
+  costWeight?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(1)
+  qualityWeight?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(1)
+  speedWeight?: number;
+
+  @IsArray()
+  @IsOptional()
+  cheapProviders?: GatewayProvider[];
+
+  @IsArray()
+  @IsOptional()
+  premiumProviders?: GatewayProvider[];
+}
+
+export class SetFeatureToggleDto {
+  @IsString()
+  key: string;
+
+  @IsBoolean()
+  enabled: boolean;
+}
+
+export class UpdateUsageLimitsDto {
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Max(256000)
+  maxTokensPerRequest?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Max(100)
+  maxBatchRequests?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Max(10)
+  maxFailoverModels?: number;
+}
+
+export class SetFeatureModelLimitDto {
+  @IsString()
+  feature: string;
+
+  @IsArray()
+  modelIds: string[];
+}
+
+export class SetTenantUsageLimitDto extends UpdateUsageLimitsDto {
+  @IsString()
+  organizationId: string;
+}
+
+export class SetTenantFeatureModelLimitDto extends SetFeatureModelLimitDto {
+  @IsString()
+  organizationId: string;
+}
+
 // ─── Query params ─────────────────────────────────────────────────────────────
 
 export class RequestLogQueryDto {

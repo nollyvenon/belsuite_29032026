@@ -11,6 +11,7 @@ import { TenantManagementPanel } from '@/components/admin/TenantManagementPanel'
 import { AutopilotSchedulePanel } from '@/components/admin/AutopilotSchedulePanel';
 import { useAdminPanel } from '@/hooks/useAdminPanel';
 import { useAutopilotSchedules } from '@/hooks/useAutopilotSchedules';
+import Link from 'next/link';
 
 export default function AdminPage() {
   const { tenants, settings, providers, health, loading, saving, error, reload, saveSettings, saveTenant } = useAdminPanel();
@@ -30,9 +31,17 @@ export default function AdminPage() {
         title="Tenant controls, provider configuration, and operating visibility from one place."
         description="The admin surface is wired to the existing multi-tenant and email configuration APIs so operations can manage organizations without leaving the frontend system."
         actions={
-          <button onClick={reload} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 hover:bg-white/10">
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/control-center"
+              className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 hover:bg-amber-300/20"
+            >
+              Open Control Center
+            </Link>
+            <button onClick={reload} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 hover:bg-white/10">
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </button>
+          </div>
         }
       />
 

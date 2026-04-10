@@ -31,6 +31,7 @@ import { FailoverService }       from './services/failover.service';
 import { CostOptimizerService }  from './services/cost-optimizer.service';
 import { UsageTrackerService }   from './services/usage-tracker.service';
 import { TaskRouterService }     from './services/task-router.service';
+import { GatewayControlService } from './services/gateway-control.service';
 import { v4 as uuid }           from 'uuid';
 
 @Injectable()
@@ -48,6 +49,7 @@ export class AIGatewayService {
     private readonly optimizer: CostOptimizerService,
     private readonly usage:    UsageTrackerService,
     private readonly router:   TaskRouterService,
+    private readonly control:  GatewayControlService,
   ) {
     this._initProviders();
   }
@@ -55,6 +57,24 @@ export class AIGatewayService {
   // ── Public API ─────────────────────────────────────────────────────────
 
   async generate(req: GatewayRequest): Promise<GatewayResponse> {
+    const featureEnabled = await this.control.isFeatureEnabled(req.feature);
+    if (!featureEnabled) {
+      throw new BadRequestException(`Feature "${req.feature}" is disabled by admin`);
+    }
+    const effectiveRouting = await this.resolveRouting(req.routing);
+    const usageLimits = await this.control.getUsageLimits();
+    const maxTokensPerRequest = Number(usageLimits.maxTokensPerRequest ?? 16000);
+    const tenantUsageLimits = await this.control.getTenantUsageLimits();
+    const orgLimits = tenantUsageLimits[req.organizationId] ?? {};
+    const effectiveTokensLimit = Number(orgLimits.maxTokensPerRequest ?? maxTokensPerRequest);
+    if ((req.maxTokens ?? 1024) > effectiveTokensLimit) {
+      throw new BadRequestException(`maxTokens exceeds admin limit (${effectiveTokensLimit})`);
+    }
+    const featureModelLimits = await this.control.getFeatureModelLimits();
+    const tenantFeatureModelLimits = await this.control.getTenantFeatureModelLimits();
+    const tenantFeatureLimits = tenantFeatureModelLimits[req.organizationId] ?? {};
+    const allowedModelIds: string[] | undefined = tenantFeatureLimits[req.feature] ?? featureModelLimits[req.feature];
+
     const start      = Date.now();
     const requestId  = uuid();
     const prompt     = typeof req.prompt === 'string' ? req.prompt : JSON.stringify(req.prompt);
@@ -73,7 +93,7 @@ export class AIGatewayService {
     if (req.useCache !== false) {
       const cacheKey = this.cache.buildKey(prompt, req.task, {
         feature: req.feature,
-        strategy: req.routing?.strategy ?? 'balanced',
+        strategy: effectiveRouting.strategy ?? 'balanced',
       });
       const cached = await this.cache.get(cacheKey);
       if (cached) {
@@ -87,12 +107,18 @@ export class AIGatewayService {
     const plan = await this.router.buildPlan(
       req.task,
       req.feature,
-      req.routing ?? { strategy: 'balanced' },
+      effectiveRouting,
       Math.ceil(prompt.length / 4),
       req.maxTokens ?? 500,
     );
+    const constrainedCandidates = allowedModelIds?.length
+      ? plan.candidates.filter((m) => allowedModelIds.includes(m.id))
+      : plan.candidates;
+    const maxFailoverModels = Number(usageLimits.maxFailoverModels ?? 3);
+    const effectiveFailoverLimit = Number(orgLimits.maxFailoverModels ?? maxFailoverModels);
+    const candidatePool = constrainedCandidates.slice(0, effectiveFailoverLimit);
 
-    if (plan.candidates.length === 0) {
+    if (candidatePool.length === 0) {
       throw new ServiceUnavailableException(
         `No AI models available for task "${req.task}" / feature "${req.feature}"`,
       );
@@ -102,7 +128,7 @@ export class AIGatewayService {
     const failoverChain: string[] = [];
     let lastError: Error | null = null;
 
-    for (const model of plan.candidates) {
+    for (const model of candidatePool) {
       if (!this.failover.canAttempt(model.id)) {
         this.logger.debug(`Skipping ${model.displayName} — circuit open`);
         continue;
@@ -128,7 +154,7 @@ export class AIGatewayService {
         if (req.useCache !== false) {
           const cacheKey = this.cache.buildKey(prompt, req.task, {
             feature: req.feature,
-            strategy: req.routing?.strategy ?? 'balanced',
+            strategy: effectiveRouting.strategy ?? 'balanced',
           });
           await this.cache.set(cacheKey, response, req.cacheTtlSeconds);
         }
@@ -404,5 +430,18 @@ export class AIGatewayService {
     } else {
       this.logger.warn('ANTHROPIC_API_KEY not set — Anthropic provider disabled');
     }
+  }
+
+  private async resolveRouting(incoming?: GatewayRequest['routing']) {
+    if (incoming) return incoming;
+    const profile = await this.control.getControlProfile();
+    if (!profile.dynamicEnabled) return { strategy: 'balanced' as const };
+    if (profile.mode === 'CHEAP') {
+      return { strategy: 'cheapest' as const, preferredProviders: profile.cheapProviders };
+    }
+    if (profile.mode === 'PREMIUM') {
+      return { strategy: 'best_quality' as const, preferredProviders: profile.premiumProviders };
+    }
+    return { strategy: 'balanced' as const };
   }
 }

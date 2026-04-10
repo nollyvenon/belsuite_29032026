@@ -8,6 +8,7 @@ import { FailoverService }            from './services/failover.service';
 import { CostOptimizerService }       from './services/cost-optimizer.service';
 import { UsageTrackerService }        from './services/usage-tracker.service';
 import { TaskRouterService }          from './services/task-router.service';
+import { GatewayControlService }      from './services/gateway-control.service';
 import { AIGatewayController }        from './controllers/ai-gateway.controller';
 import { AdminGatewayController }     from './controllers/admin-gateway.controller';
 import { DatabaseModule }             from '../database/database.module';
@@ -29,11 +30,13 @@ import { DatabaseModule }             from '../database/database.module';
     CostOptimizerService,
     UsageTrackerService,
     TaskRouterService,
+    GatewayControlService,
   ],
   exports: [
     AIGatewayService,
     UsageTrackerService,
     ModelRegistryService,
+    GatewayControlService,
   ],
 })
 export class AIGatewayModule {}

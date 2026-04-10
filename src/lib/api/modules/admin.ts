@@ -4,6 +4,7 @@ import { createApiClient } from '../client';
 
 const tenantClient = createApiClient('/api/tenants');
 const adminEmailClient = createApiClient('/api/admin/email');
+const aiGatewayAdminClient = createApiClient('/admin/ai-gateway');
 
 export interface TenantSummary {
   id: string;
@@ -78,4 +79,91 @@ export async function getEmailProviders() {
 
 export async function getEmailHealth() {
   return adminEmailClient.get<Record<string, unknown>>('/health');
+}
+
+export interface AIGatewayControlProfile {
+  mode: 'CHEAP' | 'BALANCED' | 'PREMIUM';
+  dynamicEnabled: boolean;
+  weights: {
+    cost: number;
+    quality: number;
+    speed: number;
+  };
+  cheapProviders: string[];
+  premiumProviders: string[];
+}
+
+export interface AIGatewayUsageLimits {
+  maxTokensPerRequest: number;
+  maxBatchRequests: number;
+  maxFailoverModels: number;
+}
+
+export interface AIGatewayDashboard {
+  stats: Record<string, any>;
+  cache: Record<string, any>;
+  healthSummary: Record<string, any>;
+  modelSummary: Record<string, any>;
+  budgets: Record<string, any>;
+  toggles: Array<{ key: string; enabled: boolean }>;
+  profile: AIGatewayControlProfile;
+  limits: AIGatewayUsageLimits;
+}
+
+export async function getAIGatewayDashboard() {
+  return aiGatewayAdminClient.get<AIGatewayDashboard>('/dashboard');
+}
+
+export async function getAIGatewayControlProfile() {
+  return aiGatewayAdminClient.get<AIGatewayControlProfile>('/control-profile');
+}
+
+export async function updateAIGatewayControlProfile(payload: Partial<AIGatewayControlProfile>) {
+  return aiGatewayAdminClient.put<AIGatewayControlProfile>('/control-profile', payload);
+}
+
+export async function getAIGatewayUsageLimits() {
+  return aiGatewayAdminClient.get<AIGatewayUsageLimits>('/limits');
+}
+
+export async function updateAIGatewayUsageLimits(payload: Partial<AIGatewayUsageLimits>) {
+  return aiGatewayAdminClient.put<AIGatewayUsageLimits>('/limits', payload);
+}
+
+export async function getFeatureModelLimits() {
+  return aiGatewayAdminClient.get<Record<string, string[]>>('/feature-model-limits');
+}
+
+export async function setFeatureModelLimit(feature: string, modelIds: string[]) {
+  return aiGatewayAdminClient.put<{ feature: string; modelIds: string[] }>('/feature-model-limits', {
+    feature,
+    modelIds,
+  });
+}
+
+export async function getGatewayModels() {
+  return aiGatewayAdminClient.get<Array<{ id: string; displayName: string; modelId: string; isEnabled: boolean }>>('/models');
+}
+
+export async function getTenantUsageLimits() {
+  return aiGatewayAdminClient.get<Record<string, { maxTokensPerRequest?: number; maxBatchRequests?: number; maxFailoverModels?: number }>>('/tenant-limits');
+}
+
+export async function setTenantUsageLimit(
+  organizationId: string,
+  payload: { maxTokensPerRequest?: number; maxBatchRequests?: number; maxFailoverModels?: number },
+) {
+  return aiGatewayAdminClient.put('/tenant-limits', { organizationId, ...payload });
+}
+
+export async function getTenantFeatureModelLimits() {
+  return aiGatewayAdminClient.get<Record<string, Record<string, string[]>>>('/tenant-feature-model-limits');
+}
+
+export async function setTenantFeatureModelLimit(
+  organizationId: string,
+  feature: string,
+  modelIds: string[],
+) {
+  return aiGatewayAdminClient.put('/tenant-feature-model-limits', { organizationId, feature, modelIds });
 }

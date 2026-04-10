@@ -18,11 +18,13 @@ import {
   Logger,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { AIGatewayService }    from '../ai-gateway.service';
 import { UsageTrackerService } from '../services/usage-tracker.service';
 import { FailoverService }     from '../services/failover.service';
 import { ModelRegistryService } from '../services/model-registry.service';
+import { GatewayControlService } from '../services/gateway-control.service';
 import { GenerateTextDto, BatchGenerateDto } from '../dto/gateway.dto';
 import { GatewayRequest }      from '../types/gateway.types';
 
@@ -35,6 +37,7 @@ export class AIGatewayController {
     private readonly usage:     UsageTrackerService,
     private readonly failover:  FailoverService,
     private readonly registry:  ModelRegistryService,
+    private readonly control:   GatewayControlService,
   ) {}
 
   /**
@@ -70,6 +73,15 @@ export class AIGatewayController {
   @Post('batch')
   @HttpCode(HttpStatus.OK)
   async batch(@Body() dto: BatchGenerateDto) {
+    const limits = await this.control.getUsageLimits();
+    const tenantLimits = await this.control.getTenantUsageLimits();
+    const orgLimits = tenantLimits[dto.organizationId] ?? {};
+    const maxBatchRequests = Number(limits.maxBatchRequests ?? 10);
+    const effectiveBatchLimit = Number(orgLimits.maxBatchRequests ?? maxBatchRequests);
+    if (dto.requests.length > effectiveBatchLimit) {
+      throw new BadRequestException(`Batch limit exceeded: max ${effectiveBatchLimit} requests`);
+    }
+
     const results = await Promise.allSettled(
       dto.requests.map(r => this.gateway.generate({
         ...r,
