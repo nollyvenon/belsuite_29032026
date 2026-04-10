@@ -285,6 +285,28 @@ export class SetContentTypeProviderModelDto {
   modelId: string;
 }
 
+export class SetModelCredentialDto {
+  @IsString()
+  modelId: string;
+
+  @IsString()
+  @IsOptional()
+  apiKey?: string;
+
+  @IsString()
+  @IsOptional()
+  baseUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  endpoint?: string;
+}
+
+export class TestModelCredentialDto {
+  @IsString()
+  modelId: string;
+}
+
 // ─── Query params ─────────────────────────────────────────────────────────────
 
 export class RequestLogQueryDto {

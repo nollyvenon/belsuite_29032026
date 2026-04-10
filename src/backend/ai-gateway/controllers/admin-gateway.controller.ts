@@ -47,6 +47,7 @@ import { AICacheService }        from '../services/ai-cache.service';
 import { CostOptimizerService }  from '../services/cost-optimizer.service';
 import { TaskRouterService }     from '../services/task-router.service';
 import { GatewayControlService } from '../services/gateway-control.service';
+import { AIGatewayService } from '../ai-gateway.service';
 import {
   UpdateModelDto,
   UpsertBudgetDto,
@@ -60,6 +61,8 @@ import {
   SetTenantUsageLimitDto,
   SetTenantFeatureModelLimitDto,
   SetContentTypeProviderModelDto,
+  SetModelCredentialDto,
+  TestModelCredentialDto,
 } from '../dto/gateway.dto';
 
 @Controller('admin/ai-gateway')
@@ -75,6 +78,7 @@ export class AdminGatewayController {
     private readonly optimizer:  CostOptimizerService,
     private readonly router:     TaskRouterService,
     private readonly control:    GatewayControlService,
+    private readonly aiGateway:  AIGatewayService,
   ) {}
 
   // ── Model Registry ─────────────────────────────────────────────────────
@@ -360,5 +364,24 @@ export class AdminGatewayController {
   @Put('content-type-provider-models')
   async setContentTypeProviderModel(@Body() dto: SetContentTypeProviderModelDto) {
     return this.control.setContentTypeProviderModel(dto.contentType, dto.provider as any, dto.modelId);
+  }
+
+  @Get('model-credentials')
+  async getModelCredentials() {
+    return this.control.getModelCredentialsMasked();
+  }
+
+  @Put('model-credentials')
+  async setModelCredentials(@Body() dto: SetModelCredentialDto) {
+    return this.control.setModelCredentials(dto.modelId, {
+      apiKey: dto.apiKey,
+      baseUrl: dto.baseUrl,
+      endpoint: dto.endpoint,
+    });
+  }
+
+  @Post('model-credentials/test')
+  async testModelCredentials(@Body() dto: TestModelCredentialDto) {
+    return this.aiGateway.testModelCredential(dto.modelId);
   }
 }

@@ -136,6 +136,13 @@ interface ConsumptionGuide {
   }>>;
 }
 
+interface ModelCredentialMasked {
+  hasApiKey: boolean;
+  apiKeyPreview?: string;
+  baseUrl?: string;
+  endpoint?: string;
+}
+
 // ─── Tab navigation ───────────────────────────────────────────────────────────
 
 const TABS = [
@@ -215,6 +222,12 @@ export default function AIGatewayDashboard() {
   const [featureToggles, setFeatureToggles] = useState<FeatureToggle[]>([]);
   const [consumptionGuide, setConsumptionGuide] = useState<ConsumptionGuide | null>(null);
   const [contentTypeProviderMap, setContentTypeProviderMap] = useState<Record<string, Record<string, string>>>({});
+  const [modelCredentials, setModelCredentials] = useState<Record<string, ModelCredentialMasked>>({});
+  const [credentialModelId, setCredentialModelId] = useState('');
+  const [credentialApiKey, setCredentialApiKey] = useState('');
+  const [credentialBaseUrl, setCredentialBaseUrl] = useState('');
+  const [credentialEndpoint, setCredentialEndpoint] = useState('');
+  const [credentialTestResult, setCredentialTestResult] = useState('');
 
   // Budget editor
   const [editBudget, setEditBudget] = useState<Partial<BudgetConfig>>({});
@@ -237,9 +250,10 @@ export default function AIGatewayDashboard() {
         fetch(`${BASE}/control-profile`).then((r) => r.json()),
         fetch(`${BASE}/feature-toggles`).then((r) => r.json()),
       ]);
-      const [guide, ctp] = await Promise.all([
+      const [guide, ctp, creds] = await Promise.all([
         fetch(`${BASE}/model-consumption-guide`).then((r) => r.json()),
         fetch(`${BASE}/content-type-provider-models`).then((r) => r.json()),
+        fetch(`${BASE}/model-credentials`).then((r) => r.json()),
       ]);
       setStats(s); setCacheStats(cs); setModels(m);
       setHealth(h); setBudgets(b); setAssignments(a);
@@ -247,6 +261,7 @@ export default function AIGatewayDashboard() {
       setFeatureToggles(toggles);
       setConsumptionGuide(guide);
       setContentTypeProviderMap(ctp.map ?? {});
+      setModelCredentials(creds ?? {});
     } catch {/* dev mode — data not loaded yet */} finally {
       setLoading(false);
     }
@@ -327,6 +342,33 @@ export default function AIGatewayDashboard() {
         [provider]: modelId,
       },
     }));
+  };
+
+  const saveModelCredential = async () => {
+    if (!credentialModelId) return;
+    await fetch(`${BASE}/model-credentials`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        modelId: credentialModelId,
+        apiKey: credentialApiKey || undefined,
+        baseUrl: credentialBaseUrl || undefined,
+        endpoint: credentialEndpoint || undefined,
+      }),
+    });
+    setCredentialApiKey('');
+    await load();
+  };
+
+  const testModelCredential = async () => {
+    if (!credentialModelId) return;
+    const res = await fetch(`${BASE}/model-credentials/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modelId: credentialModelId }),
+    });
+    const data = await res.json();
+    setCredentialTestResult(data?.preview || data?.message || 'Test completed');
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -1042,6 +1084,61 @@ export default function AIGatewayDashboard() {
 
           {tab === 'switcher' && (
             <div className="space-y-6">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <h3 className="font-semibold mb-4">Model credentials (admin managed)</h3>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <select
+                    value={credentialModelId}
+                    onChange={(e) => setCredentialModelId(e.target.value)}
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  >
+                    <option value="">select model</option>
+                    {models.map((m) => (
+                      <option key={m.id} value={m.apiIdentifier || m.id}>
+                        {m.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={credentialApiKey}
+                    onChange={(e) => setCredentialApiKey(e.target.value)}
+                    placeholder="api key"
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  />
+                  <input
+                    value={credentialBaseUrl}
+                    onChange={(e) => setCredentialBaseUrl(e.target.value)}
+                    placeholder="base url (optional)"
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  />
+                  <input
+                    value={credentialEndpoint}
+                    onChange={(e) => setCredentialEndpoint(e.target.value)}
+                    placeholder="endpoint (optional)"
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  />
+                </div>
+                <button
+                  onClick={saveModelCredential}
+                  className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-black"
+                >
+                  Save model credential
+                </button>
+                <button
+                  onClick={testModelCredential}
+                  className="mt-3 ml-2 rounded-lg bg-sky-500 px-4 py-2 text-xs font-medium text-black"
+                >
+                  Test credential
+                </button>
+                {credentialModelId && modelCredentials[credentialModelId] && (
+                  <p className="mt-2 text-[11px] text-gray-400">
+                    Stored: {modelCredentials[credentialModelId].hasApiKey ? modelCredentials[credentialModelId].apiKeyPreview : 'no api key'} {modelCredentials[credentialModelId].baseUrl ? `| baseUrl: ${modelCredentials[credentialModelId].baseUrl}` : ''} {modelCredentials[credentialModelId].endpoint ? `| endpoint: ${modelCredentials[credentialModelId].endpoint}` : ''}
+                  </p>
+                )}
+                {credentialTestResult && (
+                  <p className="mt-1 text-[11px] text-emerald-300">Test: {credentialTestResult}</p>
+                )}
+              </div>
               {(['text', 'image', 'video', 'ugc', 'audio'] as ContentType[]).map((contentType) => {
                 const providers = Array.from(new Set(models.map((m) => m.provider)));
                 return (

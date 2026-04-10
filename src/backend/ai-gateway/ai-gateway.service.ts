@@ -204,6 +204,41 @@ export class AIGatewayService {
     return res.text;
   }
 
+  async testModelCredential(modelIdOrApiIdentifier: string) {
+    const all = await this.registry.getAllModels();
+    const model =
+      all.find((m) => m.id === modelIdOrApiIdentifier) ||
+      all.find((m) => m.modelId === modelIdOrApiIdentifier) ||
+      all.find((m) => m.apiIdentifier === modelIdOrApiIdentifier);
+    if (!model) {
+      throw new BadRequestException(`Model not found: ${modelIdOrApiIdentifier}`);
+    }
+
+    const task = model.capabilities.includes('image_generation')
+      ? GatewayTask.IMAGE_GENERATION
+      : model.capabilities.includes('audio_generation')
+      ? GatewayTask.AUDIO_TRANSCRIPTION
+      : GatewayTask.CHAT;
+
+    const testReq: GatewayRequest = {
+      organizationId: this.config.get<string>('ADMIN_AUDIT_ORGANIZATION_ID') ?? 'admin-test-org',
+      task,
+      feature: 'admin_model_credential_test',
+      prompt: 'Credential test ping',
+      maxTokens: 64,
+      useCache: false,
+      routing: { strategy: 'custom', excludedModels: all.filter((m) => m.id !== model.id).map((m) => m.id) },
+    };
+    const prompt = 'Credential test ping';
+    const raw = await this._callProvider(model, testReq, prompt, `test-${Date.now()}`);
+    return {
+      ok: true,
+      model: model.displayName,
+      provider: model.provider,
+      preview: String(raw.text).slice(0, 160),
+    };
+  }
+
   // ── Provider dispatch ──────────────────────────────────────────────────
 
   private async _callProvider(
@@ -417,9 +452,10 @@ export class AIGatewayService {
 
     // OpenAI-compatible chat adapters
     if (modelId.startsWith('deepseek:')) {
+      const creds = await this.resolveModelCredentials(model.modelId);
       return this._callOpenAICompatibleChat(
-        this.config.get<string>('DEEPSEEK_API_KEY'),
-        this.config.get<string>('DEEPSEEK_BASE_URL') ?? 'https://api.deepseek.com/v1',
+        creds.apiKey || this.config.get<string>('DEEPSEEK_API_KEY'),
+        creds.baseUrl || this.config.get<string>('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1',
         model.modelId.split(':')[1] ?? model.modelId,
         model,
         req,
@@ -427,9 +463,10 @@ export class AIGatewayService {
       );
     }
     if (modelId.startsWith('qwen:')) {
+      const creds = await this.resolveModelCredentials(model.modelId);
       return this._callOpenAICompatibleChat(
-        this.config.get<string>('QWEN_API_KEY'),
-        this.config.get<string>('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+        creds.apiKey || this.config.get<string>('QWEN_API_KEY'),
+        creds.baseUrl || this.config.get<string>('QWEN_BASE_URL') || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
         model.modelId.split(':')[1] ?? model.modelId,
         model,
         req,
@@ -524,7 +561,8 @@ export class AIGatewayService {
     req: GatewayRequest,
     prompt: string,
   ) {
-    const apiKey = this.config.get<string>('HUGGINGFACE_API_KEY');
+    const creds = await this.resolveModelCredentials(model.modelId);
+    const apiKey = creds.apiKey || this.config.get<string>('HUGGINGFACE_API_KEY');
     if (!apiKey) throw new Error('Missing HUGGINGFACE_API_KEY');
     const hfModel = model.modelId.split(':')[1] ?? model.modelId;
     const response = await fetch(`https://api-inference.huggingface.co/models/${hfModel}`, {
@@ -561,8 +599,9 @@ export class AIGatewayService {
   }
 
   private async _callImageProvider(model: RegisteredModel, prompt: string) {
-    const endpoint = this.config.get<string>('IMAGE_PROVIDER_ENDPOINT');
-    const apiKey = this.config.get<string>('IMAGE_PROVIDER_API_KEY');
+    const creds = await this.resolveModelCredentials(model.modelId);
+    const endpoint = creds.endpoint || this.config.get<string>('IMAGE_PROVIDER_ENDPOINT');
+    const apiKey = creds.apiKey || this.config.get<string>('IMAGE_PROVIDER_API_KEY');
     if (!endpoint || !apiKey) {
       throw new Error(`Missing IMAGE_PROVIDER_ENDPOINT/API_KEY for ${model.modelId}`);
     }
@@ -587,8 +626,9 @@ export class AIGatewayService {
   }
 
   private async _callVideoProvider(model: RegisteredModel, prompt: string) {
-    const endpoint = this.config.get<string>('VIDEO_PROVIDER_ENDPOINT');
-    const apiKey = this.config.get<string>('VIDEO_PROVIDER_API_KEY');
+    const creds = await this.resolveModelCredentials(model.modelId);
+    const endpoint = creds.endpoint || this.config.get<string>('VIDEO_PROVIDER_ENDPOINT');
+    const apiKey = creds.apiKey || this.config.get<string>('VIDEO_PROVIDER_API_KEY');
     if (!endpoint || !apiKey) {
       throw new Error(`Missing VIDEO_PROVIDER_ENDPOINT/API_KEY for ${model.modelId}`);
     }
@@ -613,8 +653,9 @@ export class AIGatewayService {
   }
 
   private async _callAudioProvider(model: RegisteredModel, prompt: string) {
-    const endpoint = this.config.get<string>('AUDIO_PROVIDER_ENDPOINT');
-    const apiKey = this.config.get<string>('AUDIO_PROVIDER_API_KEY');
+    const creds = await this.resolveModelCredentials(model.modelId);
+    const endpoint = creds.endpoint || this.config.get<string>('AUDIO_PROVIDER_ENDPOINT');
+    const apiKey = creds.apiKey || this.config.get<string>('AUDIO_PROVIDER_API_KEY');
     if (!endpoint || !apiKey) {
       throw new Error(`Missing AUDIO_PROVIDER_ENDPOINT/API_KEY for ${model.modelId}`);
     }
@@ -690,6 +731,15 @@ export class AIGatewayService {
       return { strategy: 'best_quality' as const, preferredProviders: profile.premiumProviders };
     }
     return { strategy: 'balanced' as const };
+  }
+
+  private async resolveModelCredentials(modelId: string): Promise<{
+    apiKey?: string;
+    baseUrl?: string;
+    endpoint?: string;
+  }> {
+    const map = await this.control.getModelCredentialsMap();
+    return map?.[modelId] ?? {};
   }
 
   private resolvePreferredModelIdByContentType(
