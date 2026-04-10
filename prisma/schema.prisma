@@ -101,6 +101,10 @@ model User {
   videoVersions         VideoProjectVersion[] @relation("VideoVersionCreator")
   sharedVideoProjects   VideoProjectShare[] @relation("SharedVideoProjects")
 
+  // Growth engine
+  deals                 Deal[] @relation("UserDeals")
+  activities            Activity[] @relation("UserActivities")
+
   // AI features
   aiUsages              AIUsage[]
   promptTemplates       PromptTemplate[]
@@ -427,6 +431,26 @@ model Organization {
 
   // Credit billing
   creditAccount         CreditAccount?   @relation("OrgCreditAccount")
+
+  // Growth engine - Lead generation
+  leadSources           LeadSource[] @relation("OrgLeadSources")
+  leads                 Lead[] @relation("OrgLeads")
+  visitors              VisitorTrack[] @relation("OrgVisitors")
+
+  // Growth engine - SEO & Content
+  blogPosts             BlogPost[] @relation("OrgBlogPosts")
+  keywordClusters       KeywordCluster[] @relation("OrgKeywordClusters")
+
+  // Growth engine - CRM
+  contacts              Contact[] @relation("OrgContacts")
+  deals                 Deal[] @relation("OrgDeals")
+  activities            Activity[] @relation("OrgActivities")
+
+  // Growth engine - Marketing Automation
+  marketingCampaigns    MarketingCampaign[] @relation("OrgMarketingCampaigns")
+  campaignTemplates     CampaignTemplate[] @relation("OrgCampaignTemplates")
+  automationWorkflows   AutomationWorkflow[] @relation("OrgAutomationWorkflows")
+  aiCalling             AICalling[] @relation("OrgAICalling")
 
   @@index([slug])
   @@index([status])
@@ -4534,4 +4558,807 @@ type ExportPreset {
   format            VideoFormat
   quality           VideoQuality
   notes             String?
+}
+
+// ============================================================================
+// SAAS GROWTH ENGINE: Complete Lead Gen, SEO, CRM, Marketing Automation
+// ============================================================================
+
+// ── LEAD GENERATION ─────────────────────────────────────────────────────────
+
+model LeadSource {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgLeadSources", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name              String   @db.VarChar(128)
+  sourceType        LeadSourceType // WEB_SCRAPE, IMPORT, MANUAL, API, LINKEDIN, etc.
+
+  // Source configuration
+  config            Json     // Source-specific settings (URLs, credentials, filters)
+  isActive          Boolean  @default(true)
+
+  // Tracking
+  leadsGenerated    Int      @default(0)
+  lastRunAt         DateTime?
+  successRate       Float    @default(0) // 0-100%
+
+  // Rate limiting & quotas
+  dailyLimit        Int      @default(100)
+  monthlyLimit      Int      @default(3000)
+  monthlyUsage      Int      @default(0)
+
+  leads             Lead[] @relation("SourceLeads")
+  jobs              LeadGenJob[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([sourceType])
+}
+
+model Lead {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgLeads", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Core data
+  firstName         String?  @db.VarChar(128)
+  lastName          String?  @db.VarChar(128)
+  email             String   @db.VarChar(255)
+  phoneNumber       String?  @db.VarChar(20)
+  company           String?  @db.VarChar(255)
+  jobTitle          String?  @db.VarChar(128)
+  industry          String?  @db.VarChar(128)
+  companySize       String?  // "1-10", "10-50", "50-100", "100+"
+
+  // Location
+  city              String?  @db.VarChar(128)
+  state             String?  @db.VarChar(128)
+  country           String?  @db.VarChar(128)
+  timezone          String?  @db.VarChar(64)
+
+  // Source & enrichment
+  sourceId          String?
+  source            LeadSource? @relation("SourceLeads", fields: [sourceId], references: [id])
+  enrichmentStatus  EnrichmentStatus @default(PENDING)
+  enrichmentData    Json?   // Clearbit, Hunter, RocketReach responses
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+
+  // Lead scoring & qualification
+  leadScore         Int      @default(0) // 0-100
+  leadGrade         LeadGrade @default(D) // A-F
+  inboundScore      Int      @default(0) // Inbound engagement score
+
+  // Engagement tracking
+  visitorId         String?  // Links to VisitorTrack
+  lastSeen          DateTime?
+  pageViews         Int      @default(0)
+  engagementValue   Float    @default(0)
+
+  // CRM Integration
+  contactId         String?
+  contact           Contact? @relation("ContactLeads", fields: [contactId], references: [id])
+  status            LeadStatus @default(NEW)
+  tags              String[] // Searchable tags array
+  notes             String?  @db.Text
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastEngagedAt     DateTime?
+
+  // Relations
+  campaigns         CampaignRecipient[]
+  activities        Activity[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([status])
+  @@index([leadScore])
+  @@index([createdAt])
+}
+
+model LeadGenJob {
+  id                String   @id @default(cuid())
+  sourceId          String
+  source            LeadSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  status            JobStatus @default(PENDING)
+  progress          Int      @default(0) // 0-100%
+  leadsGenerated    Int      @default(0)
+  leadsEnriched     Int      @default(0)
+
+  startedAt         DateTime?
+  completedAt       DateTime?
+  errorMessage      String?  @db.Text
+
+  createdAt         DateTime @default(now())
+
+  @@index([sourceId])
+  @@index([status])
+}
+
+model VisitorTrack {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgVisitors", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  anonymousId       String   @db.VarChar(255)
+  email             String?  @db.VarChar(255)
+
+  // Visitor info
+  ipAddress         String?  @db.VarChar(45)
+  userAgent         String?  @db.Text
+  referrer          String?  @db.Text
+  geoData           Json?    // Country, city, lat/lng
+
+  // Pages visited
+  pages             String[] // URLs
+  firstSeenAt       DateTime @default(now())
+  lastSeenAt        DateTime @updatedAt
+  sessionCount      Int      @default(1)
+  totalTimeSeconds  Int      @default(0)
+
+  // Conversion
+  converted         Boolean  @default(false)
+  conversionValue   Float    @default(0)
+
+  // Link to lead if identified
+  leadId            String?
+  lead              Lead?    @relation(fields: [leadId], references: [id])
+
+  @@index([organizationId])
+  @@index([anonymousId])
+  @@index([email])
+}
+
+// ── SEO & CONTENT ───────────────────────────────────────────────────────────
+
+model BlogPost {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgBlogPosts", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title             String   @db.VarChar(255)
+  slug              String   @db.VarChar(255)
+  content           String   @db.Text
+
+  // SEO metadata
+  metaDescription   String?  @db.VarChar(160)
+  keywords          String[] // Target keywords
+  focusKeyword      String?  @db.VarChar(128)
+
+  // AI generation
+  generationPrompt  String?  @db.Text
+  aiModel           String?  // "gpt-4", "claude-3", etc.
+
+  // Content metrics
+  wordCount         Int      @default(0)
+  readingTime       Int      @default(0) // minutes
+  seoScore          Int      @default(0) // 0-100
+
+  // Publishing
+  status            ContentStatus @default(DRAFT)
+  publishedAt       DateTime?
+  scheduledFor      DateTime?
+
+  // Analytics
+  views             Int      @default(0)
+  clicks            Int      @default(0)
+  conversions       Int      @default(0)
+  ranking           String?  // Current SERP position
+
+  // Internal linking
+  internalLinks     String[] // URLs
+  backlinkCount     Int      @default(0)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  backlinks         Backlink[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model Backlink {
+  id                String   @id @default(cuid())
+  postId            String
+  post              BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  organizationId    String
+
+  sourceUrl         String   @db.Text
+  sourceTitle       String?  @db.VarChar(255)
+  sourceDomain      String   @db.VarChar(255)
+  anchorText        String?  @db.VarChar(255)
+
+  // Quality metrics
+  domainAuthority   Int?     // 1-100 (Moz DA)
+  pageAuthority     Int?     // 1-100 (Moz PA)
+  trustFlow         Int?     // Majestic TF
+  citationFlow      Int?     // Majestic CF
+  spamScore         Int?     // 0-100% spam
+
+  // Status
+  status            BacklinkStatus @default(PENDING)
+  acquiredAt        DateTime?
+
+  createdAt         DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([domainAuthority])
+}
+
+model KeywordCluster {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgKeywordClusters", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name              String   @db.VarChar(128)
+  primaryKeyword    String   @db.VarChar(255)
+
+  // Keywords in cluster
+  keywords          String[] // ["seo tips", "how to rank", "seo guide"]
+
+  // Metrics
+  searchVolume      Int      @default(0) // monthly
+  keywordDifficulty Int      @default(0) // 0-100
+  suggestedBid      Float    @default(0) // For PPC
+
+  // Content mapping
+  postId            String?
+  post              BlogPost? @relation(fields: [postId], references: [id])
+
+  // Status
+  status            ClusterStatus @default(RESEARCH)
+
+  createdAt         DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([primaryKeyword])
+}
+
+// ── CRM ──────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgContacts", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  firstName         String?  @db.VarChar(128)
+  lastName          String?  @db.VarChar(128)
+  email             String   @db.VarChar(255)
+  phoneNumber       String?  @db.VarChar(20)
+  company           String?  @db.VarChar(255)
+  jobTitle          String?  @db.VarChar(128)
+
+  // Linked leads
+  leads             Lead[] @relation("ContactLeads")
+
+  // Deal associations
+  deals             Deal[] @relation("DealContacts")
+
+  // Engagement
+  score             Int      @default(0)
+  source            String?  @db.VarChar(128)
+  status            ContactStatus @default(ACTIVE)
+  tags              String[]
+
+  // Activity
+  lastInteraction   DateTime?
+  activities        Activity[]
+
+  // Custom fields
+  customFields      Json?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model Deal {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgDeals", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title             String   @db.VarChar(255)
+  description       String?  @db.Text
+
+  // Financial
+  amount            Float
+  currency          String   @default("USD")
+  expectedRevenue   Float?   // amount * probability
+
+  // Pipeline
+  stage             DealStage @default(LEAD) // LEAD, QUALIFIED, PROPOSAL, NEGOTIATION, WON, LOST
+  probability       Int      @default(0)    // 0-100%
+
+  // Contacts & ownership
+  contacts          Contact[] @relation("DealContacts")
+  ownerId           String?
+  owner             User? @relation("UserDeals", fields: [ownerId], references: [id])
+
+  // Dates
+  expectedCloseDate DateTime?
+  wonAt             DateTime?
+  lostAt            DateTime?
+
+  // Activity
+  activities        Activity[]
+  notes             String?  @db.Text
+  lastActivityAt    DateTime?
+
+  // Automation
+  isAutomated       Boolean  @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([stage])
+  @@index([probability])
+}
+
+model Activity {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgActivities", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type              ActivityType // CALL, EMAIL, SMS, MEETING, NOTE, WEB_ACTIVITY
+
+  // Subject
+  leadId            String?
+  lead              Lead? @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  contactId         String?
+  contact           Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  dealId            String?
+  deal              Deal? @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  // Details
+  title             String   @db.VarChar(255)
+  description       String?  @db.Text
+  duration          Int?     // seconds
+
+  // Outreach data
+  channel           String?  // "email", "phone", "sms", "LinkedIn"
+  status            ActivityStatus @default(PLANNED)
+  result            String?  // "positive", "neutral", "negative"
+
+  // Assignment
+  assignedTo        String?
+  user              User? @relation("UserActivities", fields: [assignedTo], references: [id])
+
+  // Scheduling
+  scheduledFor      DateTime?
+  completedAt       DateTime?
+
+  // AI & automation
+  aiGenerated       Boolean  @default(false)
+  automationJobId   String?
+
+  createdAt         DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+  @@index([leadId])
+  @@index([contactId])
+  @@index([dealId])
+}
+
+// ── MARKETING AUTOMATION ────────────────────────────────────────────────────
+
+model MarketingCampaign {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgMarketingCampaigns", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name              String   @db.VarChar(255)
+  description       String?  @db.Text
+  campaignType      CampaignType // EMAIL, SMS, VOICE, WORKFLOW
+
+  // Configuration
+  config            Json     // Campaign-specific settings
+
+  // Status & timing
+  status            CampaignStatus @default(DRAFT)
+  startDate         DateTime?
+  endDate           DateTime?
+  scheduledAt       DateTime?
+
+  // Performance
+  totalRecipients   Int      @default(0)
+  sentCount         Int      @default(0)
+  openCount         Int      @default(0)
+  clickCount        Int      @default(0)
+  responseCount     Int      @default(0)
+  conversionCount   Int      @default(0)
+
+  // Financial
+  budget            Float?
+  spent             Float    @default(0)
+  revenue           Float    @default(0)
+  roi               Float    @default(0)
+
+  // Recipients & content
+  recipients        CampaignRecipient[]
+  template          CampaignTemplate?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([campaignType])
+}
+
+model CampaignTemplate {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgCampaignTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name              String   @db.VarChar(255)
+  templateType      CampaignType
+
+  // Template content
+  subject           String?  @db.VarChar(255) // For email
+  body              String   @db.Text
+  variables         String[] // {{firstName}}, {{company}}, etc.
+
+  // AI generation
+  aiGenerated       Boolean  @default(false)
+  generationPrompt  String?  @db.Text
+
+  // Performance data
+  openRate          Float    @default(0)
+  clickRate         Float    @default(0)
+  conversionRate    Float    @default(0)
+
+  // Usage
+  campaignCount     Int      @default(0)
+  campaigns         MarketingCampaign?
+
+  createdAt         DateTime @default(now())
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model CampaignRecipient {
+  id                String   @id @default(cuid())
+  campaignId        String
+  campaign          MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  leadId            String?
+  lead              Lead? @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  contactId         String?
+  contact           Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  email             String?  @db.VarChar(255)
+  phoneNumber       String?  @db.VarChar(20)
+
+  // Status
+  status            CampaignRecipientStatus @default(SCHEDULED)
+  sentAt            DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  respondedAt       DateTime?
+
+  // Interaction data
+  openCount         Int      @default(0)
+  clickCount        Int      @default(0)
+  bounceType        BounceType? // HARD, SOFT, NONE
+
+  createdAt         DateTime @default(now())
+
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([status])
+}
+
+model AutomationWorkflow {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgAutomationWorkflows", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name              String   @db.VarChar(255)
+  description       String?  @db.Text
+
+  // Workflow definition
+  trigger           WorkflowTrigger // LEAD_CREATED, LINK_CLICKED, FORM_SUBMITTED, etc.
+  triggerConfig     Json    // Trigger-specific configuration
+
+  steps             WorkflowStep[]
+
+  // Status
+  isActive          Boolean  @default(true)
+
+  // Performance
+  executionCount    Int      @default(0)
+  successCount      Int      @default(0)
+  failureCount      Int      @default(0)
+
+  // Scheduling
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([isActive])
+}
+
+model WorkflowStep {
+  id                String   @id @default(cuid())
+  workflowId        String
+  workflow          AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  order             Int      // Step sequence
+  type              WorkflowStepType // SEND_EMAIL, SEND_SMS, MAKE_CALL, ADD_TAG, UPDATE_SCORE, DELAY, etc.
+
+  // Configuration
+  config            Json     // Step-specific config (template, delay, etc.)
+
+  // Conditions
+  conditions        Json?    // If/then logic
+
+  createdAt         DateTime @default(now())
+
+  @@index([workflowId])
+  @@index([order])
+}
+
+model AICalling {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgAICalling", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Configuration
+  name              String   @db.VarChar(255)
+  voiceId           String   @db.VarChar(128) // voice model/provider
+  prompt            String   @db.Text         // System instructions
+  personality       String?  // "professional", "friendly", "urgent"
+
+  // Webhook
+  webhookUrl        String?  @db.Text
+
+  // Performance
+  totalCalls        Int      @default(0)
+  successfulCalls   Int      @default(0)
+  avgDuration       Int      @default(0) // seconds
+  successRate       Float    @default(0)
+
+  isActive          Boolean  @default(true)
+
+  // Calls
+  calls             AICall[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model AICall {
+  id                String   @id @default(cuid())
+  agentId           String
+  agent             AICalling @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  leadId            String?
+  lead              Lead? @relation(fields: [leadId], references: [id])
+  contactId         String?
+  contact           Contact? @relation(fields: [contactId], references: [id])
+
+  phoneNumber       String   @db.VarChar(20)
+
+  // Call data
+  status            CallStatus @default(PENDING)
+  startedAt         DateTime?
+  endedAt           DateTime?
+  duration          Int?     // seconds
+
+  // Recording
+  recordingUrl      String?  @db.Text
+  transcription     String?  @db.Text
+
+  // Outcome
+  outcome           CallOutcome?
+  notes             String?  @db.Text
+
+  createdAt         DateTime @default(now())
+
+  @@index([agentId])
+  @@index([leadId])
+  @@index([status])
+}
+
+// ============================================================================
+// ENUMS FOR GROWTH ENGINE
+// ============================================================================
+
+enum LeadSourceType {
+  WEB_SCRAPE
+  IMPORT
+  MANUAL
+  API
+  LINKEDIN
+  FORM
+  REFERRAL
+  PAID_AD
+  ORGANIC
+}
+
+enum EnrichmentStatus {
+  PENDING
+  ENRICHING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  INVALID
+  BOUNCED
+}
+
+enum LeadGrade {
+  A
+  B
+  C
+  D
+  F
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NURTURING
+  CONVERTED
+  LOST
+  UNSUBSCRIBED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BacklinkStatus {
+  PENDING
+  ACQUIRED
+  LOST
+  REJECTED
+}
+
+enum ClusterStatus {
+  RESEARCH
+  CONTENT_CREATED
+  PUBLISHED
+  RANKING
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum DealStage {
+  LEAD
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  SMS
+  MEETING
+  NOTE
+  WEB_ACTIVITY
+  FORM_SUBMISSION
+}
+
+enum ActivityStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CampaignType {
+  EMAIL
+  SMS
+  VOICE
+  WORKFLOW
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+}
+
+enum CampaignRecipientStatus {
+  SCHEDULED
+  SENT
+  BOUNCED
+  OPENED
+  CLICKED
+  RESPONDED
+  CONVERTED
+}
+
+enum BounceType {
+  HARD
+  SOFT
+}
+
+enum WorkflowTrigger {
+  LEAD_CREATED
+  CONTACT_CREATED
+  LINK_CLICKED
+  FORM_SUBMITTED
+  EMAIL_OPENED
+  DEAL_STAGE_CHANGED
+  TAG_ADDED
+  MANUAL
+  TIME_BASED
+}
+
+enum WorkflowStepType {
+  SEND_EMAIL
+  SEND_SMS
+  MAKE_CALL
+  ADD_TAG
+  UPDATE_SCORE
+  DELAY
+  CONDITIONAL
+  WEBHOOK
+  ASSIGN_USER
+  UPDATE_STAGE
+}
+
+enum CallStatus {
+  PENDING
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+}
+
+enum CallOutcome {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  VOICEMAIL
+  NOT_ANSWERED
 }
