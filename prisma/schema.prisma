@@ -59,7 +59,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================================================
@@ -451,6 +450,11 @@ model Organization {
   campaignTemplates     CampaignTemplate[] @relation("OrgCampaignTemplates")
   automationWorkflows   AutomationWorkflow[] @relation("OrgAutomationWorkflows")
   aiCalling             AICalling[] @relation("OrgAICalling")
+
+  // AI Autopilot self-growing system
+  autopilotPolicies     AutopilotPolicy[] @relation("OrgAutopilotPolicies")
+  autopilotRuns         AutopilotRun[] @relation("OrgAutopilotRuns")
+  trafficSources        TrafficSource[] @relation("OrgTrafficSources")
 
   @@index([slug])
   @@index([status])
@@ -1705,7 +1709,8 @@ model PromptTemplate {
   
   // Relations
   usages                AIUsage[]
-  
+  versions              PromptVersion[]  // Prompt evolution versioning
+
   @@unique([organizationId, name])
   @@index([organizationId])
   @@index([category])
@@ -4312,7 +4317,7 @@ model VideoCaption {
   clip              VideoClip @relation(fields: [clipId], references: [id], onDelete: Cascade)
 
   // Caption source
-  sourceType        CaptionSourceType @default(AUTO // AUTO, UPLOAD, MANUAL
+  sourceType        CaptionSourceType @default(AUTO)  // AUTO, UPLOAD, MANUAL
   transcriptUrl     String?  @db.Text // URL to SRT/VTT file
   transcript        String?  @db.Text // JSON array of caption objects
 
@@ -5361,4 +5366,173 @@ enum CallOutcome {
   NEGATIVE
   VOICEMAIL
   NOT_ANSWERED
+}
+
+// ============================================================================
+// AI AUTOPILOT SELF-GROWING SYSTEM
+// ============================================================================
+
+enum AutopilotRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum AutopilotScope {
+  FUNNELS
+  TRAFFIC
+  CAMPAIGNS
+  PROMPTS
+  FULL_STACK
+}
+
+enum PromptVersionStatus {
+  DRAFT
+  TESTING
+  ACTIVE
+  RETIRED
+}
+
+enum TrafficChannel {
+  ORGANIC_SEO
+  PAID_SEARCH
+  PAID_SOCIAL
+  EMAIL
+  REFERRAL
+  DIRECT
+}
+
+model AutopilotPolicy {
+  id                  String         @id @default(cuid())
+  organizationId      String
+  organization        Organization   @relation("OrgAutopilotPolicies", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name                String         @db.VarChar(255)
+  scope               AutopilotScope @default(FULL_STACK)
+  isActive            Boolean        @default(true)
+  autoRun             Boolean        @default(false)
+  runCron             String?        // Cron expression for scheduled runs
+
+  // Policy thresholds
+  pauseRoiThreshold   Float          @default(0.5)
+  scaleRoiThreshold   Float          @default(2.0)
+  scaleBudgetPercent  Float          @default(20.0)
+  maxBudgetPerRun     Float?
+
+  // Localization & targeting
+  localizations       String[]       @default([]) // ["en-US", "es-MX"]
+  targetIndustries    String[]       @default([])
+
+  // Extra config
+  config              Json           @default("{}")
+
+  // Relations
+  runs                AutopilotRun[]
+
+  createdBy           String
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([organizationId])
+  @@index([isActive])
+}
+
+model AutopilotRun {
+  id             String             @id @default(cuid())
+  organizationId String
+  organization   Organization       @relation("OrgAutopilotRuns", fields: [organizationId], references: [id], onDelete: Cascade)
+  policyId       String
+  policy         AutopilotPolicy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  status         AutopilotRunStatus @default(QUEUED)
+  scope          AutopilotScope
+  triggeredBy    String             // userId or "scheduler"
+
+  // Execution timing
+  startedAt      DateTime           @default(now())
+  completedAt    DateTime?
+  durationMs     Int?
+
+  // Results tracking
+  actionsCount   Int                @default(0)
+  actions        Json               @default("[]")  // [{type, entityId, before, after, result}]
+  insights       Json?              // {working, notWorking, recommendations}
+  error          String?            @db.Text
+
+  createdAt      DateTime           @default(now())
+
+  @@index([organizationId])
+  @@index([policyId])
+  @@index([status])
+}
+
+model PromptVersion {
+  id               String              @id @default(cuid())
+  templateId       String
+  template         PromptTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  organizationId   String
+
+  versionNumber    Int
+  prompt           String              @db.Text
+  changeReason     String?
+
+  // Status & performance
+  status           PromptVersionStatus @default(DRAFT)
+  performanceScore Float?              // 0-100
+  usageCount       Int                 @default(0)
+  conversionRate   Float?
+  avgEngagement    Float?
+
+  // Outcome tracking
+  successCount     Int                 @default(0)
+  failureCount     Int                 @default(0)
+
+  // Evolution tracking
+  parentVersionId  String?             // Lineage
+  aiGenerated      Boolean             @default(false)
+  generationMeta   Json?               // {model, temperature, parentScore, mutationType}
+
+  // Lifecycle
+  createdBy        String
+  activatedAt      DateTime?
+  retiredAt        DateTime?
+  createdAt        DateTime            @default(now())
+
+  @@unique([templateId, versionNumber])
+  @@index([templateId])
+  @@index([status])
+}
+
+model TrafficSource {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation("OrgTrafficSources", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  channel        TrafficChannel
+  name           String         @db.VarChar(255)
+  isActive       Boolean        @default(true)
+
+  // Channel-specific config
+  config         Json           @default("{}")
+
+  // Budget & metrics
+  dailyBudget    Float?
+  impressions    Int            @default(0)
+  clicks         Int            @default(0)
+  conversions    Int            @default(0)
+  spend          Float          @default(0)
+  revenue        Float          @default(0)
+
+  // Computed metrics
+  roi            Float?         // (revenue - spend) / spend
+  lastSyncAt     DateTime?
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([organizationId])
+  @@index([channel])
+  @@index([isActive])
 }
