@@ -17,6 +17,11 @@ export default function AdminControlCenterPage() {
     tenants,
     tenantUsageLimits,
     tenantFeatureModelLimits,
+    taskCatalog,
+    taskRoutes,
+    usageTimeline,
+    usageTimelineSource,
+    taskMetrics,
     loading,
     saving,
     error,
@@ -26,6 +31,10 @@ export default function AdminControlCenterPage() {
     saveFeatureModelLimit,
     saveTenantUsageLimit,
     saveTenantFeatureModelLimit,
+    saveTaskCatalogEntry,
+    saveTaskRoute,
+    removeTaskCatalogEntry,
+    removeTaskRoute,
   } = useAdminControlCenter();
 
   const [featureKey, setFeatureKey] = useState('content_studio');
@@ -34,6 +43,12 @@ export default function AdminControlCenterPage() {
   const [batchLimit, setBatchLimit] = useState<number>(10);
   const [failoverLimit, setFailoverLimit] = useState<number>(3);
   const [tenantId, setTenantId] = useState('');
+  const [routeTask, setRouteTask] = useState('');
+  const [routePrimaryModel, setRoutePrimaryModel] = useState('');
+  const [routeFallbackModels, setRouteFallbackModels] = useState<string[]>([]);
+  const [routeStrategy, setRouteStrategy] = useState<'cheapest' | 'fastest' | 'best_quality' | 'balanced' | 'custom'>('balanced');
+  const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [taskEdits, setTaskEdits] = useState<Record<string, { displayName: string; description: string }>>({});
 
   const enabledModels = useMemo(() => models.filter((m) => m.isEnabled), [models]);
 
@@ -69,6 +84,15 @@ export default function AdminControlCenterPage() {
             <MetricCard label="Healthy Models" value={`${dashboard?.healthSummary?.healthy ?? 0}/${dashboard?.healthSummary?.total ?? 0}`} detail={`${dashboard?.healthSummary?.openCircuits ?? 0} circuits open`} accent="emerald" />
             <MetricCard label="Current Mode" value={dashboard?.profile?.mode ?? 'BALANCED'} detail={dashboard?.profile?.dynamicEnabled ? 'dynamic enabled' : 'dynamic disabled'} accent="violet" />
           </div>
+          {banner && (
+            <div className={`rounded-2xl border px-4 py-3 text-sm ${
+              banner.type === 'success'
+                ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200'
+                : 'border-red-400/20 bg-red-500/10 text-red-200'
+            }`}>
+              {banner.message}
+            </div>
+          )}
 
           <SectionPanel title="Dynamic AI mode" subtitle="Switch between low-cost and premium routing at runtime.">
             <div className="flex flex-wrap gap-3">
@@ -192,6 +216,248 @@ export default function AdminControlCenterPage() {
               <pre className="mt-1 overflow-auto whitespace-pre-wrap">{JSON.stringify(tenantUsageLimits, null, 2)}</pre>
               <p className="mt-3 font-medium text-white">Tenant feature-model limit map</p>
               <pre className="mt-1 overflow-auto whitespace-pre-wrap">{JSON.stringify(tenantFeatureModelLimits, null, 2)}</pre>
+            </div>
+          </SectionPanel>
+
+          <SectionPanel title="Task catalog and routes" subtitle="Control task definitions and explicit primary/fallback model routing.">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm font-medium text-white">Task catalog</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {taskMetrics.slice(0, 8).map((m) => (
+                    <MetricCard
+                      key={m.taskKey}
+                      label={m.taskKey}
+                      value={`${m.successRatePct.toFixed(1)}% SLA`}
+                      detail={`${m.avgLatencyMs}ms avg | $${m.totalCostUsd.toFixed(4)}`}
+                      accent="emerald"
+                    />
+                  ))}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {taskCatalog.map((task) => (
+                    <div key={task.taskKey} className="flex flex-wrap items-center gap-2">
+                      {(() => {
+                        const editedDisplayName = taskEdits[task.taskKey]?.displayName ?? task.displayName;
+                        const editedDescription = taskEdits[task.taskKey]?.description ?? task.description ?? '';
+                        const originalDescription = task.description ?? '';
+                        const isDirty =
+                          editedDisplayName !== task.displayName ||
+                          editedDescription !== originalDescription;
+                        return (
+                          <>
+                      <span className="min-w-[180px] text-xs text-slate-300">{task.taskKey}</span>
+                      <input
+                        className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs min-w-[180px]"
+                        value={taskEdits[task.taskKey]?.displayName ?? task.displayName}
+                        onChange={(e) =>
+                          setTaskEdits((prev) => ({
+                            ...prev,
+                            [task.taskKey]: {
+                              displayName: e.target.value,
+                              description: prev[task.taskKey]?.description ?? task.description ?? '',
+                            },
+                          }))
+                        }
+                      />
+                      <input
+                        className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs min-w-[260px]"
+                        value={taskEdits[task.taskKey]?.description ?? task.description ?? ''}
+                        onChange={(e) =>
+                          setTaskEdits((prev) => ({
+                            ...prev,
+                            [task.taskKey]: {
+                              displayName: prev[task.taskKey]?.displayName ?? task.displayName,
+                              description: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                      <button
+                        disabled={saving || !isDirty}
+                        onClick={async () => {
+                          try {
+                            await saveTaskCatalogEntry({
+                              ...task,
+                              displayName: taskEdits[task.taskKey]?.displayName ?? task.displayName,
+                              description: taskEdits[task.taskKey]?.description ?? task.description ?? '',
+                            });
+                            setBanner({ type: 'success', message: `Saved task "${task.taskKey}"` });
+                          } catch (e) {
+                            setBanner({ type: 'error', message: (e as Error).message || 'Failed to save task' });
+                          }
+                        }}
+                        className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                          saving || !isDirty
+                            ? 'bg-white/10 text-slate-400'
+                            : 'bg-amber-300 text-black'
+                        }`}
+                      >
+                        Save
+                      </button>
+                      {isDirty && (
+                        <span className="rounded-lg border border-amber-300/40 bg-amber-300/10 px-2 py-1 text-[10px] text-amber-200">
+                          unsaved changes
+                        </span>
+                      )}
+                      <button
+                        disabled={saving}
+                        onClick={async () => {
+                          try {
+                            await saveTaskCatalogEntry({ ...task, isActive: !task.isActive });
+                            setBanner({ type: 'success', message: `Updated task "${task.taskKey}"` });
+                          } catch (e) {
+                            setBanner({ type: 'error', message: (e as Error).message || 'Failed to update task' });
+                          }
+                        }}
+                        className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                          task.isActive ? 'bg-emerald-500 text-black' : 'bg-white/10 text-slate-200'
+                        }`}
+                      >
+                        {task.isActive ? 'Active' : 'Inactive'}
+                      </button>
+                      <button
+                        disabled={saving}
+                        onClick={async () => {
+                          try {
+                            await removeTaskCatalogEntry(task.taskKey);
+                            setBanner({ type: 'success', message: `Deleted task "${task.taskKey}"` });
+                          } catch (e) {
+                            setBanner({ type: 'error', message: (e as Error).message || 'Failed to delete task' });
+                          }
+                        }}
+                        className="rounded-xl bg-red-500/70 px-3 py-2 text-xs font-medium text-white"
+                      >
+                        Delete
+                      </button>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm font-medium text-white">Task route editor</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <select
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                    value={routeTask}
+                    onChange={(e) => {
+                      const key = e.target.value;
+                      setRouteTask(key);
+                      const route = taskRoutes[key];
+                      setRoutePrimaryModel(route?.primaryModelId ?? '');
+                      setRouteFallbackModels(route?.fallbackModelIds ?? []);
+                      setRouteStrategy(route?.strategy ?? 'balanced');
+                    }}
+                  >
+                    <option value="">select task</option>
+                    {taskCatalog.map((t) => (
+                      <option key={t.taskKey} value={t.taskKey}>
+                        {t.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                    value={routePrimaryModel}
+                    onChange={(e) => setRoutePrimaryModel(e.target.value)}
+                  >
+                    <option value="">primary model</option>
+                    {enabledModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                    value={routeStrategy}
+                    onChange={(e) => setRouteStrategy(e.target.value as any)}
+                  >
+                    {['cheapest', 'fastest', 'best_quality', 'balanced', 'custom'].map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <select
+                    multiple
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm min-h-[110px]"
+                    value={routeFallbackModels}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
+                      setRouteFallbackModels(selected);
+                    }}
+                  >
+                    {enabledModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  disabled={saving || !routeTask || !routePrimaryModel}
+                  onClick={async () => {
+                    try {
+                      await saveTaskRoute(routeTask, {
+                        primaryModelId: routePrimaryModel,
+                        fallbackModelIds: routeFallbackModels,
+                        strategy: routeStrategy,
+                        isActive: true,
+                      });
+                      setBanner({ type: 'success', message: `Saved task route for "${routeTask}"` });
+                    } catch (e) {
+                      setBanner({ type: 'error', message: (e as Error).message || 'Failed to save task route' });
+                    }
+                  }}
+                  className="mt-3 rounded-xl bg-amber-300 px-4 py-2 text-sm font-medium text-black"
+                >
+                  Save task route
+                </button>
+                {routeTask && (
+                  <button
+                    disabled={saving}
+                    onClick={async () => {
+                      try {
+                        await removeTaskRoute(routeTask);
+                        setBanner({ type: 'success', message: `Deleted task route for "${routeTask}"` });
+                      } catch (e) {
+                        setBanner({ type: 'error', message: (e as Error).message || 'Failed to delete task route' });
+                      }
+                    }}
+                    className="mt-3 ml-2 rounded-xl bg-red-500/70 px-4 py-2 text-sm font-medium text-white"
+                  >
+                    Delete task route
+                  </button>
+                )}
+                <pre className="mt-3 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-slate-300">
+                  {JSON.stringify(taskRoutes, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </SectionPanel>
+
+          <SectionPanel title="AI usage trend (30 days)" subtitle={`Source: ${usageTimelineSource}`}>
+            <div className="space-y-2">
+              {usageTimeline.length === 0 ? (
+                <p className="text-sm text-slate-400">No usage data yet.</p>
+              ) : (
+                usageTimeline.map((point) => {
+                  const max = Math.max(...usageTimeline.map((p) => p.costUsd || 0.0001));
+                  const pct = Math.max(2, Math.round((point.costUsd / max) * 100));
+                  return (
+                    <div key={point.day} className="grid grid-cols-[100px_1fr_120px] items-center gap-3 text-xs">
+                      <span className="text-slate-400">{point.day}</span>
+                      <div className="h-3 rounded bg-white/10">
+                        <div className="h-3 rounded bg-amber-400/80" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-slate-200">${point.costUsd.toFixed(4)}</span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </SectionPanel>
         </div>

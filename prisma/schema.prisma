@@ -3463,6 +3463,67 @@ model AIGatewayRequest {
   @@index([cacheHit])
 }
 
+// Central task catalog for model orchestration (admin-defined)
+model AITask {
+  id          String  @id @default(cuid())
+  taskKey     String  @unique // content_generation, image_generation, analytics_ai
+  displayName String
+  description String  @default("")
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// Task-level routing rules with explicit primary/fallback model mapping
+model AIRoutingRule {
+  id                  String  @id @default(cuid())
+  taskKey             String
+  primaryModelId      String
+  fallbackModelIds    String[] @default([])
+  strategy            String   @default("balanced") // cheapest | fastest | best_quality | balanced | custom
+  maxCostUsdPerRequest Float?
+  maxLatencyMs        Int?
+  qualityThreshold    Float?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([taskKey])
+  @@index([isActive])
+}
+
+// Canonical AI usage ledger for cost, performance, and margin analytics
+model AIUsageLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  taskKey        String
+  featureKey     String
+  provider       String
+  modelRef       String
+  requestId      String?
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  totalTokens    Int      @default(0)
+  requestCostUsd Float    @default(0)
+  requestRevenueUsd Float @default(0)
+  marginUsd      Float    @default(0)
+  latencyMs      Int      @default(0)
+  success        Boolean  @default(true)
+  errorCode      String?
+  errorMessage   String?  @db.Text
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([taskKey])
+  @@index([provider])
+  @@index([modelRef])
+  @@index([createdAt])
+}
+
 // Per-org, per-plan, or global spending caps.
 // Resolution order (highest → lowest priority):
 //   1. organizationId match (org-specific override)

@@ -50,6 +50,7 @@ import { GatewayControlService } from '../services/gateway-control.service';
 import { AIGatewayService } from '../ai-gateway.service';
 import {
   UpdateModelDto,
+  RegisterModelDto,
   UpsertBudgetDto,
   UpsertFeatureAssignmentDto,
   RequestLogQueryDto,
@@ -63,6 +64,8 @@ import {
   SetContentTypeProviderModelDto,
   SetModelCredentialDto,
   TestModelCredentialDto,
+  SetTaskRouteDto,
+  UpsertTaskCatalogDto,
 } from '../dto/gateway.dto';
 
 @Controller('admin/ai-gateway')
@@ -91,6 +94,11 @@ export class AdminGatewayController {
   @Patch('models/:id')
   async updateModel(@Param('id') id: string, @Body() dto: UpdateModelDto) {
     return this.registry.updateModel(id, dto);
+  }
+
+  @Post('models/register')
+  async registerModel(@Body() dto: RegisterModelDto) {
+    return this.registry.registerModel(dto);
   }
 
   @Post('models/:id/enable')
@@ -165,6 +173,14 @@ export class AdminGatewayController {
       q.fromDate ? new Date(q.fromDate) : undefined,
       q.toDate   ? new Date(q.toDate)   : undefined,
     );
+  }
+
+  @Get('usage-chart')
+  async getUsageChart(
+    @Query('days') days = '30',
+    @Query('organizationId') organizationId?: string,
+  ) {
+    return this.usage.getUsageTimeline(Number(days), organizationId);
   }
 
   // ── Budget Config ──────────────────────────────────────────────────────
@@ -297,6 +313,48 @@ export class AdminGatewayController {
     return this.control.setFeatureModelLimit(dto.feature, dto.modelIds ?? []);
   }
 
+  @Get('task-routes')
+  async getTaskRoutes() {
+    return this.control.getTaskRouteMap();
+  }
+
+  @Put('task-routes')
+  async setTaskRoute(@Body() dto: SetTaskRouteDto) {
+    return this.control.setTaskRoute(dto.task, {
+      primaryModelId: dto.primaryModelId,
+      fallbackModelIds: dto.fallbackModelIds ?? [],
+      strategy: dto.strategy,
+      maxCostUsdPerRequest: dto.maxCostUsdPerRequest,
+      maxLatencyMs: dto.maxLatencyMs,
+      isActive: dto.isActive,
+    });
+  }
+
+  @Post('task-routes/delete')
+  async deleteTaskRoute(@Body() dto: { task: string }) {
+    return this.control.deleteTaskRoute(dto.task);
+  }
+
+  @Get('tasks')
+  async getTaskCatalog() {
+    return this.control.getTaskCatalog();
+  }
+
+  @Put('tasks')
+  async upsertTaskCatalogEntry(@Body() dto: UpsertTaskCatalogDto) {
+    return this.control.upsertTaskCatalogEntry({
+      taskKey: dto.taskKey,
+      displayName: dto.displayName,
+      description: dto.description,
+      isActive: dto.isActive,
+    });
+  }
+
+  @Post('tasks/delete')
+  async deleteTaskCatalogEntry(@Body() dto: { taskKey: string }) {
+    return this.control.deleteTaskCatalogEntry(dto.taskKey);
+  }
+
   @Get('model-consumption-guide')
   async modelConsumptionGuide() {
     const models = await this.registry.getAllModels();
@@ -332,6 +390,14 @@ export class AdminGatewayController {
       counts: Object.fromEntries(Object.entries(byCategory).map(([k, v]) => [k, v.length])),
       byCategory,
     };
+  }
+
+  @Get('task-metrics')
+  async taskMetrics(
+    @Query('days') days = '30',
+    @Query('organizationId') organizationId?: string,
+  ) {
+    return this.usage.getTaskLevelMetrics(Number(days), organizationId);
   }
 
   @Get('tenant-limits')

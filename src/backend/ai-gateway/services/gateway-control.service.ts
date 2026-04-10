@@ -19,9 +19,25 @@ const KEYS = {
   tenantUsageLimits: 'AI_CONTROL_TENANT_USAGE_LIMITS',
   tenantModelLimits: 'AI_CONTROL_TENANT_MODEL_LIMITS',
   taskRouteMap: 'AI_CONTROL_TASK_ROUTE_MAP',
+  taskCatalog: 'AI_CONTROL_TASK_CATALOG',
   contentTypeProviderModelMap: 'AI_CONTENT_TYPE_PROVIDER_MODEL_MAP',
   modelCredentialsMap: 'AI_MODEL_CREDENTIALS_MAP',
 } as const;
+
+const DEFAULT_TASK_CATALOG = [
+  { taskKey: 'content_generation', displayName: 'Content Generation', description: 'Long-form and short-form content generation', isActive: true },
+  { taskKey: 'video_processing', displayName: 'Video Processing', description: 'Video script, summarize, and post-production AI tasks', isActive: true },
+  { taskKey: 'speech_to_text', displayName: 'Speech to Text', description: 'Audio transcription and speech recognition', isActive: true },
+  { taskKey: 'text_to_speech', displayName: 'Text to Speech', description: 'Generate spoken audio from text', isActive: true },
+  { taskKey: 'image_generation', displayName: 'Image Generation', description: 'Text-to-image generation and editing', isActive: true },
+  { taskKey: 'analytics_ai', displayName: 'Analytics AI', description: 'Business and KPI analysis tasks', isActive: true },
+  { taskKey: 'chat_assistant', displayName: 'Chat Assistant', description: 'Conversational assistant workflows', isActive: true },
+  { taskKey: 'moderation', displayName: 'Moderation', description: 'Safety, policy, and moderation checks', isActive: true },
+  { taskKey: 'embedding', displayName: 'Embedding', description: 'Vector embedding generation', isActive: true },
+  { taskKey: 'summarization', displayName: 'Summarization', description: 'Long content summarization', isActive: true },
+  { taskKey: 'translation', displayName: 'Translation', description: 'Translation and localization workflows', isActive: true },
+  { taskKey: 'code_generation', displayName: 'Code Generation', description: 'Developer assistant and coding workflows', isActive: true },
+] as const;
 
 @Injectable()
 export class GatewayControlService {
@@ -204,7 +220,125 @@ export class GatewayControlService {
     return { organizationId, feature, modelIds: normalizedModelIds };
   }
 
+  async getTaskCatalog() {
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<Array<{
+        id: string;
+        taskKey: string;
+        displayName: string;
+        description: string;
+        isActive: boolean;
+      }>>(
+        `SELECT "id","taskKey","displayName","description","isActive"
+         FROM "AITask"
+         ORDER BY "taskKey" ASC`,
+      );
+      if (rows.length > 0) return rows;
+    } catch {
+      // fallback to config/default if migration not applied yet
+    }
+    const row = await this.prisma.billingConfig.findUnique({ where: { key: KEYS.taskCatalog } });
+    if (!row) return [...DEFAULT_TASK_CATALOG];
+    try {
+      const parsed = JSON.parse(row.value);
+      return Array.isArray(parsed) ? parsed : [...DEFAULT_TASK_CATALOG];
+    } catch {
+      return [...DEFAULT_TASK_CATALOG];
+    }
+  }
+
+  async upsertTaskCatalogEntry(input: {
+    taskKey: string;
+    displayName: string;
+    description?: string;
+    isActive?: boolean;
+  }) {
+    const normalizedKey = String(input.taskKey || '').trim().toLowerCase();
+    if (!normalizedKey) {
+      throw new BadRequestException('taskKey is required');
+    }
+    const next = {
+      taskKey: normalizedKey,
+      displayName: input.displayName,
+      description: input.description ?? '',
+      isActive: input.isActive ?? true,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `
+          INSERT INTO "AITask" ("id","taskKey","displayName","description","isActive","createdAt","updatedAt")
+          VALUES (md5(random()::text || clock_timestamp()::text), $1, $2, $3, $4, NOW(), NOW())
+          ON CONFLICT ("taskKey")
+          DO UPDATE SET
+            "displayName" = EXCLUDED."displayName",
+            "description" = EXCLUDED."description",
+            "isActive" = EXCLUDED."isActive",
+            "updatedAt" = NOW()
+        `,
+        normalizedKey,
+        next.displayName,
+        next.description,
+        next.isActive,
+      );
+    } catch {
+      const current = await this.getTaskCatalog();
+      const idx = current.findIndex((t: any) => t.taskKey === normalizedKey);
+      if (idx >= 0) current[idx] = { ...current[idx], ...next };
+      else current.push(next);
+      await this.upsert(KEYS.taskCatalog, JSON.stringify(current));
+    }
+    await this.writeAuditEvent('upsert_task_catalog_entry', next);
+    return next;
+  }
+
+  async deleteTaskCatalogEntry(taskKey: string) {
+    const normalized = String(taskKey || '').trim().toLowerCase();
+    if (!normalized) throw new BadRequestException('taskKey is required');
+    try {
+      await this.prisma.$executeRawUnsafe(`DELETE FROM "AITask" WHERE "taskKey" = $1`, normalized);
+    } catch {
+      const current = await this.getTaskCatalog();
+      const next = current.filter((t: any) => t.taskKey !== normalized);
+      await this.upsert(KEYS.taskCatalog, JSON.stringify(next));
+    }
+    await this.writeAuditEvent('delete_task_catalog_entry', { taskKey: normalized });
+    return { deleted: true, taskKey: normalized };
+  }
+
   async getTaskRouteMap() {
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<Array<{
+        taskKey: string;
+        primaryModelId: string;
+        fallbackModelIds: string[] | null;
+        strategy: string;
+        maxCostUsdPerRequest: number | null;
+        maxLatencyMs: number | null;
+        isActive: boolean;
+      }>>(
+        `SELECT "taskKey","primaryModelId","fallbackModelIds","strategy","maxCostUsdPerRequest","maxLatencyMs","isActive"
+         FROM "AIRoutingRule"
+         ORDER BY "taskKey" ASC`,
+      );
+      if (rows.length > 0) {
+        return Object.fromEntries(
+          rows.map((r) => [
+            r.taskKey,
+            {
+              primaryModelId: r.primaryModelId,
+              fallbackModelIds: r.fallbackModelIds ?? [],
+              strategy: r.strategy,
+              maxCostUsdPerRequest: r.maxCostUsdPerRequest,
+              maxLatencyMs: r.maxLatencyMs,
+              isActive: r.isActive,
+            },
+          ]),
+        );
+      }
+    } catch {
+      // fallback to config
+    }
     const row = await this.prisma.billingConfig.findUnique({ where: { key: KEYS.taskRouteMap } });
     if (!row) return {};
     try {
@@ -237,12 +371,52 @@ export class GatewayControlService {
       isActive: input.isActive ?? true,
       updatedAt: new Date().toISOString(),
     };
-    await this.upsert(KEYS.taskRouteMap, JSON.stringify(map));
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `
+          INSERT INTO "AIRoutingRule"
+          ("id","taskKey","primaryModelId","fallbackModelIds","strategy","maxCostUsdPerRequest","maxLatencyMs","isActive","createdAt","updatedAt")
+          VALUES (md5(random()::text || clock_timestamp()::text), $1, $2, $3::text[], $4, $5, $6, $7, NOW(), NOW())
+          ON CONFLICT ("taskKey")
+          DO UPDATE SET
+            "primaryModelId" = EXCLUDED."primaryModelId",
+            "fallbackModelIds" = EXCLUDED."fallbackModelIds",
+            "strategy" = EXCLUDED."strategy",
+            "maxCostUsdPerRequest" = EXCLUDED."maxCostUsdPerRequest",
+            "maxLatencyMs" = EXCLUDED."maxLatencyMs",
+            "isActive" = EXCLUDED."isActive",
+            "updatedAt" = NOW()
+        `,
+        task,
+        map[task].primaryModelId,
+        map[task].fallbackModelIds ?? [],
+        map[task].strategy ?? 'balanced',
+        map[task].maxCostUsdPerRequest ?? null,
+        map[task].maxLatencyMs ?? null,
+        map[task].isActive ?? true,
+      );
+    } catch {
+      await this.upsert(KEYS.taskRouteMap, JSON.stringify(map));
+    }
     await this.writeAuditEvent('set_task_route', {
       task,
       ...map[task],
     });
     return { task, ...map[task] };
+  }
+
+  async deleteTaskRoute(task: string) {
+    const key = String(task || '').trim();
+    if (!key) throw new BadRequestException('task is required');
+    try {
+      await this.prisma.$executeRawUnsafe(`DELETE FROM "AIRoutingRule" WHERE "taskKey" = $1`, key);
+    } catch {
+      const map = await this.getTaskRouteMap();
+      delete map[key];
+      await this.upsert(KEYS.taskRouteMap, JSON.stringify(map));
+    }
+    await this.writeAuditEvent('delete_task_route', { task: key });
+    return { deleted: true, task: key };
   }
 
   async getContentTypeProviderModelMap() {

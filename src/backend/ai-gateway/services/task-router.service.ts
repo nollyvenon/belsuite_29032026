@@ -14,6 +14,7 @@ import {
 import { ModelRegistryService }  from './model-registry.service';
 import { CostOptimizerService }  from './cost-optimizer.service';
 import { FailoverService }       from './failover.service';
+import { GatewayControlService } from './gateway-control.service';
 
 /** Which capabilities a task needs — at least one model must have them all */
 const TASK_CAPABILITY_MAP: Record<GatewayTask, string[]> = {
@@ -54,6 +55,7 @@ export class TaskRouterService {
     private readonly registry:  ModelRegistryService,
     private readonly optimizer: CostOptimizerService,
     private readonly failover:  FailoverService,
+    private readonly control:   GatewayControlService,
   ) {}
 
   /**
@@ -69,6 +71,35 @@ export class TaskRouterService {
     estimatedOutputTokens = 500,
   ): Promise<RoutingPlan> {
     const requiredCapabilities = TASK_CAPABILITY_MAP[task] ?? [];
+    const allModels = await this.registry.getAllModels();
+    const modelById = new Map(allModels.map((m) => [m.id, m]));
+    const modelByModelId = new Map(allModels.map((m) => [m.modelId, m]));
+
+    // ── Step 0: task-level route override (highest precedence) ──────────────
+    const taskRouteMap = await this.control.getTaskRouteMap();
+    const taskRoute = taskRouteMap?.[task];
+    if (taskRoute?.isActive) {
+      const primaryFromTask =
+        modelById.get(taskRoute.primaryModelId) ||
+        modelByModelId.get(taskRoute.primaryModelId) ||
+        null;
+      const fallbackFromTask = (taskRoute.fallbackModelIds ?? [])
+        .map((id: string) => modelById.get(id) || modelByModelId.get(id))
+        .filter((m: RegisteredModel | undefined): m is RegisteredModel => Boolean(m))
+        .filter((m: RegisteredModel) => m.isEnabled && this.failover.canAttempt(m.id));
+
+      if (primaryFromTask && primaryFromTask.isEnabled && this.failover.canAttempt(primaryFromTask.id)) {
+        const candidates = [
+          primaryFromTask,
+          ...fallbackFromTask.filter((m: RegisteredModel) => m.id !== primaryFromTask.id),
+        ];
+        return {
+          candidates,
+          requiredCapabilities,
+          featureOverrideApplied: false,
+        };
+      }
+    }
 
     // ── Step 1: feature-level override ────────────────────────────────────
     const featureAssignments = await this.registry.getFeatureAssignments();
@@ -80,7 +111,6 @@ export class TaskRouterService {
     let primaryModel: RegisteredModel | null = null;
 
     if (featureAssignment?.primaryModelId) {
-      const allModels = await this.registry.getAllModels();
       primaryModel = allModels.find(
         m => m.id === featureAssignment.primaryModelId && m.isEnabled,
       ) ?? null;

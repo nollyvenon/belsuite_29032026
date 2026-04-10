@@ -28,6 +28,7 @@ export class AICacheService {
   private totalSavedUsd = 0;
 
   private useRedis: boolean;
+  private pruneTimer?: NodeJS.Timeout;
 
   constructor(
     @Optional() private redis?: Redis,
@@ -38,8 +39,10 @@ export class AICacheService {
     } else {
       this.logger.warn('AI cache → in-memory fallback (Redis not configured)');
     }
-    // Prune expired memory entries every 10 min
-    setInterval(() => this.pruneMemoryCache(), 10 * 60 * 1000);
+    // Prune expired memory entries every 10 min.
+    // unref() prevents this timer from keeping Node/Jest alive on shutdown.
+    this.pruneTimer = setInterval(() => this.pruneMemoryCache(), 10 * 60 * 1000);
+    this.pruneTimer.unref();
   }
 
   // ── Public API ─────────────────────────────────────────────────────────

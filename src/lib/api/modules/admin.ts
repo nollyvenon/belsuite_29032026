@@ -110,6 +110,37 @@ export interface AIGatewayDashboard {
   limits: AIGatewayUsageLimits;
 }
 
+export interface AITaskCatalogEntry {
+  taskKey: string;
+  displayName: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface AITaskRouteEntry {
+  primaryModelId: string;
+  fallbackModelIds?: string[];
+  strategy?: 'cheapest' | 'fastest' | 'best_quality' | 'balanced' | 'custom';
+  maxCostUsdPerRequest?: number | null;
+  maxLatencyMs?: number | null;
+  isActive?: boolean;
+}
+
+export interface AIUsageTimelinePoint {
+  day: string;
+  requests: number;
+  costUsd: number;
+  tokens: number;
+}
+
+export interface AITaskMetric {
+  taskKey: string;
+  requests: number;
+  successRatePct: number;
+  avgLatencyMs: number;
+  totalCostUsd: number;
+}
+
 export async function getAIGatewayDashboard() {
   return aiGatewayAdminClient.get<AIGatewayDashboard>('/dashboard');
 }
@@ -166,4 +197,59 @@ export async function setTenantFeatureModelLimit(
   modelIds: string[],
 ) {
   return aiGatewayAdminClient.put('/tenant-feature-model-limits', { organizationId, feature, modelIds });
+}
+
+export async function getTaskCatalog() {
+  return aiGatewayAdminClient.get<AITaskCatalogEntry[]>('/tasks');
+}
+
+export async function upsertTaskCatalogEntry(payload: AITaskCatalogEntry) {
+  return aiGatewayAdminClient.put<AITaskCatalogEntry>('/tasks', payload);
+}
+
+export async function deleteTaskCatalogEntry(taskKey: string) {
+  return aiGatewayAdminClient.post<{ deleted: boolean; taskKey: string }>('/tasks/delete', { taskKey });
+}
+
+export async function getTaskRoutes() {
+  return aiGatewayAdminClient.get<Record<string, AITaskRouteEntry>>('/task-routes');
+}
+
+export async function setTaskRoute(
+  task: string,
+  payload: {
+    primaryModelId: string;
+    fallbackModelIds?: string[];
+    strategy?: 'cheapest' | 'fastest' | 'best_quality' | 'balanced' | 'custom';
+    maxCostUsdPerRequest?: number;
+    maxLatencyMs?: number;
+    isActive?: boolean;
+  },
+) {
+  return aiGatewayAdminClient.put('/task-routes', {
+    task,
+    ...payload,
+  });
+}
+
+export async function deleteTaskRoute(task: string) {
+  return aiGatewayAdminClient.post<{ deleted: boolean; task: string }>('/task-routes/delete', { task });
+}
+
+export async function getAIGatewayUsageChart(days = 30, organizationId?: string) {
+  return aiGatewayAdminClient.get<{
+    source: 'AIUsageLog' | 'AIGatewayRequest';
+    days: number;
+    rows: AIUsageTimelinePoint[];
+  }>('/usage-chart', {
+    days,
+    organizationId,
+  });
+}
+
+export async function getAIGatewayTaskMetrics(days = 30, organizationId?: string) {
+  return aiGatewayAdminClient.get<AITaskMetric[]>('/task-metrics', {
+    days,
+    organizationId,
+  });
 }

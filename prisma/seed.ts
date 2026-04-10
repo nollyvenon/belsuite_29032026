@@ -321,6 +321,33 @@ async function main() {
 
   console.log(`✓ Created billing profile`);
 
+  // 10. Seed AI Control Tower catalog tables
+  console.log('Seeding AI Control Tower tasks...');
+  const aiTasks = [
+    ['content_generation', 'Content Generation', 'Long-form and short-form content generation'],
+    ['video_processing', 'Video Processing', 'Video scripting and media orchestration tasks'],
+    ['speech_to_text', 'Speech to Text', 'Audio transcription and speech recognition'],
+    ['text_to_speech', 'Text to Speech', 'Voice synthesis from text prompts'],
+    ['image_generation', 'Image Generation', 'Text-to-image generation and editing'],
+    ['analytics_ai', 'Analytics AI', 'Business analytics and insight generation'],
+    ['chat_assistant', 'Chat Assistant', 'Conversational assistant tasks'],
+    ['moderation', 'Moderation', 'Safety and policy moderation tasks'],
+    ['embedding', 'Embedding', 'Vector embedding generation tasks'],
+    ['summarization', 'Summarization', 'Summarization and compression tasks'],
+    ['translation', 'Translation', 'Translation and localization tasks'],
+    ['code_generation', 'Code Generation', 'Developer and code assistant tasks'],
+  ];
+
+  for (const [taskKey, displayName, description] of aiTasks) {
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "AITask" ("taskKey","displayName","description","isActive","createdAt","updatedAt")
+      VALUES ($1, $2, $3, true, NOW(), NOW())
+      ON CONFLICT ("taskKey")
+      DO UPDATE SET "displayName" = EXCLUDED."displayName", "description" = EXCLUDED."description", "updatedAt" = NOW()
+    `, taskKey, displayName, description);
+  }
+  console.log(`✓ Seeded ${aiTasks.length} AI tasks`);
+
   console.log('\n✅ Database seeding completed successfully!');
   console.log('\nDemo credentials:');
   console.log('  Email: demo@belsuite.com');

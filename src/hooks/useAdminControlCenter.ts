@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  deleteTaskCatalogEntry,
+  deleteTaskRoute,
   getAIGatewayDashboard,
+  getAIGatewayTaskMetrics,
+  getAIGatewayUsageChart,
+  getTaskCatalog,
+  getTaskRoutes,
   getAIGatewayUsageLimits,
   getFeatureModelLimits,
   getGatewayModels,
@@ -12,8 +18,14 @@ import {
   setFeatureModelLimit,
   setTenantFeatureModelLimit,
   setTenantUsageLimit,
+  setTaskRoute,
+  upsertTaskCatalogEntry,
   updateAIGatewayControlProfile,
   updateAIGatewayUsageLimits,
+  type AITaskCatalogEntry,
+  type AITaskRouteEntry,
+  type AIUsageTimelinePoint,
+  type AITaskMetric,
   type AIGatewayDashboard,
   type AIGatewayUsageLimits,
 } from '@/lib/api/modules/admin';
@@ -26,6 +38,11 @@ export function useAdminControlCenter() {
   const [tenants, setTenants] = useState<Array<{ id: string; name: string; tier?: string }>>([]);
   const [tenantUsageLimits, setTenantUsageLimits] = useState<Record<string, { maxTokensPerRequest?: number; maxBatchRequests?: number; maxFailoverModels?: number }>>({});
   const [tenantFeatureModelLimits, setTenantFeatureModelLimits] = useState<Record<string, Record<string, string[]>>>({});
+  const [taskCatalog, setTaskCatalog] = useState<AITaskCatalogEntry[]>([]);
+  const [taskRoutes, setTaskRoutes] = useState<Record<string, AITaskRouteEntry>>({});
+  const [usageTimeline, setUsageTimeline] = useState<AIUsageTimelinePoint[]>([]);
+  const [usageTimelineSource, setUsageTimelineSource] = useState<'AIUsageLog' | 'AIGatewayRequest'>('AIGatewayRequest');
+  const [taskMetrics, setTaskMetrics] = useState<AITaskMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +51,7 @@ export function useAdminControlCenter() {
     setLoading(true);
     setError(null);
     try {
-      const [dash, limits, modelLimits, modelList, tenantData, tenantLimits, tenantModelLimits] = await Promise.all([
+      const [dash, limits, modelLimits, modelList, tenantData, tenantLimits, tenantModelLimits, tasks, routes, chart, metrics] = await Promise.all([
         getAIGatewayDashboard(),
         getAIGatewayUsageLimits(),
         getFeatureModelLimits(),
@@ -42,6 +59,10 @@ export function useAdminControlCenter() {
         listTenants(0, 50),
         getTenantUsageLimits(),
         getTenantFeatureModelLimits(),
+        getTaskCatalog(),
+        getTaskRoutes(),
+        getAIGatewayUsageChart(30),
+        getAIGatewayTaskMetrics(30),
       ]);
       setDashboard(dash);
       setUsageLimits(limits);
@@ -50,6 +71,11 @@ export function useAdminControlCenter() {
       setTenants(tenantData.tenants);
       setTenantUsageLimits(tenantLimits);
       setTenantFeatureModelLimits(tenantModelLimits);
+      setTaskCatalog(tasks);
+      setTaskRoutes(routes);
+      setUsageTimeline(chart.rows ?? []);
+      setUsageTimelineSource(chart.source ?? 'AIGatewayRequest');
+      setTaskMetrics(metrics ?? []);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -125,6 +151,66 @@ export function useAdminControlCenter() {
     }
   }, []);
 
+  const saveTaskCatalogEntry = useCallback(async (entry: AITaskCatalogEntry) => {
+    setSaving(true);
+    try {
+      const next = await upsertTaskCatalogEntry(entry);
+      setTaskCatalog((prev) => {
+        const idx = prev.findIndex((t) => t.taskKey === next.taskKey);
+        if (idx < 0) return [...prev, next];
+        const copy = [...prev];
+        copy[idx] = next;
+        return copy;
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const saveTaskRoute = useCallback(async (
+    task: string,
+    payload: {
+      primaryModelId: string;
+      fallbackModelIds?: string[];
+      strategy?: 'cheapest' | 'fastest' | 'best_quality' | 'balanced' | 'custom';
+      maxCostUsdPerRequest?: number;
+      maxLatencyMs?: number;
+      isActive?: boolean;
+    },
+  ) => {
+    setSaving(true);
+    try {
+      const next = await setTaskRoute(task, payload);
+      setTaskRoutes((prev) => ({ ...prev, [task]: next }));
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const removeTaskCatalogEntry = useCallback(async (taskKey: string) => {
+    setSaving(true);
+    try {
+      await deleteTaskCatalogEntry(taskKey);
+      setTaskCatalog((prev) => prev.filter((t) => t.taskKey !== taskKey));
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const removeTaskRoute = useCallback(async (task: string) => {
+    setSaving(true);
+    try {
+      await deleteTaskRoute(task);
+      setTaskRoutes((prev) => {
+        const copy = { ...prev };
+        delete copy[task];
+        return copy;
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
   return {
     dashboard,
     usageLimits,
@@ -133,6 +219,11 @@ export function useAdminControlCenter() {
     tenants,
     tenantUsageLimits,
     tenantFeatureModelLimits,
+    taskCatalog,
+    taskRoutes,
+    usageTimeline,
+    usageTimelineSource,
+    taskMetrics,
     loading,
     saving,
     error,
@@ -142,5 +233,9 @@ export function useAdminControlCenter() {
     saveFeatureModelLimit,
     saveTenantUsageLimit,
     saveTenantFeatureModelLimit,
+    saveTaskCatalogEntry,
+    saveTaskRoute,
+    removeTaskCatalogEntry,
+    removeTaskRoute,
   };
 }

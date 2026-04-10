@@ -143,6 +143,37 @@ interface ModelCredentialMasked {
   endpoint?: string;
 }
 
+interface TaskCatalogEntry {
+  taskKey: string;
+  displayName: string;
+  description?: string;
+  isActive: boolean;
+}
+
+interface TaskRouteEntry {
+  primaryModelId: string;
+  fallbackModelIds?: string[];
+  strategy?: string;
+  maxCostUsdPerRequest?: number | null;
+  maxLatencyMs?: number | null;
+  isActive?: boolean;
+}
+
+interface UsageTimelinePoint {
+  day: string;
+  requests: number;
+  costUsd: number;
+  tokens: number;
+}
+
+interface TaskMetric {
+  taskKey: string;
+  requests: number;
+  successRatePct: number;
+  avgLatencyMs: number;
+  totalCostUsd: number;
+}
+
 // ─── Tab navigation ───────────────────────────────────────────────────────────
 
 const TABS = [
@@ -154,6 +185,7 @@ const TABS = [
   { id: 'requests',     label: 'Request Log',     icon: List },
   { id: 'consumption',  label: 'Token Guide',     icon: Eye },
   { id: 'switcher',     label: 'Model Switcher',  icon: Settings },
+  { id: 'task-routes',  label: 'Task Routes',     icon: Shield },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -228,6 +260,18 @@ export default function AIGatewayDashboard() {
   const [credentialBaseUrl, setCredentialBaseUrl] = useState('');
   const [credentialEndpoint, setCredentialEndpoint] = useState('');
   const [credentialTestResult, setCredentialTestResult] = useState('');
+  const [taskCatalog, setTaskCatalog] = useState<TaskCatalogEntry[]>([]);
+  const [taskRoutes, setTaskRoutes] = useState<Record<string, TaskRouteEntry>>({});
+  const [routeTaskKey, setRouteTaskKey] = useState('');
+  const [routePrimaryModelId, setRoutePrimaryModelId] = useState('');
+  const [routeFallbackModelIds, setRouteFallbackModelIds] = useState<string[]>([]);
+  const [routeStrategy, setRouteStrategy] = useState('balanced');
+  const [routeMaxCost, setRouteMaxCost] = useState('');
+  const [routeMaxLatency, setRouteMaxLatency] = useState('');
+  const [usageTimeline, setUsageTimeline] = useState<UsageTimelinePoint[]>([]);
+  const [usageTimelineSource, setUsageTimelineSource] = useState<'AIUsageLog' | 'AIGatewayRequest'>('AIGatewayRequest');
+  const [taskMetrics, setTaskMetrics] = useState<TaskMetric[]>([]);
+  const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Budget editor
   const [editBudget, setEditBudget] = useState<Partial<BudgetConfig>>({});
@@ -250,10 +294,14 @@ export default function AIGatewayDashboard() {
         fetch(`${BASE}/control-profile`).then((r) => r.json()),
         fetch(`${BASE}/feature-toggles`).then((r) => r.json()),
       ]);
-      const [guide, ctp, creds] = await Promise.all([
+      const [guide, ctp, creds, tasks, routes, chart, metrics] = await Promise.all([
         fetch(`${BASE}/model-consumption-guide`).then((r) => r.json()),
         fetch(`${BASE}/content-type-provider-models`).then((r) => r.json()),
         fetch(`${BASE}/model-credentials`).then((r) => r.json()),
+        fetch(`${BASE}/tasks`).then((r) => r.json()),
+        fetch(`${BASE}/task-routes`).then((r) => r.json()),
+        fetch(`${BASE}/usage-chart?days=30`).then((r) => r.json()),
+        fetch(`${BASE}/task-metrics?days=30`).then((r) => r.json()),
       ]);
       setStats(s); setCacheStats(cs); setModels(m);
       setHealth(h); setBudgets(b); setAssignments(a);
@@ -262,6 +310,11 @@ export default function AIGatewayDashboard() {
       setConsumptionGuide(guide);
       setContentTypeProviderMap(ctp.map ?? {});
       setModelCredentials(creds ?? {});
+      setTaskCatalog(Array.isArray(tasks) ? tasks : []);
+      setTaskRoutes(routes ?? {});
+      setUsageTimeline(chart?.rows ?? []);
+      setUsageTimelineSource(chart?.source ?? 'AIGatewayRequest');
+      setTaskMetrics(Array.isArray(metrics) ? metrics : []);
     } catch {/* dev mode — data not loaded yet */} finally {
       setLoading(false);
     }
@@ -371,6 +424,44 @@ export default function AIGatewayDashboard() {
     setCredentialTestResult(data?.preview || data?.message || 'Test completed');
   };
 
+  const saveTaskCatalogEntry = async (task: TaskCatalogEntry) => {
+    try {
+      await fetch(`${BASE}/tasks`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task),
+      });
+      await load();
+      setBanner({ type: 'success', message: `Updated task "${task.taskKey}"` });
+    } catch (e) {
+      setBanner({ type: 'error', message: (e as Error).message || 'Failed to save task' });
+    }
+  };
+
+  const saveTaskRoute = async () => {
+    if (!routeTaskKey || !routePrimaryModelId) return;
+    const fallbackModelIds = routeFallbackModelIds;
+    try {
+      await fetch(`${BASE}/task-routes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task: routeTaskKey,
+          primaryModelId: routePrimaryModelId,
+          fallbackModelIds,
+          strategy: routeStrategy,
+          maxCostUsdPerRequest: routeMaxCost ? Number(routeMaxCost) : undefined,
+          maxLatencyMs: routeMaxLatency ? Number(routeMaxLatency) : undefined,
+          isActive: true,
+        }),
+      });
+      await load();
+      setBanner({ type: 'success', message: `Saved task route for "${routeTaskKey}"` });
+    } catch (e) {
+      setBanner({ type: 'error', message: (e as Error).message || 'Failed to save task route' });
+    }
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
@@ -394,6 +485,15 @@ export default function AIGatewayDashboard() {
           Refresh
         </button>
       </div>
+      {banner && (
+        <div className={`mb-4 rounded-lg border px-3 py-2 text-xs ${
+          banner.type === 'success'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+            : 'border-red-500/30 bg-red-500/10 text-red-300'
+        }`}>
+          {banner.message}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-8 border-b border-white/10 pb-0">
@@ -1079,6 +1179,192 @@ export default function AIGatewayDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {tab === 'task-routes' && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <h3 className="font-semibold mb-4">Task Catalog</h3>
+                <div className="space-y-3">
+                  {taskCatalog.map((task) => (
+                    <div key={task.taskKey} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="min-w-[200px]">
+                          <p className="text-xs text-gray-400">Task key</p>
+                          <p className="text-sm font-medium">{task.taskKey}</p>
+                        </div>
+                        <input
+                          value={task.displayName}
+                          onChange={(e) =>
+                            setTaskCatalog((prev) =>
+                              prev.map((t) => (t.taskKey === task.taskKey ? { ...t, displayName: e.target.value } : t)),
+                            )
+                          }
+                          className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs min-w-[220px]"
+                        />
+                        <input
+                          value={task.description ?? ''}
+                          onChange={(e) =>
+                            setTaskCatalog((prev) =>
+                              prev.map((t) => (t.taskKey === task.taskKey ? { ...t, description: e.target.value } : t)),
+                            )
+                          }
+                          className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs flex-1 min-w-[260px]"
+                        />
+                        <button
+                          onClick={() => saveTaskCatalogEntry({ ...task, isActive: !task.isActive })}
+                          className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                            task.isActive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-gray-300'
+                          }`}
+                        >
+                          {task.isActive ? 'Active' : 'Inactive'}
+                        </button>
+                        <button
+                          onClick={() => saveTaskCatalogEntry(task)}
+                          className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-medium text-black"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <h3 className="font-semibold mb-4">Task Routing Rules</h3>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                  {taskMetrics.slice(0, 8).map((m) => (
+                    <div key={m.taskKey} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                      <p className="text-[11px] text-gray-400">{m.taskKey}</p>
+                      <p className="text-sm font-semibold">{m.successRatePct.toFixed(1)}% SLA</p>
+                      <p className="text-[11px] text-gray-400">{m.avgLatencyMs}ms avg | ${m.totalCostUsd.toFixed(4)}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  <select
+                    value={routeTaskKey}
+                    onChange={(e) => {
+                      const taskKey = e.target.value;
+                      setRouteTaskKey(taskKey);
+                      const route = taskRoutes[taskKey];
+                      setRoutePrimaryModelId(route?.primaryModelId ?? '');
+                      setRouteFallbackModelIds(route?.fallbackModelIds ?? []);
+                      setRouteStrategy(route?.strategy ?? 'balanced');
+                      setRouteMaxCost(route?.maxCostUsdPerRequest ? String(route.maxCostUsdPerRequest) : '');
+                      setRouteMaxLatency(route?.maxLatencyMs ? String(route.maxLatencyMs) : '');
+                    }}
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  >
+                    <option value="">select task</option>
+                    {taskCatalog.map((t) => (
+                      <option key={t.taskKey} value={t.taskKey}>
+                        {t.displayName} ({t.taskKey})
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={routePrimaryModelId}
+                    onChange={(e) => setRoutePrimaryModelId(e.target.value)}
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  >
+                    <option value="">select primary model</option>
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.displayName} ({m.provider})
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={routeStrategy}
+                    onChange={(e) => setRouteStrategy(e.target.value)}
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  >
+                    {['cheapest', 'fastest', 'best_quality', 'balanced', 'custom'].map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    multiple
+                    value={routeFallbackModelIds}
+                    onChange={(e) =>
+                      setRouteFallbackModelIds(Array.from(e.target.selectedOptions).map((o) => o.value))
+                    }
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs md:col-span-2 min-h-[100px]"
+                  >
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.displayName} ({m.provider})
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    value={routeMaxCost}
+                    onChange={(e) => setRouteMaxCost(e.target.value)}
+                    placeholder="max cost USD/request (optional)"
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  />
+
+                  <input
+                    value={routeMaxLatency}
+                    onChange={(e) => setRouteMaxLatency(e.target.value)}
+                    placeholder="max latency ms (optional)"
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                  />
+                </div>
+                <button
+                  onClick={saveTaskRoute}
+                  className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-black"
+                >
+                  Save task route
+                </button>
+                {routeTaskKey && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch(`${BASE}/task-routes/delete`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ task: routeTaskKey }),
+                        });
+                        await load();
+                        setBanner({ type: 'success', message: `Deleted task route for "${routeTaskKey}"` });
+                      } catch (e) {
+                        setBanner({ type: 'error', message: (e as Error).message || 'Failed to delete task route' });
+                      }
+                    }}
+                    className="mt-3 ml-2 rounded-lg bg-red-500/70 px-4 py-2 text-xs font-medium text-white"
+                  >
+                    Delete task route
+                  </button>
+                )}
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs text-gray-400">30-day usage trend source: {usageTimelineSource}</p>
+                  {usageTimeline.length === 0 ? (
+                    <p className="text-xs text-gray-500">No usage data yet.</p>
+                  ) : (
+                    usageTimeline.map((point) => {
+                      const max = Math.max(...usageTimeline.map((p) => p.costUsd || 0.0001));
+                      const pct = Math.max(2, Math.round((point.costUsd / max) * 100));
+                      return (
+                        <div key={point.day} className="grid grid-cols-[90px_1fr_90px] items-center gap-2 text-[11px]">
+                          <span className="text-gray-400">{point.day}</span>
+                          <div className="h-2 rounded bg-white/10">
+                            <div className="h-2 rounded bg-orange-400/80" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-gray-200 text-right">${point.costUsd.toFixed(4)}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

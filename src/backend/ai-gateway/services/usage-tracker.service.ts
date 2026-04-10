@@ -355,6 +355,125 @@ export class UsageTrackerService {
     return this.prisma.aIBudgetConfig.findMany({ orderBy: { organizationId: 'asc' } });
   }
 
+  async getUsageTimeline(days = 30, organizationId?: string) {
+    const safeDays = Math.min(Math.max(Number(days) || 30, 1), 365);
+    const fromDate = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000);
+
+    // Try canonical AIUsageLog first; gracefully fallback if table not migrated yet.
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<Array<{
+        day: string;
+        requests: number;
+        cost_usd: number;
+        tokens: number;
+      }>>(
+        `
+          SELECT
+            to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') as day,
+            COUNT(*)::int as requests,
+            COALESCE(SUM("requestCostUsd"), 0)::float as cost_usd,
+            COALESCE(SUM("totalTokens"), 0)::int as tokens
+          FROM "AIUsageLog"
+          WHERE "createdAt" >= $1
+          ${organizationId ? 'AND "organizationId" = $2' : ''}
+          GROUP BY 1
+          ORDER BY 1 ASC
+        `,
+        ...(organizationId ? [fromDate, organizationId] : [fromDate]),
+      );
+      return {
+        source: 'AIUsageLog',
+        days: safeDays,
+        rows: rows.map((r) => ({
+          day: r.day,
+          requests: Number(r.requests || 0),
+          costUsd: Number(r.cost_usd || 0),
+          tokens: Number(r.tokens || 0),
+        })),
+      };
+    } catch {
+      const where: any = { createdAt: { gte: fromDate }, success: true };
+      if (organizationId) where.organizationId = organizationId;
+      const rows = await this.prisma.aIGatewayRequest.findMany({
+        where,
+        select: { createdAt: true, totalTokens: true, costUsd: true },
+      });
+      const byDay: Record<string, { day: string; requests: number; costUsd: number; tokens: number }> = {};
+      for (const r of rows) {
+        const day = r.createdAt.toISOString().slice(0, 10);
+        if (!byDay[day]) byDay[day] = { day, requests: 0, costUsd: 0, tokens: 0 };
+        byDay[day].requests += 1;
+        byDay[day].costUsd += Number(r.costUsd ?? 0);
+        byDay[day].tokens += Number(r.totalTokens ?? 0);
+      }
+      return {
+        source: 'AIGatewayRequest',
+        days: safeDays,
+        rows: Object.values(byDay).sort((a, b) => a.day.localeCompare(b.day)),
+      };
+    }
+  }
+
+  async getTaskLevelMetrics(days = 30, organizationId?: string) {
+    const safeDays = Math.min(Math.max(Number(days) || 30, 1), 365);
+    const fromDate = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000);
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<Array<{
+        task_key: string;
+        requests: number;
+        success_count: number;
+        avg_latency: number;
+        total_cost: number;
+      }>>(
+        `
+          SELECT
+            "taskKey" as task_key,
+            COUNT(*)::int as requests,
+            COUNT(*) FILTER (WHERE "success" = true)::int as success_count,
+            COALESCE(AVG("latencyMs"), 0)::float as avg_latency,
+            COALESCE(SUM("requestCostUsd"), 0)::float as total_cost
+          FROM "AIUsageLog"
+          WHERE "createdAt" >= $1
+          ${organizationId ? 'AND "organizationId" = $2' : ''}
+          GROUP BY "taskKey"
+          ORDER BY total_cost DESC
+        `,
+        ...(organizationId ? [fromDate, organizationId] : [fromDate]),
+      );
+      return rows.map((r) => ({
+        taskKey: r.task_key,
+        requests: Number(r.requests || 0),
+        successRatePct:
+          Number(r.requests || 0) > 0 ? Math.round((Number(r.success_count || 0) / Number(r.requests || 1)) * 1000) / 10 : 0,
+        avgLatencyMs: Math.round(Number(r.avg_latency || 0)),
+        totalCostUsd: Number(r.total_cost || 0),
+      }));
+    } catch {
+      const where: any = { createdAt: { gte: fromDate } };
+      if (organizationId) where.organizationId = organizationId;
+      const rows = await this.prisma.aIGatewayRequest.findMany({
+        where,
+        select: { taskType: true, success: true, latencyMs: true, costUsd: true },
+      });
+      const map: Record<string, { requests: number; success: number; latency: number; cost: number }> = {};
+      for (const r of rows) {
+        const key = r.taskType;
+        if (!map[key]) map[key] = { requests: 0, success: 0, latency: 0, cost: 0 };
+        map[key].requests += 1;
+        map[key].success += r.success ? 1 : 0;
+        map[key].latency += Number(r.latencyMs || 0);
+        map[key].cost += Number(r.costUsd || 0);
+      }
+      return Object.entries(map).map(([taskKey, v]) => ({
+        taskKey,
+        requests: v.requests,
+        successRatePct: v.requests ? Math.round((v.success / v.requests) * 1000) / 10 : 0,
+        avgLatencyMs: v.requests ? Math.round(v.latency / v.requests) : 0,
+        totalCostUsd: v.cost,
+      }));
+    }
+  }
+
   // ── Private ────────────────────────────────────────────────────────────
 
   private async getSpend(organizationId: string): Promise<{ dailySpendUsd: number; monthlySpendUsd: number }> {

@@ -409,6 +409,22 @@ export class SetTaskRouteDto {
   isActive?: boolean;
 }
 
+export class UpsertTaskCatalogDto {
+  @IsString()
+  taskKey: string;
+
+  @IsString()
+  displayName: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+
 // ─── Query params ─────────────────────────────────────────────────────────────
 
 export class RequestLogQueryDto {
