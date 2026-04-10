@@ -1,41 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, CheckCircle, Play, Shield, Users, TrendingUp, Zap, Brain, Phone, MessageSquare, BarChart3, Lock, Headphones, Calendar, Mail, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle, Play, Shield, Users, TrendingUp, Zap, Brain, Phone, MessageSquare, BarChart3, Lock, Headphones, Calendar, Mail, Sparkles, Clock, Workflow, AlertCircle } from 'lucide-react';
+import Navbar from './components/navbar';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('crm');
   const [isDark, setIsDark] = useState(false);
 
   return (
-    <div className={`w-full ${isDark ? 'bg-black text-white' : 'bg-white text-black'} transition-colors duration-300`}>
+    <div className={`w-full ${isDark ? 'bg-black text-white' : 'bg-white text-black'} transition-colors duration-300 scroll-smooth`}>
       {/* Navigation */}
-      <nav className={`sticky top-0 z-50 border-b ${isDark ? 'border-orange-900/30 bg-black/80' : 'border-orange-100 bg-white/80'} backdrop-blur-xl`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-              <Sparkles size={24} className="text-white" />
-            </div>
-            <span className="text-2xl font-bold">Belsuite</span>
-          </div>
-
-          <div className="hidden md:flex gap-8">
-            <a href="#systems" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-black'}`}>Systems</a>
-            <a href="#demo" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-black'}`}>Demo</a>
-            <a href="#pricing" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-black'}`}>Pricing</a>
-          </div>
-
-          <div className="flex gap-4 items-center">
-            <button onClick={() => setIsDark(!isDark)} className={`p-2 rounded-lg ${isDark ? 'bg-orange-900/30' : 'bg-orange-50'}`}>
-              {isDark ? '☀️' : '🌙'}
-            </button>
-            <button className={`px-6 py-2 rounded-lg font-medium ${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white transition-colors`}>
-              Start Free
-            </button>
-          </div>
-        </div>
-      </nav>
+      <Navbar isDark={isDark} onToggleDark={() => setIsDark(!isDark)} />
 
       {/* Hero Section */}
       <section className={`relative overflow-hidden ${isDark ? 'bg-gradient-to-b from-black via-black to-orange-900/10' : 'bg-gradient-to-b from-white via-white to-orange-50'}`}>
@@ -308,6 +284,155 @@ export default function Home() {
                 <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>{item.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Your AI Team Working 24/7 */}
+      <section id="team" className={`${isDark ? 'bg-black' : 'bg-white'} py-24`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl font-black mb-4">Your AI Team Working 24/7</h2>
+            <p className={`text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              Three specialized AI agents that never sleep, never make mistakes, and always deliver results.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            {/* AI Customer Support Agent */}
+            <div className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 ${
+              isDark
+                ? 'bg-gradient-to-br from-blue-900/20 to-black border-blue-700/30 hover:border-blue-600 hover:shadow-lg hover:shadow-blue-900/20'
+                : 'bg-gradient-to-br from-blue-50 to-white border-blue-200 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-200/30'
+            }`}>
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                  <MessageSquare size={32} className="text-white" />
+                </div>
+                <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/20">
+                  <Clock size={14} className="text-blue-500" />
+                  <span className="text-xs font-bold text-blue-500">24/7 Active</span>
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-bold mb-3">AI Customer Support Agent</h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Instantly responds to customer questions on WhatsApp, live chat, and email. Handles FAQs, escalates complex issues, and keeps customers happy around the clock.
+              </p>
+
+              <div className={`space-y-3 mb-6 p-4 rounded-lg ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">WhatsApp + Website chat support</span>
+                </div>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Instant response (seconds, not hours)</span>
+                </div>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Resolves 70% of issues without human help</span>
+                </div>
+              </div>
+
+              <p className="font-bold text-blue-600">→ Save 20 hours/week on support</p>
+            </div>
+
+            {/* AI Sales Closer */}
+            <div className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 ${
+              isDark
+                ? 'bg-gradient-to-br from-green-900/20 to-black border-green-700/30 hover:border-green-600 hover:shadow-lg hover:shadow-green-900/20'
+                : 'bg-gradient-to-br from-green-50 to-white border-green-200 hover:border-green-400 hover:shadow-lg hover:shadow-green-200/30'
+            }`}>
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                  <Users size={32} className="text-white" />
+                </div>
+                <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-green-500/20">
+                  <TrendingUp size={14} className="text-green-500" />
+                  <span className="text-xs font-bold text-green-500">Always Closing</span>
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-bold mb-3">AI Sales Closer</h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Responds to every lead instantly. Qualifies prospects, answers objections, books appointments, and follows up automatically. Your tireless closer that never sleeps.
+              </p>
+
+              <div className={`space-y-3 mb-6 p-4 rounded-lg ${isDark ? 'bg-green-900/20' : 'bg-green-50'}`}>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Qualifies leads in real-time</span>
+                </div>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Books demos & meetings automatically</span>
+                </div>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Increases close rate by 40-60%</span>
+                </div>
+              </div>
+
+              <p className="font-bold text-green-600">→ Never lose a lead again</p>
+            </div>
+
+            {/* AI Operations Manager */}
+            <div className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 ${
+              isDark
+                ? 'bg-gradient-to-br from-purple-900/20 to-black border-purple-700/30 hover:border-purple-600 hover:shadow-lg hover:shadow-purple-900/20'
+                : 'bg-gradient-to-br from-purple-50 to-white border-purple-200 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-200/30'
+            }`}>
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+                  <Workflow size={32} className="text-white" />
+                </div>
+                <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-purple-500/20">
+                  <AlertCircle size={14} className="text-purple-500" />
+                  <span className="text-xs font-bold text-purple-500">Autopilot On</span>
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-bold mb-3">AI Operations Manager</h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Manages workflows, automates internal processes, and executes tasks across your entire system. Connects everything and ensures nothing falls through the cracks.
+              </p>
+
+              <div className={`space-y-3 mb-6 p-4 rounded-lg ${isDark ? 'bg-purple-900/20' : 'bg-purple-50'}`}>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Automates repetitive tasks</span>
+                </div>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Syncs data across all tools</span>
+                </div>
+                <div className="flex gap-2">
+                  <CheckCircle size={18} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Reduces operational overhead by 75%</span>
+                </div>
+              </div>
+
+              <p className="font-bold text-purple-600">→ Run your business on autopilot</p>
+            </div>
+          </div>
+
+          {/* Mini CTA */}
+          <div className={`text-center p-8 rounded-2xl border-2 ${
+            isDark
+              ? 'bg-gradient-to-r from-blue-900/20 via-green-900/20 to-purple-900/20 border-orange-700/50'
+              : 'bg-gradient-to-r from-blue-50 via-green-50 to-purple-50 border-orange-200'
+          }`}>
+            <p className={`text-lg font-semibold mb-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Your complete AI team is ready to work for you
+            </p>
+            <button className={`px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 inline-block ${
+              isDark
+                ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                : 'bg-orange-500 hover:bg-orange-600 text-white'
+            }`}>
+              See How It Works →
+            </button>
           </div>
         </div>
       </section>
