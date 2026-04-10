@@ -16,6 +16,7 @@ const KEYS = {
   modelLimits: 'AI_CONTROL_MODEL_LIMITS',
   tenantUsageLimits: 'AI_CONTROL_TENANT_USAGE_LIMITS',
   tenantModelLimits: 'AI_CONTROL_TENANT_MODEL_LIMITS',
+  contentTypeProviderModelMap: 'AI_CONTENT_TYPE_PROVIDER_MODEL_MAP',
 } as const;
 
 @Injectable()
@@ -181,6 +182,30 @@ export class GatewayControlService {
     current[organizationId][feature] = modelIds;
     await this.upsert(KEYS.tenantModelLimits, JSON.stringify(current));
     return { organizationId, feature, modelIds };
+  }
+
+  async getContentTypeProviderModelMap() {
+    const row = await this.prisma.billingConfig.findUnique({
+      where: { key: KEYS.contentTypeProviderModelMap },
+    });
+    if (!row) return {};
+    try {
+      return JSON.parse(row.value);
+    } catch {
+      return {};
+    }
+  }
+
+  async setContentTypeProviderModel(
+    contentType: 'text' | 'image' | 'video' | 'ugc' | 'audio',
+    provider: GatewayProvider,
+    modelId: string,
+  ) {
+    const current = await this.getContentTypeProviderModelMap();
+    current[contentType] = current[contentType] ?? {};
+    current[contentType][provider] = modelId;
+    await this.upsert(KEYS.contentTypeProviderModelMap, JSON.stringify(current));
+    return { contentType, provider, modelId };
   }
 
   private async getConfigMap() {

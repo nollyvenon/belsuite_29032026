@@ -74,6 +74,7 @@ export class AIGatewayService {
     const tenantFeatureModelLimits = await this.control.getTenantFeatureModelLimits();
     const tenantFeatureLimits = tenantFeatureModelLimits[req.organizationId] ?? {};
     const allowedModelIds: string[] | undefined = tenantFeatureLimits[req.feature] ?? featureModelLimits[req.feature];
+    const contentTypeProviderModelMap = await this.control.getContentTypeProviderModelMap();
 
     const start      = Date.now();
     const requestId  = uuid();
@@ -117,8 +118,12 @@ export class AIGatewayService {
     const maxFailoverModels = Number(usageLimits.maxFailoverModels ?? 3);
     const effectiveFailoverLimit = Number(orgLimits.maxFailoverModels ?? maxFailoverModels);
     const candidatePool = constrainedCandidates.slice(0, effectiveFailoverLimit);
+    const preferredModelId = this.resolvePreferredModelIdByContentType(req.task, contentTypeProviderModelMap, candidatePool);
+    const orderedCandidatePool = preferredModelId
+      ? [...candidatePool].sort((a, b) => (a.id === preferredModelId ? -1 : b.id === preferredModelId ? 1 : 0))
+      : candidatePool;
 
-    if (candidatePool.length === 0) {
+    if (orderedCandidatePool.length === 0) {
       throw new ServiceUnavailableException(
         `No AI models available for task "${req.task}" / feature "${req.feature}"`,
       );
@@ -128,7 +133,7 @@ export class AIGatewayService {
     const failoverChain: string[] = [];
     let lastError: Error | null = null;
 
-    for (const model of candidatePool) {
+    for (const model of orderedCandidatePool) {
       if (!this.failover.canAttempt(model.id)) {
         this.logger.debug(`Skipping ${model.displayName} — circuit open`);
         continue;
@@ -357,6 +362,9 @@ export class AIGatewayService {
     req:    GatewayRequest,
     prompt: string,
   ) {
+    const prefixed = await this._callCatalogExternalModel(model, req, prompt);
+    if (prefixed) return prefixed;
+
     const baseUrl = this.config.get<string>('OLLAMA_BASE_URL') ?? 'http://localhost:11434';
 
     const response = await fetch(`${baseUrl}/api/generate`, {
@@ -388,6 +396,245 @@ export class AIGatewayService {
       provider: model.provider,
       tokens:   { input: inputTok, output: outputTok, total: inputTok + outputTok },
       costUsd:  0, // local — no cost
+    };
+  }
+
+  private async _callCatalogExternalModel(
+    model: RegisteredModel,
+    req: GatewayRequest,
+    prompt: string,
+  ): Promise<
+    | {
+        text: string;
+        model: string;
+        provider: any;
+        tokens: { input: number; output: number; total: number };
+        costUsd: number;
+      }
+    | null
+  > {
+    const modelId = model.modelId.toLowerCase();
+
+    // OpenAI-compatible chat adapters
+    if (modelId.startsWith('deepseek:')) {
+      return this._callOpenAICompatibleChat(
+        this.config.get<string>('DEEPSEEK_API_KEY'),
+        this.config.get<string>('DEEPSEEK_BASE_URL') ?? 'https://api.deepseek.com/v1',
+        model.modelId.split(':')[1] ?? model.modelId,
+        model,
+        req,
+        prompt,
+      );
+    }
+    if (modelId.startsWith('qwen:')) {
+      return this._callOpenAICompatibleChat(
+        this.config.get<string>('QWEN_API_KEY'),
+        this.config.get<string>('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+        model.modelId.split(':')[1] ?? model.modelId,
+        model,
+        req,
+        prompt,
+      );
+    }
+    if (modelId.startsWith('huggingface:')) {
+      return this._callHuggingFaceText(model, req, prompt);
+    }
+
+    // Image generation providers
+    if (
+      modelId.startsWith('stability:') ||
+      modelId.startsWith('ideogram:') ||
+      modelId.startsWith('midjourney:') ||
+      modelId.startsWith('black-forest-labs:')
+    ) {
+      return this._callImageProvider(model, prompt);
+    }
+
+    // Video generation providers
+    if (
+      modelId.startsWith('runway:') ||
+      modelId.startsWith('pika:') ||
+      modelId.startsWith('luma:') ||
+      modelId.startsWith('heygen:') ||
+      modelId.startsWith('synthesia:') ||
+      modelId.startsWith('haiper:') ||
+      modelId.startsWith('kling:') ||
+      modelId.startsWith('captions:') ||
+      modelId.startsWith('invideo:') ||
+      modelId.startsWith('capcut:')
+    ) {
+      return this._callVideoProvider(model, prompt);
+    }
+
+    // Audio generation providers
+    if (
+      modelId.startsWith('elevenlabs:') ||
+      modelId.startsWith('cartesia:') ||
+      modelId.startsWith('playht:') ||
+      modelId.startsWith('coqui:') ||
+      modelId.startsWith('metavoice:')
+    ) {
+      return this._callAudioProvider(model, prompt);
+    }
+
+    return null;
+  }
+
+  private async _callOpenAICompatibleChat(
+    apiKey: string | undefined,
+    baseUrl: string,
+    remoteModel: string,
+    model: RegisteredModel,
+    req: GatewayRequest,
+    prompt: string,
+  ) {
+    if (!apiKey) throw new Error(`Missing API key for ${model.modelId}`);
+    const messages = this._buildMessages(req, prompt);
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: remoteModel,
+        messages,
+        max_tokens: req.maxTokens ?? 1024,
+        temperature: req.temperature ?? 0.7,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`${model.modelId} API error ${response.status}: ${await response.text()}`);
+    }
+    const data = (await response.json()) as any;
+    const text = data.choices?.[0]?.message?.content ?? '';
+    const inputTok = data.usage?.prompt_tokens ?? Math.ceil(prompt.length / 4);
+    const outputTok = data.usage?.completion_tokens ?? Math.ceil(text.length / 4);
+    return {
+      text,
+      model: model.id,
+      provider: model.provider,
+      tokens: { input: inputTok, output: outputTok, total: inputTok + outputTok },
+      costUsd: this.optimizer.estimateCost(model, inputTok, outputTok),
+    };
+  }
+
+  private async _callHuggingFaceText(
+    model: RegisteredModel,
+    req: GatewayRequest,
+    prompt: string,
+  ) {
+    const apiKey = this.config.get<string>('HUGGINGFACE_API_KEY');
+    if (!apiKey) throw new Error('Missing HUGGINGFACE_API_KEY');
+    const hfModel = model.modelId.split(':')[1] ?? model.modelId;
+    const response = await fetch(`https://api-inference.huggingface.co/models/${hfModel}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: req.maxTokens ?? 512,
+          temperature: req.temperature ?? 0.7,
+        },
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`HuggingFace API error ${response.status}: ${await response.text()}`);
+    }
+    const data = (await response.json()) as any;
+    const text =
+      data?.[0]?.generated_text ??
+      data?.generated_text ??
+      (typeof data === 'string' ? data : JSON.stringify(data));
+    const inputTok = Math.ceil(prompt.length / 4);
+    const outputTok = Math.ceil(String(text).length / 4);
+    return {
+      text: String(text),
+      model: model.id,
+      provider: model.provider,
+      tokens: { input: inputTok, output: outputTok, total: inputTok + outputTok },
+      costUsd: this.optimizer.estimateCost(model, inputTok, outputTok),
+    };
+  }
+
+  private async _callImageProvider(model: RegisteredModel, prompt: string) {
+    const endpoint = this.config.get<string>('IMAGE_PROVIDER_ENDPOINT');
+    const apiKey = this.config.get<string>('IMAGE_PROVIDER_API_KEY');
+    if (!endpoint || !apiKey) {
+      throw new Error(`Missing IMAGE_PROVIDER_ENDPOINT/API_KEY for ${model.modelId}`);
+    }
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: model.modelId, prompt }),
+    });
+    if (!response.ok) throw new Error(`Image provider error ${response.status}: ${await response.text()}`);
+    const data = (await response.json()) as any;
+    const imageUrl = data.url ?? data.imageUrl ?? data.output?.[0] ?? '';
+    return {
+      text: String(imageUrl),
+      model: model.id,
+      provider: model.provider,
+      tokens: { input: 0, output: 0, total: 0 },
+      costUsd: this.optimizer.estimateCost(model, 0, 0),
+    };
+  }
+
+  private async _callVideoProvider(model: RegisteredModel, prompt: string) {
+    const endpoint = this.config.get<string>('VIDEO_PROVIDER_ENDPOINT');
+    const apiKey = this.config.get<string>('VIDEO_PROVIDER_API_KEY');
+    if (!endpoint || !apiKey) {
+      throw new Error(`Missing VIDEO_PROVIDER_ENDPOINT/API_KEY for ${model.modelId}`);
+    }
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: model.modelId, prompt }),
+    });
+    if (!response.ok) throw new Error(`Video provider error ${response.status}: ${await response.text()}`);
+    const data = (await response.json()) as any;
+    const descriptor = data.videoUrl ?? data.url ?? data.jobId ?? JSON.stringify(data);
+    return {
+      text: String(descriptor),
+      model: model.id,
+      provider: model.provider,
+      tokens: { input: 0, output: 0, total: 0 },
+      costUsd: this.optimizer.estimateCost(model, 0, 0),
+    };
+  }
+
+  private async _callAudioProvider(model: RegisteredModel, prompt: string) {
+    const endpoint = this.config.get<string>('AUDIO_PROVIDER_ENDPOINT');
+    const apiKey = this.config.get<string>('AUDIO_PROVIDER_API_KEY');
+    if (!endpoint || !apiKey) {
+      throw new Error(`Missing AUDIO_PROVIDER_ENDPOINT/API_KEY for ${model.modelId}`);
+    }
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: model.modelId, text: prompt }),
+    });
+    if (!response.ok) throw new Error(`Audio provider error ${response.status}: ${await response.text()}`);
+    const data = (await response.json()) as any;
+    const descriptor = data.audioUrl ?? data.url ?? data.jobId ?? JSON.stringify(data);
+    return {
+      text: String(descriptor),
+      model: model.id,
+      provider: model.provider,
+      tokens: { input: 0, output: 0, total: 0 },
+      costUsd: this.optimizer.estimateCost(model, 0, 0),
     };
   }
 
@@ -443,5 +690,28 @@ export class AIGatewayService {
       return { strategy: 'best_quality' as const, preferredProviders: profile.premiumProviders };
     }
     return { strategy: 'balanced' as const };
+  }
+
+  private resolvePreferredModelIdByContentType(
+    task: GatewayTask,
+    map: Record<string, Record<string, string>>,
+    candidates: RegisteredModel[],
+  ) {
+    const contentType = this.taskToContentType(task);
+    const providerMap = map?.[contentType];
+    if (!providerMap) return null;
+    for (const c of candidates) {
+      const mappedModelId = providerMap[c.provider];
+      if (mappedModelId && mappedModelId === c.id) return c.id;
+    }
+    return null;
+  }
+
+  private taskToContentType(task: GatewayTask): 'text' | 'image' | 'video' | 'ugc' | 'audio' {
+    if (task === GatewayTask.IMAGE_GENERATION || task === GatewayTask.IMAGE_EDIT) return 'image';
+    if (task === GatewayTask.VIDEO_SCRIPT) return 'video';
+    if (task === GatewayTask.AUDIO_TRANSCRIPTION) return 'audio';
+    if (task === GatewayTask.SOCIAL_POST || task === GatewayTask.AD_COPY) return 'ugc';
+    return 'text';
   }
 }

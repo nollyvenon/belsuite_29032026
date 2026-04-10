@@ -274,6 +274,17 @@ export class SetTenantFeatureModelLimitDto extends SetFeatureModelLimitDto {
   organizationId: string;
 }
 
+export class SetContentTypeProviderModelDto {
+  @IsEnum(['text', 'image', 'video', 'ugc', 'audio'])
+  contentType: 'text' | 'image' | 'video' | 'ugc' | 'audio';
+
+  @IsString()
+  provider: string;
+
+  @IsString()
+  modelId: string;
+}
+
 // ─── Query params ─────────────────────────────────────────────────────────────
 
 export class RequestLogQueryDto {

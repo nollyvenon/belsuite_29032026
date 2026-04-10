@@ -118,6 +118,8 @@ interface FeatureToggle {
   enabled: boolean;
 }
 
+type ContentType = 'text' | 'image' | 'video' | 'ugc' | 'audio';
+
 interface ConsumptionGuide {
   counts: Record<string, number>;
   byCategory: Record<string, Array<{
@@ -144,6 +146,7 @@ const TABS = [
   { id: 'assignments',  label: 'Feature Routing', icon: Zap },
   { id: 'requests',     label: 'Request Log',     icon: List },
   { id: 'consumption',  label: 'Token Guide',     icon: Eye },
+  { id: 'switcher',     label: 'Model Switcher',  icon: Settings },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -211,6 +214,7 @@ export default function AIGatewayDashboard() {
   const [controlProfile, setControlProfile] = useState<ControlProfile | null>(null);
   const [featureToggles, setFeatureToggles] = useState<FeatureToggle[]>([]);
   const [consumptionGuide, setConsumptionGuide] = useState<ConsumptionGuide | null>(null);
+  const [contentTypeProviderMap, setContentTypeProviderMap] = useState<Record<string, Record<string, string>>>({});
 
   // Budget editor
   const [editBudget, setEditBudget] = useState<Partial<BudgetConfig>>({});
@@ -233,12 +237,16 @@ export default function AIGatewayDashboard() {
         fetch(`${BASE}/control-profile`).then((r) => r.json()),
         fetch(`${BASE}/feature-toggles`).then((r) => r.json()),
       ]);
-      const guide = await fetch(`${BASE}/model-consumption-guide`).then((r) => r.json());
+      const [guide, ctp] = await Promise.all([
+        fetch(`${BASE}/model-consumption-guide`).then((r) => r.json()),
+        fetch(`${BASE}/content-type-provider-models`).then((r) => r.json()),
+      ]);
       setStats(s); setCacheStats(cs); setModels(m);
       setHealth(h); setBudgets(b); setAssignments(a);
       setControlProfile(profile);
       setFeatureToggles(toggles);
       setConsumptionGuide(guide);
+      setContentTypeProviderMap(ctp.map ?? {});
     } catch {/* dev mode — data not loaded yet */} finally {
       setLoading(false);
     }
@@ -300,6 +308,25 @@ export default function AIGatewayDashboard() {
       body: JSON.stringify({ key, enabled }),
     });
     setFeatureToggles((prev) => prev.map((t) => (t.key === key ? { ...t, enabled } : t)));
+  };
+
+  const saveContentTypeProviderModel = async (
+    contentType: ContentType,
+    provider: string,
+    modelId: string,
+  ) => {
+    await fetch(`${BASE}/content-type-provider-models`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType, provider, modelId }),
+    });
+    setContentTypeProviderMap((prev) => ({
+      ...prev,
+      [contentType]: {
+        ...(prev[contentType] ?? {}),
+        [provider]: modelId,
+      },
+    }));
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -1010,6 +1037,42 @@ export default function AIGatewayDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {tab === 'switcher' && (
+            <div className="space-y-6">
+              {(['text', 'image', 'video', 'ugc', 'audio'] as ContentType[]).map((contentType) => {
+                const providers = Array.from(new Set(models.map((m) => m.provider)));
+                return (
+                  <div key={contentType} className="rounded-xl border border-white/10 bg-white/5 p-5">
+                    <h3 className="font-semibold capitalize mb-4">{contentType} model switching</h3>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {providers.map((provider) => {
+                        const providerModels = models.filter((m) => m.provider === provider);
+                        const selected = contentTypeProviderMap?.[contentType]?.[provider] ?? '';
+                        return (
+                          <label key={`${contentType}-${provider}`} className="block">
+                            <span className="text-xs text-gray-400 mb-1 block">{provider}</span>
+                            <select
+                              value={selected}
+                              onChange={(e) => saveContentTypeProviderModel(contentType, provider, e.target.value)}
+                              className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                            >
+                              <option value="">(no explicit override)</option>
+                              {providerModels.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.displayName}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </motion.div>

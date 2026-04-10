@@ -59,6 +59,7 @@ import {
   SetFeatureModelLimitDto,
   SetTenantUsageLimitDto,
   SetTenantFeatureModelLimitDto,
+  SetContentTypeProviderModelDto,
 } from '../dto/gateway.dto';
 
 @Controller('admin/ai-gateway')
@@ -345,5 +346,19 @@ export class AdminGatewayController {
   @Put('tenant-feature-model-limits')
   async setTenantFeatureModelLimit(@Body() dto: SetTenantFeatureModelLimitDto) {
     return this.control.setTenantFeatureModelLimit(dto.organizationId, dto.feature, dto.modelIds ?? []);
+  }
+
+  @Get('content-type-provider-models')
+  async getContentTypeProviderModels() {
+    const [map, models] = await Promise.all([
+      this.control.getContentTypeProviderModelMap(),
+      this.registry.getAllModels(),
+    ]);
+    return { map, models };
+  }
+
+  @Put('content-type-provider-models')
+  async setContentTypeProviderModel(@Body() dto: SetContentTypeProviderModelDto) {
+    return this.control.setContentTypeProviderModel(dto.contentType, dto.provider as any, dto.modelId);
   }
 }
