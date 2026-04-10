@@ -31,7 +31,7 @@ export default function Home() {
 
           {/* Subheadline */}
           <p className={`text-xl md:text-2xl ${isDark ? 'text-gray-300' : 'text-gray-600'} mb-8 max-w-3xl mx-auto leading-relaxed`}>
-            Create content, capture leads, run campaigns, close deals, and scale your business — all from one AI-powered platform. <span className="font-bold text-orange-600">No team. No multiple tools. Just results.</span>
+            Create videos, generate leads, manage deals, automate campaigns, and close customers — all from one AI platform. <span className="font-bold text-orange-600">One dashboard. All your business systems. Zero headcount.</span>
           </p>
 
           {/* CTAs */}
@@ -123,101 +123,101 @@ export default function Home() {
       <section id="systems" className={`${isDark ? 'bg-orange-900/10 border-t border-b border-orange-700/30' : 'bg-orange-50 border-t border-b border-orange-200'} py-24`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-5xl font-black mb-4">Your AI Business System</h2>
+            <h2 className="text-5xl font-black mb-4">Your Complete AI Business System</h2>
             <p className={`text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              Four powerful engines. One unified platform.
+              Four integrated engines powering your entire business. Content • Growth • Sales • Automation.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
-            {/* System 1: Content */}
+            {/* System 1: Content & Video */}
             <div className={`p-8 rounded-2xl border-2 ${isDark ? 'bg-black border-orange-700/50 hover:border-orange-600' : 'bg-white border-orange-200 hover:border-orange-400'} transition-all`}>
               <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                 <Sparkles size={28} className="text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">AI Content & Media Engine</h3>
+              <h3 className="text-2xl font-bold mb-3">AI Content & Video Engine</h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Generate blog posts, ads, scripts, videos, and UGC in seconds. Publish everywhere automatically.
+                Generate blog posts, scripts, and professional videos in seconds. Edit with AI. Publish everywhere.
               </p>
               <ul className="space-y-3">
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>AI text, image & video generation</span>
+                  <span>AI video creation & editing (CapCut-level)</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Automatic formatting & editing</span>
+                  <span>Auto captions, effects & transitions</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Multi-platform publishing</span>
+                  <span>Multi-format export (Instagram, TikTok, YouTube)</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Calendar & auto-scheduling</span>
+                  <span>Content calendar & auto-publishing</span>
                 </li>
               </ul>
-              <p className="mt-6 font-bold text-orange-600">→ Never run out of content again</p>
+              <p className="mt-6 font-bold text-orange-600">→ Professional content without the team</p>
             </div>
 
-            {/* System 2: Sales & CRM */}
+            {/* System 2: Lead Generation & Sales */}
             <div className={`p-8 rounded-2xl border-2 ${isDark ? 'bg-black border-orange-700/50 hover:border-orange-600' : 'bg-white border-orange-200 hover:border-orange-400'} transition-all`}>
               <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                 <BarChart3 size={28} className="text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">AI Sales & CRM Engine</h3>
+              <h3 className="text-2xl font-bold mb-3">Lead Generation & Sales Engine</h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Capture leads, track deals, score prospects, and close more customers with AI-powered intelligence.
+                Generate leads, enrich data, score prospects, manage deals, and close customers. Your growth engine working 24/7.
               </p>
               <ul className="space-y-3">
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Smart lead capture & forms</span>
+                  <span>Lead generation & web scraping</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Deal pipeline management</span>
+                  <span>Lead enrichment & verification (0-100 scoring)</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>AI lead scoring & qualification</span>
+                  <span>Deal pipeline & activity tracking</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Contact & activity tracking</span>
+                  <span>Visitor tracking & email identification</span>
                 </li>
               </ul>
-              <p className="mt-6 font-bold text-orange-600">→ Convert leads 3x faster</p>
+              <p className="mt-6 font-bold text-orange-600">→ Never miss a sales opportunity</p>
             </div>
 
-            {/* System 3: Marketing */}
+            {/* System 3: Marketing & Automation */}
             <div className={`p-8 rounded-2xl border-2 ${isDark ? 'bg-black border-orange-700/50 hover:border-orange-600' : 'bg-white border-orange-200 hover:border-orange-400'} transition-all`}>
               <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                 <Mail size={28} className="text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">AI Marketing & Automation Engine</h3>
+              <h3 className="text-2xl font-bold mb-3">Marketing Automation Engine</h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Run email campaigns, SMS sequences, and marketing funnels that automate your entire customer journey.
+                Multi-channel campaigns (email, SMS, voice, AI calls) with intelligent workflows that nurture at scale.
               </p>
               <ul className="space-y-3">
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Email & SMS automation</span>
+                  <span>Email, SMS, voice & AI calling campaigns</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>AI-powered sequences</span>
+                  <span>Trigger-based automation workflows</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Funnel builder & A/B testing</span>
+                  <span>Conditional logic & smart routing</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Real-time analytics</span>
+                  <span>Campaign analytics & ROI tracking</span>
                 </li>
               </ul>
-              <p className="mt-6 font-bold text-orange-600">→ Automate your entire marketing</p>
+              <p className="mt-6 font-bold text-orange-600">→ Your campaigns run themselves</p>
             </div>
 
             {/* System 4: Business Autopilot */}
@@ -270,10 +270,10 @@ export default function Home() {
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { step: 1, title: 'Create', desc: 'AI generates content, campaigns, and landing pages in seconds', icon: '✨' },
-              { step: 2, title: 'Capture', desc: 'AI receptionist qualifies leads 24/7 via chat, forms, calls', icon: '📱' },
-              { step: 3, title: 'Convert', desc: 'AI follows up via email, SMS, and calls automatically', icon: '🔄' },
-              { step: 4, title: 'Scale', desc: 'AI optimizes everything and reports growth metrics', icon: '📈' },
+              { step: 1, title: 'Create', desc: 'AI generates videos, blogs, ads, and campaigns in seconds', icon: '✨' },
+              { step: 2, title: 'Generate', desc: 'AI captures leads, enriches data, scores prospects 24/7', icon: '🎯' },
+              { step: 3, title: 'Convert', desc: 'AI automates email, SMS, calls, and follow-ups', icon: '🔄' },
+              { step: 4, title: 'Scale', desc: 'AI optimizes deals, campaigns, and growth metrics', icon: '📈' },
             ].map((item) => (
               <div key={item.step} className="text-center">
                 <div className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl mb-6 mx-auto ${isDark ? 'bg-orange-900/30 border border-orange-700' : 'bg-orange-100 border border-orange-300'}`}>
@@ -449,7 +449,7 @@ export default function Home() {
 
           {/* Demo Tabs */}
           <div className="flex justify-center gap-4 mb-12 flex-wrap">
-            {['crm', 'campaigns', 'calls', 'assistant'].map((tab) => (
+            {['crm', 'video', 'campaigns', 'calls', 'assistant'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -464,6 +464,7 @@ export default function Home() {
                 }`}
               >
                 {tab === 'crm' && '💼 CRM Dashboard'}
+                {tab === 'video' && '🎬 Video Editor'}
                 {tab === 'campaigns' && '📧 Campaigns'}
                 {tab === 'calls' && '📞 AI Calling'}
                 {tab === 'assistant' && '🤖 AI Assistant'}
@@ -473,6 +474,44 @@ export default function Home() {
 
           {/* Demo Content */}
           <div className={`rounded-2xl border-2 p-8 ${isDark ? 'bg-black border-orange-700/50' : 'bg-white border-orange-200'} overflow-hidden`}>
+            {activeTab === 'video' && (
+              <div>
+                <h3 className="font-bold mb-4 text-lg">AI Video Editor</h3>
+                <div className={`mb-6 rounded-lg overflow-hidden ${isDark ? 'bg-black border border-orange-700/50' : 'bg-gray-100 border border-orange-200'}`}>
+                  <div className={`w-full h-64 flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-200'}`}>
+                    <div className="text-center">
+                      <div className="text-5xl mb-3">▶️</div>
+                      <p className={`font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Timeline Editor Preview</p>
+                      <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Drag • Drop • Auto-Caption • Effects</p>
+                    </div>
+                  </div>
+                </div>
+                <div className={`grid md:grid-cols-2 gap-6 ${isDark ? 'text-gray-300' : ''}`}>
+                  <div>
+                    <p className="font-bold mb-3">Features</p>
+                    <ul className="space-y-2 text-sm">
+                      <li>✓ Drag & drop timeline editing</li>
+                      <li>✓ Auto-generated captions (speech-to-text)</li>
+                      <li>✓ Scene detection & highlights</li>
+                      <li>✓ Background removal (1 click)</li>
+                      <li>✓ Silence auto-removal</li>
+                      <li>✓ Transitions & effects library</li>
+                      <li>✓ Multi-format export</li>
+                    </ul>
+                  </div>
+                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
+                    <p className="font-bold mb-3">Recent Project</p>
+                    <div className="space-y-2 text-sm">
+                      <div>📹 <strong>Product Demo Video</strong></div>
+                      <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>Duration: 2:35 • Format: 9:16 (Reels)</div>
+                      <div className="mt-3 w-full h-2 rounded-full bg-orange-600"></div>
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Rendering: 87% complete</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'crm' && (
               <div>
                 <h3 className="font-bold mb-4 text-lg">CRM Dashboard</h3>
@@ -695,9 +734,9 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { name: 'Starter', price: '$99', users: '1 user', features: ['AI Content', 'Basic CRM', 'Email', 'Up to 500 leads/mo'] },
-              { name: 'Professional', price: '$299', users: '5 users', features: ['All Starter +', 'AI Calling', 'SMS', 'AI Receptionist', 'Up to 5K leads/mo'], popular: true },
-              { name: 'Enterprise', price: 'Custom', users: 'Unlimited', features: ['Everything +', 'Priority Support', 'Custom Integrations', 'Dedicated Account Manager'] },
+              { name: 'Starter', price: '$99', users: '1 user', features: ['AI Video Editor', 'Content Generator', 'Basic CRM (50 contacts)', 'Email campaigns', 'Up to 500 leads/mo'] },
+              { name: 'Professional', price: '$299', users: '5 users', features: ['All Starter +', 'AI Calling (100 calls/mo)', 'SMS campaigns', 'Lead enrichment', 'AI Workflows', 'Up to 5K leads/mo', 'AI Receptionist'], popular: true },
+              { name: 'Enterprise', price: 'Custom', users: 'Unlimited', features: ['Everything +', 'Unlimited calls & leads', 'Priority support', 'Custom workflows', 'Dedicated account manager', 'API access'] },
             ].map((plan, idx) => (
               <div
                 key={idx}
@@ -745,8 +784,11 @@ export default function Home() {
           </div>
 
           <div className={`mt-20 p-8 rounded-2xl text-center ${isDark ? 'bg-black border border-orange-700/30' : 'bg-white border border-orange-200'}`}>
+            <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
+              <span className="font-bold text-lg text-orange-600">Complete Platform Included:</span>
+            </p>
             <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
-              All plans include: <span className="font-bold">CRM • AI Calling • Email • SMS • Marketing Automation • AI Assistant • Analytics</span>
+              <span className="font-bold">Content & Video • AI Video Editor • Lead Generation • CRM & Deals • Email • SMS • AI Calling • Marketing Automation • Workflows • AI Assistant • Analytics</span>
             </p>
           </div>
         </div>
