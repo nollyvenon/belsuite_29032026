@@ -420,6 +420,9 @@ model Organization {
   aiCeoDecisions        AIceoDecision[]
   aiCeoReports          AICEOReport[]
 
+  // Credit billing
+  creditAccount         CreditAccount?   @relation("OrgCreditAccount")
+
   @@index([slug])
   @@index([status])
   @@index([tier])
@@ -3779,6 +3782,280 @@ model OAuthState {
   @@index([state])
   @@index([expiresAt])
 }
+
+// ============================================================================
+// CREDIT-BASED BILLING SYSTEM
+// ============================================================================
+
+// One wallet per organization — holds current credit balance
+model CreditAccount {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  organization    Organization @relation("OrgCreditAccount", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  balanceCredits  Float    @default(0)        // current spendable balance
+  lifetimeEarned  Float    @default(0)        // total credits ever added
+  lifetimeSpent   Float    @default(0)        // total credits ever debited
+  reservedCredits Float    @default(0)        // held for in-flight operations
+  lowBalanceAlert Float?                       // notify at this threshold
+  autoTopUpAt     Float?                       // auto purchase when balance drops here
+  autoTopUpBundleId String?                    // which bundle to auto-buy
+
+  transactions    CreditTransaction[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+// Immutable double-entry ledger for every credit movement
+model CreditTransaction {
+  id              String   @id @default(cuid())
+  accountId       String
+  account         CreditAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  organizationId  String
+
+  type            CreditTxType
+  amount          Float                        // positive = credit, negative = debit
+  balanceAfter    Float                        // snapshot for audit trail
+  description     String       @db.VarChar(255)
+  metadata        Json?
+
+  // References to source events
+  usageRecordId   String?      @unique
+  usageRecord     UsageRecord? @relation(fields: [usageRecordId], references: [id])
+  paymentId       String?
+  bundleId        String?
+  bundle          CreditBundle? @relation(fields: [bundleId], references: [id])
+  invoiceId       String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([accountId])
+  @@index([organizationId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+enum CreditTxType {
+  PURCHASE          // bought credits
+  PLAN_ALLOCATION   // monthly credits from subscription plan
+  USAGE_DEBIT       // consumed by a feature
+  REFUND            // refunded credits
+  ADJUSTMENT        // manual admin adjustment
+  EXPIRY            // expired credits
+  RESERVATION       // reserved for in-flight op
+  RESERVATION_RELEASE
+  BONUS             // free/promo credits
+}
+
+// Every measurable AI / feature usage event
+model UsageRecord {
+  id              String   @id @default(cuid())
+  organizationId  String
+  userId          String?
+  feature         UsageFeature
+  model           String?      @db.VarChar(128) // e.g. "gpt-4o", "claude-opus-4-6"
+  provider        String?      @db.VarChar(64)  // e.g. "OPENAI", "ANTHROPIC"
+
+  // Raw usage metrics
+  inputTokens     Int?         @default(0)
+  outputTokens    Int?         @default(0)
+  totalTokens     Int?         @default(0)
+  videoMinutes    Float?       @default(0)
+  imageCount      Int?         @default(0)
+  smsCount        Int?         @default(0)
+  emailCount      Int?         @default(0)
+  storageGb       Float?       @default(0)
+  apiCalls        Int?         @default(1)
+
+  // Cost accounting
+  providerCostUsd Float        @default(0)  // what we paid the AI provider
+  marginPct       Float        @default(0)  // markup applied
+  creditsCost     Float        @default(0)  // credits charged to org
+  usdEquivalent   Float        @default(0)  // USD value of credits charged
+
+  // Tracing
+  requestId       String?      @db.VarChar(128)
+  conversationId  String?
+  taskId          String?
+  meta            Json?
+
+  creditTransaction CreditTransaction?
+
+  createdAt       DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([feature])
+  @@index([model])
+  @@index([createdAt])
+  @@index([organizationId, feature, createdAt])
+}
+
+enum UsageFeature {
+  AI_CHAT
+  AI_CONTENT_GENERATION
+  AI_SEO_ANALYSIS
+  AI_LEAD_SCORING
+  AI_EMAIL_DRAFT
+  AI_SOCIAL_POST
+  AI_IMAGE_GENERATION
+  AI_IMAGE_EDIT
+  AI_AUDIO_TRANSCRIPTION
+  AI_EMBEDDING
+  AI_CALLING
+  VIDEO_PROCESSING
+  VIDEO_STORAGE
+  EMAIL_SEND
+  SMS_SEND
+  WHATSAPP_SEND
+  STORAGE
+  API_CALL
+  CUSTOM
+}
+
+// Admin-configurable pricing per metric — the pricing table
+model PricingRule {
+  id              String   @id @default(cuid())
+  feature         UsageFeature
+  model           String?  @db.VarChar(128)  // null = applies to all models for this feature
+  provider        String?  @db.VarChar(64)
+
+  // Credits charged per unit
+  creditsPerInputToken     Float @default(0)
+  creditsPerOutputToken    Float @default(0)
+  creditsPerVideoMinute    Float @default(0)
+  creditsPerImage          Float @default(0)
+  creditsPerSms            Float @default(0)
+  creditsPerEmail          Float @default(0)
+  creditsPerStorageGbDay   Float @default(0)
+  creditsPerApiCall        Float @default(0)
+
+  // Provider cost (what we pay) — for margin calculation
+  providerCostPerInputToken    Float @default(0)  // USD
+  providerCostPerOutputToken   Float @default(0)  // USD
+  providerCostPerVideoMinute   Float @default(0)
+  providerCostPerImage         Float @default(0)
+
+  // Margin settings
+  marginPct       Float    @default(30)          // default 30% margin
+  marginFixed     Float    @default(0)           // flat USD add-on per request
+
+  // USD ↔ credit exchange rate for this rule (fallback to global)
+  creditsPerUsd   Float?
+
+  isActive        Boolean  @default(true)
+  note            String?  @db.VarChar(255)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([feature, model, provider])
+  @@index([feature])
+  @@index([isActive])
+}
+
+// Global billing configuration (singleton, managed by super-admin)
+model BillingConfig {
+  id              String   @id @default(cuid())
+  key             String   @unique @db.VarChar(128)
+  value           String   @db.Text
+  description     String?  @db.VarChar(255)
+  updatedAt       DateTime @updatedAt
+}
+
+// Purchasable credit bundles (100 credits = $10, etc.)
+model CreditBundle {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(128)    // "Starter Pack", "Pro Pack"
+  credits         Float                         // credits granted
+  priceUsd        Float                         // list price in USD
+  discountPct     Float    @default(0)          // e.g. 10 = 10% off
+  bonusCredits    Float    @default(0)          // extra free credits
+  isActive        Boolean  @default(true)
+  isPopular       Boolean  @default(false)
+  sortOrder       Int      @default(0)
+  description     String?  @db.VarChar(255)
+  stripePriceId   String?                       // Stripe one-time price ID
+  paystackPlanCode String?
+
+  transactions    CreditTransaction[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// M-Pesa STK push payment tracking
+model MpesaPayment {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  phoneNumber         String   @db.VarChar(20)
+  amountKes           Float
+  merchantRequestId   String?  @unique
+  checkoutRequestId   String?  @unique
+  resultCode          Int?
+  resultDesc          String?  @db.VarChar(255)
+  mpesaReceiptNumber  String?  @unique
+  transactionDate     DateTime?
+  status              MpesaPaymentStatus @default(PENDING)
+  creditBundleId      String?
+  creditsGranted      Float?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([checkoutRequestId])
+}
+
+enum MpesaPaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  TIMEOUT
+}
+
+// Crypto payment session (Coinbase Commerce / NOWPayments)
+model CryptoPayment {
+  id              String   @id @default(cuid())
+  organizationId  String
+  provider        String   @db.VarChar(64)   // "COINBASE" | "NOWPAYMENTS"
+  chargeId        String?  @unique           // Coinbase charge ID
+  paymentId       String?  @unique           // NOWPayments payment ID
+  amountUsd       Float
+  currency        String   @db.VarChar(20)   // "BTC", "ETH", "USDT", etc.
+  cryptoAmount    Float?
+  cryptoAddress   String?  @db.VarChar(255)
+  status          CryptoPaymentStatus @default(PENDING)
+  hostedUrl       String?  @db.Text
+  expiresAt       DateTime?
+  confirmedAt     DateTime?
+  creditBundleId  String?
+  creditsGranted  Float?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+enum CryptoPaymentStatus {
+  PENDING
+  WAITING
+  CONFIRMING
+  CONFIRMED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+// ============================================================================
+// END CREDIT-BASED BILLING SYSTEM
+// ============================================================================
 
 // Immutable log of every incoming webhook event
 model IncomingWebhookLog {

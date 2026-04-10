@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { trackAnalyticsEvent } from '@/hooks/useAnalytics';
 import { BillingCycle, PaymentProvider, useBilling } from '@/hooks/useBilling';
+import { CreditBillingProvider, useCreditBilling } from '@/hooks/useCreditBilling';
 
 const PROVIDER_LABELS: Record<PaymentProvider, string> = {
   stripe: 'Stripe',
@@ -49,6 +50,13 @@ export default function BillingPage() {
     clearCoupon,
     checkoutSubscription,
   } = useBilling();
+  const {
+    capabilities,
+    balance,
+    usageLogs,
+    loading: creditLoading,
+    providerCheckout,
+  } = useCreditBilling();
 
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('MONTHLY');
@@ -99,12 +107,23 @@ export default function BillingPage() {
     () => selectedPlan?.supportedProviders ?? overview?.providers ?? [],
     [overview?.providers, selectedPlan?.supportedProviders],
   );
+  const capabilityByProvider = useMemo(
+    () => new Map(capabilities.map((item) => [item.provider, item])),
+    [capabilities],
+  );
+  const checkoutProviders = useMemo(
+    () =>
+      supportedProviders.filter((item) =>
+        capabilityByProvider.has(item as CreditBillingProvider),
+      ),
+    [capabilityByProvider, supportedProviders],
+  );
 
   useEffect(() => {
-    if (supportedProviders.length > 0 && !supportedProviders.includes(provider)) {
-      setProvider(supportedProviders[0]);
+    if (checkoutProviders.length > 0 && !checkoutProviders.includes(provider)) {
+      setProvider(checkoutProviders[0]);
     }
-  }, [provider, supportedProviders]);
+  }, [checkoutProviders, provider]);
 
   const handlePreview = async () => {
     if (!selectedPlan) return;
@@ -164,21 +183,7 @@ export default function BillingPage() {
     setSuccessMessage(null);
 
     try {
-      const result = await checkoutSubscription({
-        provider,
-        planId: selectedPlan.id,
-        billingCycle,
-        couponCode: couponCode || undefined,
-        paymentMethodId: provider === 'crypto' ? 'crypto-wallet' : billingForm.paymentMethodId,
-        billingEmail: billingForm.billingEmail,
-        billingName: billingForm.billingName || undefined,
-        billingAddress: billingForm.billingAddress || undefined,
-        billingCity: billingForm.billingCity || undefined,
-        billingState: billingForm.billingState || undefined,
-        billingZip: billingForm.billingZip || undefined,
-        billingCountry: billingForm.billingCountry || undefined,
-        taxId: billingForm.taxId || undefined,
-      });
+      const providerCaps = capabilityByProvider.get(provider as CreditBillingProvider);
 
       trackAnalyticsEvent({
         eventType: provider === 'crypto' ? 'billing_crypto_checkout_started' : 'billing_subscription_checkout_started',
@@ -192,12 +197,48 @@ export default function BillingPage() {
         },
       });
 
-      if (result.payment?.redirectUrl) {
-        window.location.href = result.payment.redirectUrl;
-        return;
+      if (providerCaps?.supportsSubscriptions) {
+        const result = await checkoutSubscription({
+          provider,
+          planId: selectedPlan.id,
+          billingCycle,
+          couponCode: couponCode || undefined,
+          paymentMethodId: provider === 'crypto' ? 'crypto-wallet' : billingForm.paymentMethodId,
+          billingEmail: billingForm.billingEmail,
+          billingName: billingForm.billingName || undefined,
+          billingAddress: billingForm.billingAddress || undefined,
+          billingCity: billingForm.billingCity || undefined,
+          billingState: billingForm.billingState || undefined,
+          billingZip: billingForm.billingZip || undefined,
+          billingCountry: billingForm.billingCountry || undefined,
+          taxId: billingForm.taxId || undefined,
+        });
+        if (result.payment?.redirectUrl) {
+          window.location.href = result.payment.redirectUrl;
+          return;
+        }
+        setSuccessMessage('Subscription created successfully.');
+      } else {
+        const checkout = await providerCheckout({
+          provider: provider as CreditBillingProvider,
+          email: billingForm.billingEmail,
+          amountUsd: quote?.summary.totalAmount || selectedPlan.pricePerMonth,
+          phoneNumber: provider === 'mpesa' ? billingForm.paymentMethodId : undefined,
+          successUrl: `${window.location.origin}/billing?checkout=success`,
+          cancelUrl: `${window.location.origin}/billing?checkout=cancel`,
+        });
+        const redirect =
+          checkout.redirectUrl ||
+          checkout.hostedUrl ||
+          checkout.authorizationUrl ||
+          checkout.checkoutUrl ||
+          checkout.paymentUrl;
+        if (redirect) {
+          window.location.href = redirect;
+          return;
+        }
+        setSuccessMessage('Checkout started successfully.');
       }
-
-      setSuccessMessage('Subscription created successfully.');
       await reload();
     } catch (err) {
       setActionError((err as Error).message);
@@ -363,7 +404,7 @@ export default function BillingPage() {
                         onChange={(event) => setProvider(event.target.value as PaymentProvider)}
                         className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none"
                       >
-                        {supportedProviders.map((item) => (
+                        {checkoutProviders.map((item) => (
                           <option key={item} value={item} className="bg-slate-950">
                             {PROVIDER_LABELS[item]}
                           </option>
@@ -487,6 +528,37 @@ export default function BillingPage() {
 
             <div className="grid gap-8 xl:grid-cols-[0.9fr_1.1fr]">
               <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm">
+                <h2 className="text-xl font-semibold text-white">Credit wallet</h2>
+                <p className="mt-1 text-sm text-slate-400">Live credit balance and ledger-based wallet totals.</p>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Balance</p>
+                    <p className="mt-3 text-2xl font-semibold text-white">
+                      {creditLoading ? '...' : (balance?.balanceCredits ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Lifetime spent</p>
+                    <p className="mt-3 text-2xl font-semibold text-white">
+                      {creditLoading ? '...' : (balance?.account.lifetimeSpent ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <h3 className="text-sm font-medium text-white">Provider capabilities</h3>
+                  <div className="mt-3 grid gap-2">
+                    {capabilities.map((item) => (
+                      <div key={item.provider} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-300">
+                        {PROVIDER_LABELS[item.provider as PaymentProvider]} · sub {item.supportsSubscriptions ? 'yes' : 'no'} · top-up {item.supportsTopup ? 'yes' : 'no'} · webhook {item.supportsWebhook ? 'yes' : 'no'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm">
                 <h2 className="text-xl font-semibold text-white">Usage-based billing</h2>
                 <p className="mt-1 text-sm text-slate-400">Track AI, email, leads, outbound messages, calls, API, and storage overages from one billing surface.</p>
 
@@ -562,6 +634,27 @@ export default function BillingPage() {
                     ))
                   )}
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm">
+              <h2 className="text-xl font-semibold text-white">Recent usage logs</h2>
+              <p className="mt-1 text-sm text-slate-400">Recent metered usage events from the credit billing engine.</p>
+              <div className="mt-5 space-y-2">
+                {usageLogs.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-slate-400">
+                    No usage logs found.
+                  </div>
+                ) : (
+                  usageLogs.slice(0, 10).map((log) => (
+                    <div key={log.id} className="grid gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-slate-300 md:grid-cols-[1.1fr_0.6fr_0.5fr_0.6fr]">
+                      <span>{log.feature}{log.model ? ` (${log.model})` : ''}</span>
+                      <span>{(log.totalTokens ?? 0).toLocaleString()} tokens</span>
+                      <span>{log.creditsCost.toFixed(4)} cr</span>
+                      <span>{new Date(log.createdAt).toLocaleString()}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
