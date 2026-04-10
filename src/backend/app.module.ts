@@ -29,7 +29,8 @@ import { RankTrackerModule } from './rank-tracker/rank-tracker.module';
 import { CallCenterModule } from './call-center/call-center.module';
 import { RevenueIntelligenceModule } from './revenue-intelligence/revenue-intelligence.module';
 import { ReferralEngineModule } from './referral-engine/referral-engine.module';
-import { AIGatewayModule } from './ai-gateway/ai-gateway.module';
+import { AIGatewayModule }     from './ai-gateway/ai-gateway.module';
+import { AIAssistantsModule }  from './ai-assistants/ai-assistants.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -114,6 +115,9 @@ class StorageModule {}
 
     // AI Orchestration Gateway (core intelligence layer)
     AIGatewayModule,
+
+    // AI Assistant Services (SierrAI, DonnaAI, YouTube, Social, Calendar)
+    AIAssistantsModule,
   ],
   providers: [
     DatabaseConfig,
