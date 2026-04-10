@@ -8,10 +8,14 @@ import {
   getSmsHealth,
   getSmsProviders,
   getSmsSettings,
+  getCampaignChannelRoutes,
   listTenants,
+  deleteCampaignChannelRoute,
+  upsertCampaignChannelRoute,
   updateEmailSettings,
   updateSmsSettings,
   updateTenant,
+  type CampaignChannelRoute,
   type AdminEmailSettings,
   type AdminSmsSettings,
   type EmailProviderConfig,
@@ -27,6 +31,7 @@ export function useAdminPanel() {
   const [smsProviders, setSmsProviders] = useState<SmsProviderConfig[]>([]);
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [smsHealth, setSmsHealth] = useState<Record<string, unknown> | null>(null);
+  const [campaignChannelRoutes, setCampaignChannelRoutes] = useState<CampaignChannelRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +40,7 @@ export function useAdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [tenantData, emailSettings, emailProviders, emailHealth, smsCfg, smsProviderCatalog, smsHealthPayload] = await Promise.all([
+      const [tenantData, emailSettings, emailProviders, emailHealth, smsCfg, smsProviderCatalog, smsHealthPayload, channelRoutes] = await Promise.all([
         listTenants(),
         getEmailSettings(),
         getEmailProviders(),
@@ -43,6 +48,7 @@ export function useAdminPanel() {
         getSmsSettings(),
         getSmsProviders(),
         getSmsHealth(),
+        getCampaignChannelRoutes(),
       ]);
 
       setTenants(tenantData.tenants);
@@ -52,6 +58,7 @@ export function useAdminPanel() {
       setSmsSettings(smsCfg);
       setSmsProviders(smsProviderCatalog);
       setSmsHealth(smsHealthPayload);
+      setCampaignChannelRoutes(channelRoutes);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -96,12 +103,40 @@ export function useAdminPanel() {
     }
   }, []);
 
+  const saveCampaignChannelRoute = useCallback(async (payload: CampaignChannelRoute) => {
+    setSaving(true);
+    try {
+      const next = await upsertCampaignChannelRoute(payload);
+      setCampaignChannelRoutes((current) => {
+        const idx = current.findIndex((r) => r.objective === next.objective);
+        if (idx < 0) return [...current, next];
+        const copy = [...current];
+        copy[idx] = next;
+        return copy;
+      });
+      return next;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const removeCampaignChannelRoute = useCallback(async (objective: CampaignChannelRoute['objective']) => {
+    setSaving(true);
+    try {
+      await deleteCampaignChannelRoute(objective);
+      setCampaignChannelRoutes((current) => current.filter((r) => r.objective !== objective));
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
   return {
     tenants,
     settings,
     providers,
     smsSettings,
     smsProviders,
+    campaignChannelRoutes,
     health,
     smsHealth,
     loading,
@@ -110,6 +145,8 @@ export function useAdminPanel() {
     reload: load,
     saveSettings,
     saveSmsSettings,
+    saveCampaignChannelRoute,
+    removeCampaignChannelRoute,
     saveTenant,
   };
 }

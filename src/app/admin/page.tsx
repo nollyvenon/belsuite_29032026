@@ -8,6 +8,7 @@ import { MetricCard } from '@/components/system/MetricCard';
 import { EmailSettingsPanel } from '@/components/admin/EmailSettingsPanel';
 import { SystemHealthPanel } from '@/components/admin/SystemHealthPanel';
 import { SmsSettingsPanel } from '@/components/admin/SmsSettingsPanel';
+import { CampaignChannelsPanel } from '@/components/admin/CampaignChannelsPanel';
 import { TenantManagementPanel } from '@/components/admin/TenantManagementPanel';
 import { AutopilotSchedulePanel } from '@/components/admin/AutopilotSchedulePanel';
 import { useAdminPanel } from '@/hooks/useAdminPanel';
@@ -23,12 +24,15 @@ export default function AdminPage() {
     smsSettings,
     smsProviders,
     smsHealth,
+    campaignChannelRoutes,
     loading,
     saving,
     error,
     reload,
     saveSettings,
     saveSmsSettings,
+    saveCampaignChannelRoute,
+    removeCampaignChannelRoute,
     saveTenant,
   } = useAdminPanel();
   const {
@@ -98,6 +102,18 @@ export default function AdminPage() {
                 {JSON.stringify(smsHealth, null, 2)}
               </pre>
             )}
+          </SectionPanel>
+
+          <SectionPanel
+            title="Campaign channels"
+            subtitle="Set default channel + provider routing per campaign objective (awareness, engagement, conversion, retention)."
+          >
+            <CampaignChannelsPanel
+              routes={campaignChannelRoutes}
+              saving={saving}
+              onSave={saveCampaignChannelRoute}
+              onDelete={removeCampaignChannelRoute}
+            />
           </SectionPanel>
 
           <SectionPanel

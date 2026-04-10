@@ -5,6 +5,7 @@ import { createApiClient } from '../client';
 const tenantClient = createApiClient('/api/tenants');
 const adminEmailClient = createApiClient('/api/admin/email');
 const adminSmsClient = createApiClient('/api/admin/sms');
+const adminCampaignChannelsClient = createApiClient('/api/admin/campaign-channels');
 const aiGatewayAdminClient = createApiClient('/admin/ai-gateway');
 
 export interface TenantSummary {
@@ -81,6 +82,12 @@ export interface SmsProviderConfig {
   requiredFields: string[];
 }
 
+export interface CampaignChannelRoute {
+  objective: 'awareness' | 'engagement' | 'conversion' | 'retention';
+  channel: 'email' | 'sms' | 'whatsapp' | 'voice' | 'ai_voice_agent';
+  provider: string;
+}
+
 export async function listTenants(skip = 0, take = 12) {
   return tenantClient.get<TenantListResponse>('/', { skip, take });
 }
@@ -119,6 +126,18 @@ export async function getSmsProviders() {
 
 export async function getSmsHealth() {
   return adminSmsClient.get<Record<string, unknown>>('/health');
+}
+
+export async function getCampaignChannelRoutes() {
+  return adminCampaignChannelsClient.get<CampaignChannelRoute[]>('/routes');
+}
+
+export async function upsertCampaignChannelRoute(payload: CampaignChannelRoute) {
+  return adminCampaignChannelsClient.put<CampaignChannelRoute>('/routes', payload);
+}
+
+export async function deleteCampaignChannelRoute(objective: CampaignChannelRoute['objective']) {
+  return adminCampaignChannelsClient.delete<{ deleted: boolean; objective: string }>(`/routes/${objective}`);
 }
 
 export interface AIGatewayControlProfile {

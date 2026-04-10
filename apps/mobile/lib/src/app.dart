@@ -1,38 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/notifications/notification_service.dart';
+import 'core/notifications/push_service.dart';
+import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
 
-import 'screens/home_shell.dart';
-import 'services/api_client.dart';
-import 'store/app_session_store.dart';
+class BelSuiteApp extends ConsumerStatefulWidget {
+  const BelSuiteApp({super.key});
 
-void runBelSuiteMobile() {
-  final sessionStore = AppSessionStore(
-    apiClient: BelsuiteApiClient(baseUrl: const String.fromEnvironment('BELSUITE_API_URL', defaultValue: 'http://localhost:3001')),
-  );
-
-  runApp(BelSuiteMobileApp(sessionStore: sessionStore));
+  @override
+  ConsumerState<BelSuiteApp> createState() => _BelSuiteAppState();
 }
 
-class BelSuiteMobileApp extends StatelessWidget {
-  const BelSuiteMobileApp({super.key, required this.sessionStore});
-
-  final AppSessionStore sessionStore;
+class _BelSuiteAppState extends ConsumerState<BelSuiteApp> {
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.instance.initialize();
+    PushNotificationService.instance.initialize();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'BelSuite Mobile',
+    final router = ref.watch(appRouterProvider);
+    return MaterialApp.router(
+      title: 'Belsuite Mobile',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF05070D),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFFF6A00),
-          secondary: Color(0xFF22D3EE),
-          surface: Color(0xFF0C1421),
-        ),
-        useMaterial3: true,
-      ),
-      home: HomeShell(sessionStore: sessionStore),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
+      routerConfig: router,
     );
   }
 }
