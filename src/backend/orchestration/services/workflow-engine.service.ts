@@ -23,11 +23,7 @@ export class WorkflowEngineService {
   ) {}
 
   async start(payload: Omit<OrchestrationJobPayload, 'stage'>) {
-    await this.queue.add(
-      'workflow.intent',
-      { ...payload, stage: 'intent' },
-      { attempts: 4, backoff: { type: 'exponential', delay: 2000 } },
-    );
+    await this.enqueueStage('intent', { ...payload, stage: 'intent' });
     return { accepted: true, correlationId: payload.correlationId };
   }
 
@@ -53,19 +49,19 @@ export class WorkflowEngineService {
       version: 1,
       metadata: { environment: process.env['NODE_ENV'] ?? 'development', service: 'workflow-engine' },
     });
-    await this.queue.add('workflow.route', { ...job, stage: 'route', intent });
+    await this.enqueueStage('route', { ...job, stage: 'route', intent });
   }
 
   private async handleRoute(job: OrchestrationJobPayload) {
     const task = this.routing.route(job.intent ?? 'general.chat');
     await this.storage.logStage(job.organizationId, 'workflow.task.routed', job.correlationId, { task, intent: job.intent }, job.userId);
-    await this.queue.add('workflow.execute', { ...job, stage: 'execute', task });
+    await this.enqueueStage('execute', { ...job, stage: 'execute', task });
   }
 
   private async handleExecute(job: OrchestrationJobPayload) {
     const serviceResult = await this.execution.execute(job.task ?? 'general_assistant', job.message, job.organizationId);
     await this.storage.logStage(job.organizationId, 'workflow.service.executed', job.correlationId, { task: job.task, serviceResult }, job.userId);
-    await this.queue.add('workflow.store', { ...job, stage: 'store', serviceResult });
+    await this.enqueueStage('store', { ...job, stage: 'store', serviceResult });
   }
 
   private async handleStore(job: OrchestrationJobPayload) {
@@ -75,7 +71,7 @@ export class WorkflowEngineService {
       task: job.task,
       serviceResult: job.serviceResult,
     }, job.userId);
-    await this.queue.add('workflow.respond', { ...job, stage: 'respond' });
+    await this.enqueueStage('respond', { ...job, stage: 'respond' });
   }
 
   private async handleRespond(job: OrchestrationJobPayload) {
@@ -107,5 +103,18 @@ export class WorkflowEngineService {
     if (task === 'audio_generation') return GatewayTask.AUDIO_TRANSCRIPTION;
     if (task === 'billing_lookup') return GatewayTask.BUSINESS_INSIGHTS;
     return GatewayTask.CHAT;
+  }
+
+  private async enqueueStage(
+    stage: OrchestrationJobPayload['stage'],
+    payload: OrchestrationJobPayload,
+  ) {
+    await this.queue.add(`workflow.${stage}`, payload, {
+      jobId: `${payload.correlationId}:${stage}`,
+      attempts: 4,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: 500,
+      removeOnFail: 500,
+    });
   }
 }

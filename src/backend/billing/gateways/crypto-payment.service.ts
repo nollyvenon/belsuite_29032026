@@ -46,7 +46,7 @@ export class CryptoPaymentService {
     });
 
     if (!res.ok) throw new Error(`Coinbase Commerce error: ${await res.text()}`);
-    const data  = await res.json();
+    const data  = (await res.json()) as any;
     const charge = data.data;
 
     const expiresAt = new Date(charge.expires_at);
@@ -128,7 +128,7 @@ export class CryptoPaymentService {
       }),
     });
     if (!res.ok) throw new Error(`NOWPayments error: ${await res.text()}`);
-    const data = await res.json();
+    const data = (await res.json()) as any;
 
     await this.prisma.cryptoPayment.create({
       data: {

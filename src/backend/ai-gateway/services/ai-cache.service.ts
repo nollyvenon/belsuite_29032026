@@ -5,7 +5,6 @@
  */
 
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import { InjectRedis } from '@nestjs-modules/ioredis';
 import type Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { CacheStats, GatewayResponse } from '../types/gateway.types';
@@ -31,7 +30,7 @@ export class AICacheService {
   private useRedis: boolean;
 
   constructor(
-    @Optional() @InjectRedis() private redis?: Redis,
+    @Optional() private redis?: Redis,
   ) {
     this.useRedis = !!redis;
     if (this.useRedis) {

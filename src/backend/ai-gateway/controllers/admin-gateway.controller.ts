@@ -203,11 +203,13 @@ export class AdminGatewayController {
     @Query('inputTokens')  inputTokens  = '500',
     @Query('outputTokens') outputTokens = '500',
   ) {
+    const normalizedInput = Math.min(Math.max(Number(inputTokens) || 500, 1), 2_000_000);
+    const normalizedOutput = Math.min(Math.max(Number(outputTokens) || 500, 1), 2_000_000);
     const models = await this.registry.getAllModels();
     return this.optimizer.compareProviders(
       models,
-      Number(inputTokens),
-      Number(outputTokens),
+      normalizedInput,
+      normalizedOutput,
     );
   }
 

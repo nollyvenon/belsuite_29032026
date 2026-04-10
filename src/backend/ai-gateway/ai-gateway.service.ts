@@ -22,7 +22,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
 
 import { GatewayRequest, GatewayResponse, GatewayTask, RegisteredModel } from './types/gateway.types';
 import { ModelRegistryService } from './services/model-registry.service';
@@ -38,8 +37,8 @@ import { v4 as uuid }           from 'uuid';
 export class AIGatewayService {
   private readonly logger = new Logger(AIGatewayService.name);
 
-  private openai:    OpenAI    | null = null;
-  private anthropic: Anthropic | null = null;
+  private openai:    OpenAI | null = null;
+  private anthropic: any | null = null;
 
   constructor(
     private readonly config:   ConfigService,
@@ -278,7 +277,7 @@ export class AIGatewayService {
         n:      1,
         size:   '1024x1024',
       });
-      const imageUrl = res.data[0]?.url ?? '';
+      const imageUrl = res.data?.[0]?.url ?? '';
       return {
         text:     imageUrl,
         model:    model.id,
@@ -331,8 +330,8 @@ export class AIGatewayService {
     const inputTok  = message.usage.input_tokens;
     const outputTok = message.usage.output_tokens;
     const text      = message.content
-      .filter(b => b.type === 'text')
-      .map(b => (b as any).text)
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
       .join('');
 
     return {
@@ -701,7 +700,7 @@ export class AIGatewayService {
     return messages;
   }
 
-  private _initProviders(): void {
+  private async _initProviders(): Promise<void> {
     const openaiKey   = this.config.get<string>('OPENAI_API_KEY');
     const anthropicKey = this.config.get<string>('ANTHROPIC_API_KEY');
 
@@ -713,8 +712,14 @@ export class AIGatewayService {
     }
 
     if (anthropicKey) {
-      this.anthropic = new Anthropic({ apiKey: anthropicKey });
-      this.logger.log('Anthropic provider initialised');
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const AnthropicClient = require('@anthropic-ai/sdk').default;
+        this.anthropic = new AnthropicClient({ apiKey: anthropicKey });
+        this.logger.log('Anthropic provider initialised');
+      } catch {
+        this.logger.warn('Anthropic SDK not installed — run: npm install @anthropic-ai/sdk');
+      }
     } else {
       this.logger.warn('ANTHROPIC_API_KEY not set — Anthropic provider disabled');
     }

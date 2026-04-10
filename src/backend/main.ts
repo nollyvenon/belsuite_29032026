@@ -8,8 +8,14 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter, AllExceptionsFilter } from './common/filters/http-exception.filter';
 import * as helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
+import compression from 'compression';
 
 async function bootstrap() {
+  const isProd = process.env.NODE_ENV === 'production';
+  const port = Number(process.env.PORT || 3001);
+  const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000);
+  const rateLimitMax = Number(process.env.RATE_LIMIT_MAX || 300);
+
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     cors: {
@@ -18,6 +24,8 @@ async function bootstrap() {
       credentials: true,
     },
   });
+  app.enableShutdownHooks();
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   // Versioning
   app.enableVersioning({
@@ -27,11 +35,14 @@ async function bootstrap() {
 
   // Security middleware
   app.use(helmet.default());
+  app.use(compression({ threshold: 1024 }));
   app.use(
     rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // Limit each IP to 100 requests per windowMs
+      windowMs: rateLimitWindowMs,
+      max: rateLimitMax,
       message: 'Too many requests, please try again later.',
+      standardHeaders: true,
+      legacyHeaders: false,
     }),
   );
 
@@ -57,21 +68,23 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get('Reflector')));
 
   // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('Belsuite API')
-    .setDescription('Production-ready multi-tenant SaaS platform API')
-    .setVersion('1.0.0')
-    .addBearerAuth()
-    .build();
+  if (!isProd || process.env.ENABLE_SWAGGER === 'true') {
+    const config = new DocumentBuilder()
+      .setTitle('Belsuite API')
+      .setDescription('Production-ready multi-tenant SaaS platform API')
+      .setVersion('1.0.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
-
-  const port = process.env.PORT || 3001;
   await app.listen(port);
 
   console.log(`✓ Belsuite backend running on http://localhost:${port}`);
-  console.log(`✓ API documentation available at http://localhost:${port}/api/docs`);
+  if (!isProd || process.env.ENABLE_SWAGGER === 'true') {
+    console.log(`✓ API documentation available at http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap().catch((error) => {

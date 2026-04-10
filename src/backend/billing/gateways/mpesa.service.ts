@@ -32,7 +32,7 @@ export class MpesaService {
       { headers: { Authorization: `Basic ${creds}` } },
     );
     if (!res.ok) throw new Error(`M-Pesa token error: ${await res.text()}`);
-    const data = await res.json();
+    const data = (await res.json()) as any;
     return data.access_token;
   }
 
@@ -73,7 +73,7 @@ export class MpesaService {
       body:    JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`M-Pesa STK push error: ${await res.text()}`);
-    const data = await res.json();
+    const data = (await res.json()) as any;
 
     // Persist payment record
     await this.prisma.mpesaPayment.create({

@@ -128,6 +128,78 @@ export class UpdateModelDto {
   description?: string;
 }
 
+export class RegisterModelDto {
+  @IsString()
+  provider: string;
+
+  @IsString()
+  modelId: string;
+
+  @IsString()
+  displayName: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsArray()
+  @IsOptional()
+  capabilities?: string[];
+
+  @IsArray()
+  @IsOptional()
+  assignedFeatures?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  costPerInputToken?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  costPerOutputToken?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(1)
+  qualityScore?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(1)
+  speedScore?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  contextWindow?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  maxOutputTokens?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  rateLimitPerMinute?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  supportsStreaming?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  supportsImages?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isEnabled?: boolean;
+}
+
 // ─── Admin: Budget ────────────────────────────────────────────────────────────
 
 export class UpsertBudgetDto {
@@ -305,6 +377,36 @@ export class SetModelCredentialDto {
 export class TestModelCredentialDto {
   @IsString()
   modelId: string;
+}
+
+export class SetTaskRouteDto {
+  @IsString()
+  task: string;
+
+  @IsString()
+  primaryModelId: string;
+
+  @IsArray()
+  @IsOptional()
+  fallbackModelIds?: string[];
+
+  @IsEnum(['cheapest', 'fastest', 'best_quality', 'balanced', 'custom'])
+  @IsOptional()
+  strategy?: RoutingStrategy;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  maxCostUsdPerRequest?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  maxLatencyMs?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Query params ─────────────────────────────────────────────────────────────

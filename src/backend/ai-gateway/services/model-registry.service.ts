@@ -963,6 +963,70 @@ export class ModelRegistryService implements OnModuleInit {
     return this.toRegisteredModel(model);
   }
 
+  async registerModel(data: {
+    provider: string;
+    modelId: string;
+    displayName: string;
+    description?: string;
+    capabilities?: string[];
+    assignedFeatures?: string[];
+    costPerInputToken?: number;
+    costPerOutputToken?: number;
+    qualityScore?: number;
+    speedScore?: number;
+    contextWindow?: number;
+    maxOutputTokens?: number;
+    rateLimitPerMinute?: number;
+    supportsStreaming?: boolean;
+    supportsImages?: boolean;
+    isEnabled?: boolean;
+  }): Promise<RegisteredModel> {
+    const row = await this.prisma.aIGatewayModel.upsert({
+      where: {
+        provider_modelId: {
+          provider: data.provider,
+          modelId: data.modelId,
+        },
+      },
+      update: {
+        displayName: data.displayName,
+        description: data.description ?? '',
+        capabilities: data.capabilities ?? ['text'],
+        assignedFeatures: data.assignedFeatures ?? [],
+        costPerInputToken: data.costPerInputToken ?? 0,
+        costPerOutputToken: data.costPerOutputToken ?? 0,
+        qualityScore: data.qualityScore ?? 0.5,
+        speedScore: data.speedScore ?? 0.5,
+        contextWindow: data.contextWindow ?? 4096,
+        maxOutputTokens: data.maxOutputTokens ?? 1024,
+        rateLimitPerMinute: data.rateLimitPerMinute ?? 60,
+        supportsStreaming: data.supportsStreaming ?? true,
+        supportsImages: data.supportsImages ?? false,
+        isEnabled: data.isEnabled ?? true,
+      },
+      create: {
+        provider: data.provider,
+        modelId: data.modelId,
+        displayName: data.displayName,
+        description: data.description ?? '',
+        capabilities: data.capabilities ?? ['text'],
+        assignedFeatures: data.assignedFeatures ?? [],
+        costPerInputToken: data.costPerInputToken ?? 0,
+        costPerOutputToken: data.costPerOutputToken ?? 0,
+        qualityScore: data.qualityScore ?? 0.5,
+        speedScore: data.speedScore ?? 0.5,
+        contextWindow: data.contextWindow ?? 4096,
+        maxOutputTokens: data.maxOutputTokens ?? 1024,
+        rateLimitPerMinute: data.rateLimitPerMinute ?? 60,
+        supportsStreaming: data.supportsStreaming ?? true,
+        supportsImages: data.supportsImages ?? false,
+        isEnabled: data.isEnabled ?? true,
+      },
+    });
+    await this.refreshCache();
+    return this.toRegisteredModel(row);
+  }
+
   async getFeatureAssignments(): Promise<any[]> {
     return this.prisma.aIFeatureModelAssignment.findMany({
       include: {

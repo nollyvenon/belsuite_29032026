@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreditTxType } from '@prisma/client';
+import { CreditTxType, WebhookStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { StripeBillingService } from '../gateways/stripe.service';
 import { PaystackService } from '../gateways/paystack.service';
@@ -22,6 +22,49 @@ import {
 
 @Injectable()
 export class BillingApiService {
+  private static readonly PROVIDER_CAPABILITIES = [
+    {
+      provider: PaymentProvider.STRIPE,
+      supportsSubscriptions: true,
+      supportsTopup: true,
+      supportsWebhook: true,
+      supportsHostedCheckout: true,
+      requiresPhoneNumber: false,
+    },
+    {
+      provider: PaymentProvider.PAYSTACK,
+      supportsSubscriptions: true,
+      supportsTopup: true,
+      supportsWebhook: true,
+      supportsHostedCheckout: true,
+      requiresPhoneNumber: false,
+    },
+    {
+      provider: PaymentProvider.MPESA,
+      supportsSubscriptions: false,
+      supportsTopup: true,
+      supportsWebhook: true,
+      supportsHostedCheckout: false,
+      requiresPhoneNumber: true,
+    },
+    {
+      provider: PaymentProvider.CRYPTO,
+      supportsSubscriptions: false,
+      supportsTopup: true,
+      supportsWebhook: true,
+      supportsHostedCheckout: true,
+      requiresPhoneNumber: false,
+    },
+    {
+      provider: PaymentProvider.SOFORT,
+      supportsSubscriptions: false,
+      supportsTopup: true,
+      supportsWebhook: true,
+      supportsHostedCheckout: true,
+      requiresPhoneNumber: false,
+    },
+  ];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly creditService: CreditService,
@@ -50,7 +93,8 @@ export class BillingApiService {
   }
 
   async getUsageLogs(organizationId: string, limit = 50) {
-    return this.usageService.getRecentEvents(organizationId, limit);
+    const normalizedLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    return this.usageService.getRecentEvents(organizationId, normalizedLimit);
   }
 
   async getUsageSummary(organizationId: string, from: Date, to: Date) {
@@ -70,7 +114,8 @@ export class BillingApiService {
   }
 
   async getCreditTransactions(organizationId: string, limit = 50) {
-    return this.creditService.getTransactions(organizationId, { limit });
+    const normalizedLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    return this.creditService.getTransactions(organizationId, { limit: normalizedLimit });
   }
 
   async createCreditCheckout(organizationId: string, dto: StripeCheckoutDto) {
@@ -237,8 +282,27 @@ export class BillingApiService {
   async handleStripeWebhook(signature: string, payload: string | Buffer) {
     const body = Buffer.isBuffer(payload) ? payload : Buffer.from(payload, 'utf-8');
     const event = this.stripeService.verifyWebhook(body, signature);
-    await this.stripeService.handleWebhookEvent(event);
-    return { received: true, eventType: event.type };
+    const tracked = await this.beginWebhookProcessing(
+      PaymentProvider.STRIPE,
+      event.type,
+      event.id,
+      event,
+    );
+    if (tracked.duplicate) {
+      return { received: true, provider: 'stripe', eventType: event.type, duplicate: true };
+    }
+    try {
+      await this.stripeService.handleWebhookEvent(event);
+      await this.finishWebhookProcessing(tracked.id, WebhookStatus.PROCESSED);
+      return { received: true, provider: 'stripe', eventType: event.type };
+    } catch (error) {
+      await this.finishWebhookProcessing(
+        tracked.id,
+        WebhookStatus.FAILED,
+        error instanceof Error ? error.message : 'unknown stripe webhook error',
+      );
+      throw error;
+    }
   }
 
   async createProviderCheckout(organizationId: string, dto: ProviderCheckoutDto) {
@@ -333,18 +397,79 @@ export class BillingApiService {
     const valid = this.paystackService.verifyWebhookSignature(payload, signature);
     if (!valid) throw new BadRequestException('Invalid Paystack signature');
     const event = JSON.parse(payload);
-    await this.paystackService.handleWebhookEvent(event);
-    return { received: true, provider: 'paystack', event: event.event };
+    const tracked = await this.beginWebhookProcessing(
+      PaymentProvider.PAYSTACK,
+      event?.event ?? 'unknown',
+      event?.data?.id ? String(event.data.id) : undefined,
+      event,
+    );
+    if (tracked.duplicate) {
+      return { received: true, provider: 'paystack', event: event.event, duplicate: true };
+    }
+    try {
+      await this.paystackService.handleWebhookEvent(event);
+      await this.finishWebhookProcessing(tracked.id, WebhookStatus.PROCESSED);
+      return { received: true, provider: 'paystack', event: event.event };
+    } catch (error) {
+      await this.finishWebhookProcessing(
+        tracked.id,
+        WebhookStatus.FAILED,
+        error instanceof Error ? error.message : 'unknown paystack webhook error',
+      );
+      throw error;
+    }
   }
 
   async handleMpesaCallback(payload: any) {
-    await this.mpesaService.handleCallback(payload);
-    return { received: true, provider: 'mpesa' };
+    const externalId = payload?.Body?.stkCallback?.CheckoutRequestID
+      ? String(payload.Body.stkCallback.CheckoutRequestID)
+      : undefined;
+    const tracked = await this.beginWebhookProcessing(
+      PaymentProvider.MPESA,
+      'stk_callback',
+      externalId,
+      payload,
+    );
+    if (tracked.duplicate) {
+      return { received: true, provider: 'mpesa', duplicate: true };
+    }
+    try {
+      await this.mpesaService.handleCallback(payload);
+      await this.finishWebhookProcessing(tracked.id, WebhookStatus.PROCESSED);
+      return { received: true, provider: 'mpesa' };
+    } catch (error) {
+      await this.finishWebhookProcessing(
+        tracked.id,
+        WebhookStatus.FAILED,
+        error instanceof Error ? error.message : 'unknown mpesa webhook error',
+      );
+      throw error;
+    }
   }
 
   async handleCryptoWebhook(signature: string, payload: string) {
-    await this.cryptoService.handleCoinbaseWebhook(payload, signature);
-    return { received: true, provider: 'crypto' };
+    const event = JSON.parse(payload);
+    const tracked = await this.beginWebhookProcessing(
+      PaymentProvider.CRYPTO,
+      event?.type ?? 'unknown',
+      event?.id ? String(event.id) : undefined,
+      event,
+    );
+    if (tracked.duplicate) {
+      return { received: true, provider: 'crypto', duplicate: true };
+    }
+    try {
+      await this.cryptoService.handleCoinbaseWebhook(payload, signature);
+      await this.finishWebhookProcessing(tracked.id, WebhookStatus.PROCESSED);
+      return { received: true, provider: 'crypto' };
+    } catch (error) {
+      await this.finishWebhookProcessing(
+        tracked.id,
+        WebhookStatus.FAILED,
+        error instanceof Error ? error.message : 'unknown crypto webhook error',
+      );
+      throw error;
+    }
   }
 
   async handleSofortWebhook(signature: string, payload: string) {
@@ -354,53 +479,32 @@ export class BillingApiService {
       payload,
     );
     if (!valid.isValid) throw new BadRequestException('Invalid Sofort signature');
-    await this.paymentService.handleWebhookEvent(PaymentProvider.SOFORT, JSON.parse(payload));
-    return { received: true, provider: 'sofort' };
+    const event = JSON.parse(payload);
+    const tracked = await this.beginWebhookProcessing(
+      PaymentProvider.SOFORT,
+      event?.type ?? 'unknown',
+      event?.id ? String(event.id) : undefined,
+      event,
+    );
+    if (tracked.duplicate) {
+      return { received: true, provider: 'sofort', duplicate: true };
+    }
+    try {
+      await this.paymentService.handleWebhookEvent(PaymentProvider.SOFORT, event);
+      await this.finishWebhookProcessing(tracked.id, WebhookStatus.PROCESSED);
+      return { received: true, provider: 'sofort' };
+    } catch (error) {
+      await this.finishWebhookProcessing(
+        tracked.id,
+        WebhookStatus.FAILED,
+        error instanceof Error ? error.message : 'unknown sofort webhook error',
+      );
+      throw error;
+    }
   }
 
   getProviderCapabilities() {
-    return [
-      {
-        provider: PaymentProvider.STRIPE,
-        supportsSubscriptions: true,
-        supportsTopup: true,
-        supportsWebhook: true,
-        supportsHostedCheckout: true,
-        requiresPhoneNumber: false,
-      },
-      {
-        provider: PaymentProvider.PAYSTACK,
-        supportsSubscriptions: true,
-        supportsTopup: true,
-        supportsWebhook: true,
-        supportsHostedCheckout: true,
-        requiresPhoneNumber: false,
-      },
-      {
-        provider: PaymentProvider.MPESA,
-        supportsSubscriptions: false,
-        supportsTopup: true,
-        supportsWebhook: true,
-        supportsHostedCheckout: false,
-        requiresPhoneNumber: true,
-      },
-      {
-        provider: PaymentProvider.CRYPTO,
-        supportsSubscriptions: false,
-        supportsTopup: true,
-        supportsWebhook: true,
-        supportsHostedCheckout: true,
-        requiresPhoneNumber: false,
-      },
-      {
-        provider: PaymentProvider.SOFORT,
-        supportsSubscriptions: false,
-        supportsTopup: true,
-        supportsWebhook: true,
-        supportsHostedCheckout: true,
-        requiresPhoneNumber: false,
-      },
-    ];
+    return BillingApiService.PROVIDER_CAPABILITIES;
   }
 
   private extractMonthlyCredits(features: string[]) {
@@ -428,6 +532,44 @@ export class BillingApiService {
         status: 'ACTIVE',
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  private async beginWebhookProcessing(
+    provider: PaymentProvider,
+    eventType: string,
+    externalWebhookId: string | undefined,
+    data: unknown,
+  ) {
+    if (externalWebhookId) {
+      const existing = await this.prisma.paymentWebhook.findUnique({
+        where: { externalWebhookId },
+      });
+      if (existing) {
+        return { id: existing.id, duplicate: true };
+      }
+    }
+
+    const created = await this.prisma.paymentWebhook.create({
+      data: {
+        provider: provider as any,
+        externalWebhookId: externalWebhookId ?? null,
+        eventType,
+        data: JSON.stringify(data),
+        status: WebhookStatus.PROCESSING,
+      },
+    });
+    return { id: created.id, duplicate: false };
+  }
+
+  private async finishWebhookProcessing(id: string, status: WebhookStatus, errorMessage?: string) {
+    await this.prisma.paymentWebhook.update({
+      where: { id },
+      data: {
+        status,
+        processedAt: status === WebhookStatus.PROCESSED ? new Date() : undefined,
+        errorMessage,
       },
     });
   }

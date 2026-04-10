@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { GatewayProvider } from '../types/gateway.types';
 import { ConfigService } from '@nestjs/config';
@@ -18,12 +18,15 @@ const KEYS = {
   modelLimits: 'AI_CONTROL_MODEL_LIMITS',
   tenantUsageLimits: 'AI_CONTROL_TENANT_USAGE_LIMITS',
   tenantModelLimits: 'AI_CONTROL_TENANT_MODEL_LIMITS',
+  taskRouteMap: 'AI_CONTROL_TASK_ROUTE_MAP',
   contentTypeProviderModelMap: 'AI_CONTENT_TYPE_PROVIDER_MODEL_MAP',
   modelCredentialsMap: 'AI_MODEL_CREDENTIALS_MAP',
 } as const;
 
 @Injectable()
 export class GatewayControlService {
+  private modelCredsCache: { value: Record<string, any>; expiresAt: number } | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -139,10 +142,15 @@ export class GatewayControlService {
   }
 
   async setFeatureModelLimit(feature: string, modelIds: string[]) {
+    const normalizedModelIds = await this.ensureModelIdsExist(modelIds);
     const current = await this.getFeatureModelLimits();
-    current[feature] = modelIds;
+    current[feature] = normalizedModelIds;
     await this.upsert(KEYS.modelLimits, JSON.stringify(current));
-    return { feature, modelIds };
+    await this.writeAuditEvent('set_feature_model_limit', {
+      feature,
+      modelIds: normalizedModelIds,
+    });
+    return { feature, modelIds: normalizedModelIds };
   }
 
   async getTenantUsageLimits() {
@@ -183,11 +191,58 @@ export class GatewayControlService {
   }
 
   async setTenantFeatureModelLimit(organizationId: string, feature: string, modelIds: string[]) {
+    const normalizedModelIds = await this.ensureModelIdsExist(modelIds);
     const current = await this.getTenantFeatureModelLimits();
     current[organizationId] = current[organizationId] ?? {};
-    current[organizationId][feature] = modelIds;
+    current[organizationId][feature] = normalizedModelIds;
     await this.upsert(KEYS.tenantModelLimits, JSON.stringify(current));
-    return { organizationId, feature, modelIds };
+    await this.writeAuditEvent('set_tenant_feature_model_limit', {
+      organizationId,
+      feature,
+      modelIds: normalizedModelIds,
+    });
+    return { organizationId, feature, modelIds: normalizedModelIds };
+  }
+
+  async getTaskRouteMap() {
+    const row = await this.prisma.billingConfig.findUnique({ where: { key: KEYS.taskRouteMap } });
+    if (!row) return {};
+    try {
+      return JSON.parse(row.value);
+    } catch {
+      return {};
+    }
+  }
+
+  async setTaskRoute(
+    task: string,
+    input: {
+      primaryModelId: string;
+      fallbackModelIds?: string[];
+      strategy?: 'cheapest' | 'fastest' | 'best_quality' | 'balanced' | 'custom';
+      maxCostUsdPerRequest?: number;
+      maxLatencyMs?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const resolvedPrimary = await this.ensureModelIdsExist([input.primaryModelId]);
+    const resolvedFallback = await this.ensureModelIdsExist(input.fallbackModelIds ?? []);
+    const map = await this.getTaskRouteMap();
+    map[task] = {
+      primaryModelId: resolvedPrimary[0],
+      fallbackModelIds: resolvedFallback,
+      strategy: input.strategy ?? 'balanced',
+      maxCostUsdPerRequest: input.maxCostUsdPerRequest ?? null,
+      maxLatencyMs: input.maxLatencyMs ?? null,
+      isActive: input.isActive ?? true,
+      updatedAt: new Date().toISOString(),
+    };
+    await this.upsert(KEYS.taskRouteMap, JSON.stringify(map));
+    await this.writeAuditEvent('set_task_route', {
+      task,
+      ...map[task],
+    });
+    return { task, ...map[task] };
   }
 
   async getContentTypeProviderModelMap() {
@@ -207,20 +262,41 @@ export class GatewayControlService {
     provider: GatewayProvider,
     modelId: string,
   ) {
+    const model = await this.prisma.aIGatewayModel.findFirst({
+      where: {
+        OR: [{ modelId }, { id: modelId }],
+      },
+      select: { id: true, modelId: true, provider: true },
+    });
+    if (!model) throw new BadRequestException(`Unknown model: ${modelId}`);
+    if (String(model.provider) !== String(provider)) {
+      throw new BadRequestException(
+        `Model/provider mismatch. Selected model provider is ${model.provider}, got ${provider}`,
+      );
+    }
+
     const current = await this.getContentTypeProviderModelMap();
     current[contentType] = current[contentType] ?? {};
-    current[contentType][provider] = modelId;
+    current[contentType][provider] = model.modelId;
     await this.upsert(KEYS.contentTypeProviderModelMap, JSON.stringify(current));
     await this.writeAuditEvent('set_content_type_provider_model', {
       contentType,
       provider,
-      modelId,
+      modelId: model.modelId,
     });
-    return { contentType, provider, modelId };
+    return { contentType, provider, modelId: model.modelId };
   }
 
   async getModelCredentialsMap() {
+    const now = Date.now();
+    if (this.modelCredsCache && this.modelCredsCache.expiresAt > now) {
+      return this.decryptCredentialMap(this.modelCredsCache.value);
+    }
     const raw = await this.getStoredCredentialMap();
+    this.modelCredsCache = {
+      value: raw,
+      expiresAt: now + 30_000,
+    };
     return this.decryptCredentialMap(raw);
   }
 
@@ -240,9 +316,18 @@ export class GatewayControlService {
     modelId: string,
     input: { apiKey?: string; baseUrl?: string; endpoint?: string },
   ) {
+    const model = await this.prisma.aIGatewayModel.findFirst({
+      where: {
+        OR: [{ modelId }, { id: modelId }],
+      },
+      select: { modelId: true },
+    });
+    if (!model) throw new BadRequestException(`Unknown model: ${modelId}`);
+
     const current = await this.getStoredCredentialMap();
-    const prev = current[modelId] ?? {};
-    current[modelId] = {
+    const canonicalModelId = model.modelId;
+    const prev = current[canonicalModelId] ?? {};
+    current[canonicalModelId] = {
       ...prev,
       ...(input.apiKey !== undefined
         ? { apiKey: input.apiKey ? this.encryptSecret(input.apiKey) : '' }
@@ -252,13 +337,14 @@ export class GatewayControlService {
       updatedAt: new Date().toISOString(),
     };
     await this.upsert(KEYS.modelCredentialsMap, JSON.stringify(current));
+    this.modelCredsCache = null;
     await this.writeAuditEvent('set_model_credentials', {
-      modelId,
+      modelId: canonicalModelId,
       hasApiKey: input.apiKey !== undefined ? Boolean(input.apiKey) : undefined,
       hasBaseUrl: input.baseUrl !== undefined ? Boolean(input.baseUrl) : undefined,
       hasEndpoint: input.endpoint !== undefined ? Boolean(input.endpoint) : undefined,
     });
-    return { modelId, ...this.maskCredential(current[modelId]) };
+    return { modelId: canonicalModelId, ...this.maskCredential(current[canonicalModelId]) };
   }
 
   async getModelCredentialsMasked() {
@@ -383,5 +469,30 @@ export class GatewayControlService {
       update: { value },
       create: { key, value },
     });
+  }
+
+  private async ensureModelIdsExist(modelIds: string[]) {
+    const unique = Array.from(new Set((modelIds ?? []).filter(Boolean)));
+    if (unique.length === 0) return [];
+    if (unique.length > 100) {
+      throw new BadRequestException('Too many model IDs. Limit is 100.');
+    }
+
+    const models = await this.prisma.aIGatewayModel.findMany({
+      where: {
+        OR: [{ modelId: { in: unique } }, { id: { in: unique } }],
+      },
+      select: { id: true, modelId: true },
+    });
+    const resolved = new Map<string, string>();
+    for (const m of models) {
+      resolved.set(m.id, m.modelId);
+      resolved.set(m.modelId, m.modelId);
+    }
+    const missing = unique.filter((id) => !resolved.has(id));
+    if (missing.length > 0) {
+      throw new BadRequestException(`Unknown model IDs: ${missing.join(', ')}`);
+    }
+    return unique.map((id) => resolved.get(id)!).filter(Boolean);
   }
 }

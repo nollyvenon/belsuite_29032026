@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService }       from '@nestjs/config';
 import { PrismaService }       from '../../database/prisma.service';
 import { CreditService }       from '../services/credit.service';
-import { CreditTxType }        from '@prisma/client';
+import { CreditTxType, SubscriptionStatus }        from '@prisma/client';
 
 @Injectable()
 export class StripeBillingService {
@@ -265,14 +265,14 @@ export class StripeBillingService {
     });
   }
 
-  private mapSubStatus(status: string): string {
-    const map: Record<string, string> = {
-      active:    'ACTIVE',
-      past_due:  'PAST_DUE',
-      canceled:  'CANCELLED',
-      trialing:  'TRIAL',
-      paused:    'PAUSED',
+  private mapSubStatus(status: string): SubscriptionStatus {
+    const map: Record<string, SubscriptionStatus> = {
+      active:    SubscriptionStatus.ACTIVE,
+      past_due:  SubscriptionStatus.PAST_DUE,
+      canceled:  SubscriptionStatus.CANCELLED,
+      trialing:  SubscriptionStatus.TRIAL,
+      paused:    SubscriptionStatus.PAUSED,
     };
-    return map[status] ?? 'ACTIVE';
+    return map[status] ?? SubscriptionStatus.ACTIVE;
   }
 }

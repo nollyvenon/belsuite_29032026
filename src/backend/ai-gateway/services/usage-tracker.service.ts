@@ -275,7 +275,7 @@ export class UsageTrackerService {
       todayCostUsd:     todayRows.reduce((s, r) => s + r.costUsd, 0),
       monthRequests:    monthRows.length,
       monthCostUsd:     monthRows.reduce((s, r) => s + r.costUsd, 0),
-      totalRequests,
+      totalRequests: totalRows,
       totalSavedUsd:    cacheStats._sum.costUsd ?? 0,
       topModelId:       topModelRow[0]?.modelId    ?? null,
       topFeature:       topFeatureRow[0]?.feature  ?? null,
