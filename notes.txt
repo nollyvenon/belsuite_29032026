@@ -1,0 +1,3 @@
+Demo credentials:
+  Email: demo@belsuite.com
+  Password: Demo123456!
