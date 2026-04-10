@@ -184,7 +184,7 @@ export class TelegramService {
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     if (!res.ok) throw new Error(`Telegram API ${res.status}: ${await res.text()}`);
-    const data = await res.json();
+    const data = await res.json() as any;
     if (!data.ok) throw new Error(`Telegram error: ${data.description}`);
     return data;
   }

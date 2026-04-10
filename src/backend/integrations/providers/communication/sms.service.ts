@@ -63,7 +63,7 @@ export class SmsService {
     );
 
     if (!res.ok) throw new Error(`Twilio SMS ${res.status}: ${await res.text()}`);
-    const data = await res.json();
+    const data = await res.json() as any;
 
     return { messageId: data.sid, status: data.status, provider: 'TWILIO', to: opts.to };
   }
@@ -88,7 +88,7 @@ export class SmsService {
     });
 
     if (!res.ok) throw new Error(`Vonage SMS ${res.status}: ${await res.text()}`);
-    const data = await res.json();
+    const data = await res.json() as any;
     const msg  = data.messages?.[0];
     if (msg?.status !== '0') throw new Error(`Vonage error ${msg?.status}: ${msg?.['error-text']}`);
 

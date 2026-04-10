@@ -147,7 +147,7 @@ export class WhatsAppService {
       body:    form,
     });
     if (!res.ok) throw new Error(`WhatsApp media upload ${res.status}: ${await res.text()}`);
-    const data = await res.json();
+    const data = await res.json() as any;
     return data.id;
   }
 

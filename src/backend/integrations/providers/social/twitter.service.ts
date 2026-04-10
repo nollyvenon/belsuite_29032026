@@ -50,7 +50,7 @@ export class TwitterService {
     );
 
     const profile = await this.apiFetch('/users/me?user.fields=id,name,username,profile_image_url', tokens.accessToken);
-    return this.oauth.saveConnection('TWITTER', tokens, {
+    return this.oauth.saveConnection(organizationId, 'TWITTER', tokens, {
       accountId:   profile.data.id,
       accountName: profile.data.name,
       metadata:    { username: profile.data.username, profileImageUrl: profile.data.profile_image_url },
@@ -178,7 +178,7 @@ export class TwitterService {
     });
 
     if (!res.ok) throw new Error(`Twitter media upload ${res.status}: ${await res.text()}`);
-    const data = await res.json();
+    const data = await res.json() as any;
     return data.media_id_string;
   }
 

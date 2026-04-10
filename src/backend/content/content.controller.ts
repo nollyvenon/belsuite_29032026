@@ -1,75 +1,3 @@
-    import { AIContentService } from '../ai-content-studio.service';
-      /**
-       * POST /api/content/:contentId/ai-suggest
-       * Generate AI content suggestion for a draft
-       */
-      @Post(':contentId/ai-suggest')
-      async aiSuggest(
-        @Param('contentId') contentId: string,
-        @Body() body: { template: any; userInput: any; aiModel?: string; tone?: string; style?: string },
-        @CurrentUser('sub') userId: string,
-      ) {
-        // Generate AI suggestion
-        const suggestion = await AIContentService.generateContent(body);
-        // Optionally, save as a version or return suggestion only
-        return suggestion;
-      }
-
-      /**
-       * POST /api/content/:contentId/apply-ai
-       * Apply AI suggestion to content (and save version)
-       */
-      @Post(':contentId/apply-ai')
-      async applyAISuggestion(
-        @Param('contentId') contentId: string,
-        @Body() body: { aiText: string; aiTitle?: string; aiDescription?: string },
-        @CurrentUser('sub') userId: string,
-        @Tenant() organizationId: string,
-      ) {
-        // Save version before applying
-        const content = await this.contentService.getContent(contentId, organizationId);
-        await this.contentService.updateContent(contentId, organizationId, userId, {
-          title: body.aiTitle || content.title,
-          description: body.aiDescription || content.description,
-          content: body.aiText,
-        });
-        return { success: true };
-      }
-    /**
-     * GET /api/content/:contentId/diff/:versionIdA/:versionIdB
-     * Diff two versions of content
-     */
-    @Get(':contentId/diff/:versionIdA/:versionIdB')
-    async diffVersions(
-      @Param('contentId') contentId: string,
-      @Param('versionIdA') versionIdA: string,
-      @Param('versionIdB') versionIdB: string,
-    ) {
-      return this.contentService.diffVersions(versionIdA, versionIdB);
-    }
-  /**
-   * GET /api/content/:contentId/versions
-   * List all versions for a content item
-   */
-  @Get(':contentId/versions')
-  async getVersions(
-    @Param('contentId') contentId: string,
-  ) {
-    return this.contentService.getVersions(contentId);
-  }
-
-  /**
-   * POST /api/content/:contentId/restore/:versionId
-   * Restore a previous version
-   */
-  @Post(':contentId/restore/:versionId')
-  async restoreVersion(
-    @Param('contentId') contentId: string,
-    @Param('versionId') versionId: string,
-    @CurrentUser('sub') userId: string,
-  ) {
-    return this.contentService.restoreVersion(versionId, userId);
-  }
 import {
   Controller,
   Get,
@@ -87,25 +15,11 @@ import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { TeamRoleGuard } from '../common/guards/team-role.guard';
 import { TeamPermissionGuard } from '../common/guards/team-permission.guard';
-import { RequireTeamRole } from '../common/decorators/team-role.decorator';
-import { RequireTeamPermission } from '../common/decorators/team-permission.decorator';
+import { RequireTeamRole } from '../common/decorators/require-team-role.decorator';
+import { RequireTeamPermission } from '../common/decorators/require-team-permission.decorator';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CreateContentDto, UpdateContentDto } from './dto/content.dto';
-
-/**
- * POST /api/content/:contentId/autosave
- * Autosave a draft (does not update main content, just saves a temp version)
- */
-@Post(':contentId/autosave')
-async autosaveDraft(
-  @Param('contentId') contentId: string,
-  @Tenant() organizationId: string,
-  @CurrentUser('sub') userId: string,
-  @Body() updateDto: UpdateContentDto,
-) {
-  return this.contentService.autosaveDraft(contentId, organizationId, userId, updateDto);
-}
 
 @Controller('api/teams/:teamId/content')
 @UseGuards(JwtAuthGuard, TenantGuard, TeamRoleGuard, TeamPermissionGuard)
@@ -197,6 +111,37 @@ export class ContentController {
     @CurrentUser('sub') userId: string,
   ) {
     return this.contentService.deleteContent(contentId, organizationId, userId, teamId);
+  }
+
+  @Post(':contentId/autosave')
+  async autosaveDraft(
+    @Param('contentId') contentId: string,
+    @Tenant() organizationId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() updateDto: UpdateContentDto,
+  ) {
+    return this.contentService.autosaveDraft(contentId, organizationId, userId, updateDto);
+  }
+
+  @Get(':contentId/diff/:versionIdA/:versionIdB')
+  async diffVersions(
+    @Param('versionIdA') versionIdA: string,
+    @Param('versionIdB') versionIdB: string,
+  ) {
+    return this.contentService.diffVersions(versionIdA, versionIdB);
+  }
+
+  @Get(':contentId/versions')
+  async getVersions(@Param('contentId') contentId: string) {
+    return this.contentService.getVersions(contentId);
+  }
+
+  @Post(':contentId/restore/:versionId')
+  async restoreVersion(
+    @Param('versionId') versionId: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.contentService.restoreVersion(versionId, userId);
   }
 
   /**

@@ -19,6 +19,7 @@ import {
   WebhookVerificationResponse,
 } from '../types/email.types';
 import * as crypto from 'crypto';
+import { v4 as uuid } from 'uuid';
 
 @Injectable()
 export class SendGridProvider implements IEmailProvider {

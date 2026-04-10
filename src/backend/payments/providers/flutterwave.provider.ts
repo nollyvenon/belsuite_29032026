@@ -149,7 +149,7 @@ export class FlutterwaveProvider implements IPaymentProvider {
       const response = await this.client.post('/customers', {
         email: request.email,
         name: request.name,
-        phone_number: request.phone,
+        phone_number: (request as any).phone ?? undefined,
       });
       const data = response.data?.data ?? {};
       return {

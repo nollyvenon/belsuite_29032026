@@ -49,8 +49,7 @@ export class GoogleAuthService {
     // Fetch Google profile
     const profile = await this.fetchProfile(tokens.accessToken);
 
-    return this.oauth.saveConnection('GOOGLE' as IntegrationProvider, tokens, {
-      organizationId,
+    return this.oauth.saveConnection(organizationId, 'GOOGLE' as IntegrationProvider, tokens, {
       accountId:    profile.sub,
       accountEmail: profile.email,
       accountName:  profile.name,

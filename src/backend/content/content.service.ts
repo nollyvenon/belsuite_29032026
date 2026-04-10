@@ -1,21 +1,3 @@
-  /**
-   * Diff two content versions (returns changed fields)
-   */
-  async diffVersions(versionIdA: string, versionIdB: string) {
-    const [a, b] = await Promise.all([
-      this.prisma.contentVersion.findUnique({ where: { id: versionIdA } }),
-      this.prisma.contentVersion.findUnique({ where: { id: versionIdB } }),
-    ]);
-    if (!a || !b) throw new NotFoundException('One or both versions not found');
-    const diff: Record<string, { from: any; to: any }> = {};
-    for (const field of ['title', 'description', 'body']) {
-      if (a[field] !== b[field]) {
-        diff[field] = { from: a[field], to: b[field] };
-      }
-    }
-    return diff;
-  }
-
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateContentDto, UpdateContentDto } from './dto/content.dto';
@@ -32,6 +14,7 @@ export class ContentService {
     organizationId: string,
     userId: string,
     createDto: CreateContentDto,
+    _teamId?: string,
   ) {
     const content = await this.prisma.content.create({
       data: {
@@ -121,6 +104,7 @@ export class ContentService {
     organizationId: string,
     userId: string,
     updateDto: UpdateContentDto,
+    _teamId?: string,
   ) {
     const content = await this.getContent(contentId, organizationId);
 
@@ -221,6 +205,7 @@ export class ContentService {
     contentId: string,
     organizationId: string,
     userId: string,
+    _teamId?: string,
   ) {
     const content = await this.getContent(contentId, organizationId);
 
@@ -290,6 +275,24 @@ export class ContentService {
     });
 
     return scheduled;
+  }
+
+  /**
+   * Diff two content versions (returns changed fields)
+   */
+  async diffVersions(versionIdA: string, versionIdB: string) {
+    const [a, b] = await Promise.all([
+      this.prisma.contentVersion.findUnique({ where: { id: versionIdA } }),
+      this.prisma.contentVersion.findUnique({ where: { id: versionIdB } }),
+    ]);
+    if (!a || !b) throw new NotFoundException('One or both versions not found');
+    const diff: Record<string, { from: unknown; to: unknown }> = {};
+    for (const field of ['title', 'description', 'body'] as const) {
+      if (a[field] !== b[field]) {
+        diff[field] = { from: a[field], to: b[field] };
+      }
+    }
+    return diff;
   }
 
   /**

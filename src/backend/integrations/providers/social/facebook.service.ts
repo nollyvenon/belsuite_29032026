@@ -46,7 +46,7 @@ export class FacebookService {
 
     // Fetch profile
     const profile = await this.apiFetch('/me?fields=id,name,email', tokens.accessToken);
-    return this.oauth.saveConnection('FACEBOOK', tokens, {
+    return this.oauth.saveConnection(organizationId, 'FACEBOOK', tokens, {
       accountId: profile.id, accountName: profile.name, accountEmail: profile.email,
     } as any);
   }

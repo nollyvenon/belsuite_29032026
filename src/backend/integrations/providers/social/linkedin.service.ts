@@ -53,7 +53,7 @@ export class LinkedInService {
     ).catch(() => null);
     const email = emailData?.elements?.[0]?.['handle~']?.emailAddress;
 
-    return this.oauth.saveConnection('LINKEDIN', tokens, {
+    return this.oauth.saveConnection(organizationId, 'LINKEDIN', tokens, {
       accountId:    profile.id,
       accountName:  `${profile.localizedFirstName} ${profile.localizedLastName}`,
       accountEmail: email,

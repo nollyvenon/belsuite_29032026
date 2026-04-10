@@ -4,6 +4,7 @@ import { createApiClient } from '../client';
 
 const tenantClient = createApiClient('/api/tenants');
 const adminEmailClient = createApiClient('/api/admin/email');
+const adminSmsClient = createApiClient('/api/admin/sms');
 const aiGatewayAdminClient = createApiClient('/admin/ai-gateway');
 
 export interface TenantSummary {
@@ -57,6 +58,29 @@ export interface EmailProviderConfig {
   features: string[];
 }
 
+export interface AdminSmsSettings {
+  provider: 'TWILIO' | 'VONAGE' | 'AWS_SNS';
+  enabled: boolean;
+  fromNumber?: string;
+  twilioAccountSid?: string;
+  twilioAuthToken?: string;
+  twilioFromNumber?: string;
+  vonageApiKey?: string;
+  vonageApiSecret?: string;
+  vonageFromNumber?: string;
+  awsRegion?: string;
+  awsAccessKeyId?: string;
+  awsSecretAccessKey?: string;
+  lastTestedAt?: string;
+  testStatus?: string;
+}
+
+export interface SmsProviderConfig {
+  id: 'TWILIO' | 'VONAGE' | 'AWS_SNS';
+  name: string;
+  requiredFields: string[];
+}
+
 export async function listTenants(skip = 0, take = 12) {
   return tenantClient.get<TenantListResponse>('/', { skip, take });
 }
@@ -79,6 +103,22 @@ export async function getEmailProviders() {
 
 export async function getEmailHealth() {
   return adminEmailClient.get<Record<string, unknown>>('/health');
+}
+
+export async function getSmsSettings() {
+  return adminSmsClient.get<AdminSmsSettings>('/settings');
+}
+
+export async function updateSmsSettings(payload: Partial<AdminSmsSettings>) {
+  return adminSmsClient.put<AdminSmsSettings>('/settings', payload);
+}
+
+export async function getSmsProviders() {
+  return adminSmsClient.get<SmsProviderConfig[]>('/providers');
+}
+
+export async function getSmsHealth() {
+  return adminSmsClient.get<Record<string, unknown>>('/health');
 }
 
 export interface AIGatewayControlProfile {

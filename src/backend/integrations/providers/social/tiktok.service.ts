@@ -52,7 +52,7 @@ export class TikTokService {
       tokens.accessToken,
     );
 
-    return this.oauth.saveConnection('TIKTOK', tokens, {
+    return this.oauth.saveConnection(organizationId, 'TIKTOK', tokens, {
       accountId:   profile.data?.user?.open_id,
       accountName: profile.data?.user?.display_name,
       metadata:    { avatarUrl: profile.data?.user?.avatar_url },
