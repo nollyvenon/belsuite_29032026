@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
 import { AIContentService } from './ai-content-studio.service';
 import { ContentVersioningService } from './ai-content-versioning.service';
