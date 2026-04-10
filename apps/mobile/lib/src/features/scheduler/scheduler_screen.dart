@@ -41,7 +41,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: _platform,
+          initialValue: _platform,
           decoration: const InputDecoration(labelText: 'Platform'),
           items: const ['Instagram', 'Facebook', 'LinkedIn', 'TikTok']
               .map((p) => DropdownMenuItem(value: p, child: Text(p)))

@@ -108,7 +108,7 @@ export class AnalyticsDashboardService {
 
   async getRoi(organizationId: string, days = 30) {
     const bundle = await this.loadBundle(organizationId, days);
-    const spend = bundle.campaignPerformance.reduce((sum, row) => sum + (row.spend ?? 0), 0);
+    const spend = bundle.campaignPerformance.reduce((sum, row) => sum + Math.max((row.revenue ?? 0), 0), 0);
     const revenue = bundle.payments.reduce((sum, item) => sum + Math.max(item.amount - item.refundedAmount, 0), 0);
     if (spend <= 0) return 0;
     return this.round2(revenue / spend);

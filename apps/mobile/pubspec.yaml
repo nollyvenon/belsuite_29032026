@@ -13,6 +13,7 @@ dependencies:
   flutter_riverpod: ^2.5.1
   go_router: ^14.2.7
   dio: ^5.7.0
+  http: ^1.2.2
   pretty_dio_logger: ^1.4.0
   flutter_secure_storage: ^9.2.2
   local_auth: ^2.3.0

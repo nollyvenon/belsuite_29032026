@@ -12,6 +12,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService }              from '../../database/prisma.service';
 import { AIGatewayService }           from '../../ai-gateway/ai-gateway.service';
 import { GatewayTask }                from '../../ai-gateway/types/gateway.types';
+import type { ConversationMessage } from '../../ai-gateway/types/gateway.types';
 import { ConversationMemoryService }  from '../memory/conversation-memory.service';
 import { TaskExecutionEngine }        from '../engine/task-execution.engine';
 import {
@@ -46,6 +47,10 @@ export class YouTubeAutomationService {
     await this.memory.addMessage(conversationId, 'user', message);
     const history = await this.memory.getHistory(conversationId);
 
+    const conversationHistory: ConversationMessage[] = history
+      .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+      .map((m) => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content }));
+
     const response = await this.gateway.generate({
       organizationId, userId,
       task:    GatewayTask.VIDEO_SCRIPT,
@@ -54,7 +59,7 @@ export class YouTubeAutomationService {
       systemPrompt: YOUTUBE_SYSTEM,
       maxTokens: 1200,
       routing: { strategy: 'balanced' },
-      conversationHistory: history.filter(m => m.role !== 'system'),
+      conversationHistory,
     });
 
     const messageId = await this.memory.addMessage(

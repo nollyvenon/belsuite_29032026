@@ -1,6 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'app_session_store.dart';
+import '../store/app_session_store.dart';
 
 class ApiClient {
   final String baseUrl;
@@ -10,7 +10,7 @@ class ApiClient {
 
   Map<String, String> get _headers {
     final headers = {'Content-Type': 'application/json'};
-    if (sessionStore.accessToken.isNotEmpty) {
+    if ((sessionStore.accessToken ?? '').isNotEmpty) {
       headers['Authorization'] = 'Bearer ${sessionStore.accessToken}';
     }
     return headers;

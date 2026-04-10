@@ -16,6 +16,9 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
   const { setSession } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -30,7 +33,11 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(
+          isSignUp
+            ? { email, password, firstName: firstName || 'User', lastName: lastName || 'Account' }
+            : { email, password },
+        ),
       });
 
       if (!response.ok) {
@@ -46,6 +53,26 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/auth/password/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail || email }),
+      });
+      if (!response.ok && response.status !== 204) {
+        throw new Error('Failed to request password reset');
+      }
+      setError('If the email exists, reset instructions have been sent.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to request reset');
     } finally {
       setIsLoading(false);
     }
@@ -146,6 +173,30 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
                   required
                 />
               </div>
+              {isSignUp && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">First name</label>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg border-black/10 dark:border-white/10 bg-white dark:bg-black/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Last name</label>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg border-black/10 dark:border-white/10 bg-white dark:bg-black/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -157,6 +208,28 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
                 {isLoading ? 'Authenticating...' : isSignUp ? 'Sign Up' : 'Sign In'}
               </motion.button>
             </form>
+            {!isSignUp && (
+              <div className="mb-5 rounded-lg border border-black/10 dark:border-white/10 p-3">
+                <label className="block text-xs mb-2 text-black/60 dark:text-white/60">Forgot password email</label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder={email || 'you@example.com'}
+                    className="flex-1 px-3 py-2 border rounded-lg border-black/10 dark:border-white/10 bg-white dark:bg-black/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={isLoading}
+                    className="px-3 py-2 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Divider */}
             <div className="flex items-center gap-3 mb-6">

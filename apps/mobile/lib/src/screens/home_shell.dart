@@ -4,6 +4,7 @@ import '../store/app_session_store.dart';
 import '../widgets/app_shell.dart';
 import 'admin_screen.dart';
 import 'analytics_screen.dart';
+import 'auth_screen.dart';
 import 'dashboard_screen.dart';
 import 'video_studio_screen.dart';
 
@@ -21,6 +22,13 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.sessionStore.isAuthenticated) {
+      return AuthScreen(
+        sessionStore: widget.sessionStore,
+        onAuthenticated: () => setState(() {}),
+      );
+    }
+
     final screens = [
       DashboardScreen(sessionStore: widget.sessionStore),
       const AnalyticsScreen(),

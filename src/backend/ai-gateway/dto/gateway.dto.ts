@@ -31,6 +31,12 @@ export class RoutingPreferencesDto {
 }
 
 export class GenerateTextDto {
+  @IsString()
+  organizationId: string;
+
+  @IsString() @IsOptional()
+  userId?: string;
+
   @IsEnum(GatewayTask)
   task: GatewayTask;
 
@@ -58,12 +64,18 @@ export class GenerateTextDto {
   @IsBoolean() @IsOptional()
   useCache?: boolean;
 
+  @IsInt() @IsOptional() @Min(1) @Max(86400)
+  cacheTtlSeconds?: number;
+
   @ValidateNested() @IsOptional()
   @Type(() => RoutingPreferencesDto)
   routing?: RoutingPreferencesDto;
 
   @IsObject() @IsOptional()
   metadata?: Record<string, unknown>;
+
+  @IsArray() @IsOptional()
+  conversationHistory?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
 }
 
 export class GenerateImageDto {
@@ -88,6 +100,12 @@ export class GenerateImageDto {
 }
 
 export class BatchGenerateDto {
+  @IsString()
+  organizationId: string;
+
+  @IsString() @IsOptional()
+  userId?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GenerateTextDto)

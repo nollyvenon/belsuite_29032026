@@ -254,29 +254,38 @@ export class StripeBillingService {
     });
 
     const amount = Number(invoice.amount_paid ?? invoice.amount_due ?? 0) / 100;
-    await this.prisma.invoice.upsert({
+    const existingPaidInvoice = await this.prisma.invoice.findFirst({
       where: { stripeInvoiceId: invoice.id },
-      update: {
-        amount,
-        status: InvoiceStatus.PAID,
-        issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        paidAt: new Date((invoice.status_transitions?.paid_at ?? Math.floor(Date.now() / 1000)) * 1000),
-        pdfUrl: invoice.invoice_pdf ?? null,
-      },
-      create: {
-        subscriptionId: sub.id,
-        billingProfileId: profile.id,
-        stripeInvoiceId: invoice.id,
-        amount,
-        currency: String(invoice.currency ?? 'usd').toUpperCase(),
-        status: InvoiceStatus.PAID,
-        issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        paidAt: new Date((invoice.status_transitions?.paid_at ?? Math.floor(Date.now() / 1000)) * 1000),
-        pdfUrl: invoice.invoice_pdf ?? null,
-      },
+      select: { id: true },
     });
+    if (existingPaidInvoice) {
+      await this.prisma.invoice.update({
+        where: { id: existingPaidInvoice.id },
+        data: {
+          amount,
+          status: InvoiceStatus.PAID,
+          issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          paidAt: new Date((invoice.status_transitions?.paid_at ?? Math.floor(Date.now() / 1000)) * 1000),
+          pdfUrl: invoice.invoice_pdf ?? null,
+        },
+      });
+    } else {
+      await this.prisma.invoice.create({
+        data: {
+          subscriptionId: sub.id,
+          billingProfileId: profile.id,
+          stripeInvoiceId: invoice.id,
+          amount,
+          currency: String(invoice.currency ?? 'usd').toUpperCase(),
+          status: InvoiceStatus.PAID,
+          issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          paidAt: new Date((invoice.status_transitions?.paid_at ?? Math.floor(Date.now() / 1000)) * 1000),
+          pdfUrl: invoice.invoice_pdf ?? null,
+        },
+      });
+    }
 
     await this.prisma.payment.upsert({
       where: { externalPaymentId: invoice.payment_intent ?? `stripe-invoice-${invoice.id}` },
@@ -323,27 +332,36 @@ export class StripeBillingService {
     });
 
     const amount = Number(invoice.amount_due ?? invoice.amount_remaining ?? 0) / 100;
-    await this.prisma.invoice.upsert({
+    const existingFailedInvoice = await this.prisma.invoice.findFirst({
       where: { stripeInvoiceId: invoice.id },
-      update: {
-        amount,
-        status: InvoiceStatus.FAILED,
-        issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        pdfUrl: invoice.invoice_pdf ?? null,
-      },
-      create: {
-        subscriptionId: sub.id,
-        billingProfileId: profile.id,
-        stripeInvoiceId: invoice.id,
-        amount,
-        currency: String(invoice.currency ?? 'usd').toUpperCase(),
-        status: InvoiceStatus.FAILED,
-        issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
-        pdfUrl: invoice.invoice_pdf ?? null,
-      },
+      select: { id: true },
     });
+    if (existingFailedInvoice) {
+      await this.prisma.invoice.update({
+        where: { id: existingFailedInvoice.id },
+        data: {
+          amount,
+          status: InvoiceStatus.FAILED,
+          issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          pdfUrl: invoice.invoice_pdf ?? null,
+        },
+      });
+    } else {
+      await this.prisma.invoice.create({
+        data: {
+          subscriptionId: sub.id,
+          billingProfileId: profile.id,
+          stripeInvoiceId: invoice.id,
+          amount,
+          currency: String(invoice.currency ?? 'usd').toUpperCase(),
+          status: InvoiceStatus.FAILED,
+          issuedAt: new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          dueAt: new Date((invoice.due_date ?? invoice.created ?? Math.floor(Date.now() / 1000)) * 1000),
+          pdfUrl: invoice.invoice_pdf ?? null,
+        },
+      });
+    }
 
     const latestAttempt = await this.prisma.payment.findFirst({
       where: { subscriptionId: sub.id, provider: PaymentProvider.STRIPE },

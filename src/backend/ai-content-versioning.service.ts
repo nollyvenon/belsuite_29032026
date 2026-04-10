@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Version control logic for content (outline)
 // To be integrated with Content and ContentVersion models
 

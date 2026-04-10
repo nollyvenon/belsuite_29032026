@@ -62,7 +62,7 @@ class _VideoCreatorScreenState extends ConsumerState<VideoCreatorScreen> {
           title: const Text('Auto captions'),
         ),
         DropdownButtonFormField<String>(
-          value: _cropPreset,
+          initialValue: _cropPreset,
           decoration: const InputDecoration(labelText: 'Auto crop preset'),
           items: const ['9:16', '1:1', '16:9'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
           onChanged: (v) => setState(() => _cropPreset = v ?? '9:16'),

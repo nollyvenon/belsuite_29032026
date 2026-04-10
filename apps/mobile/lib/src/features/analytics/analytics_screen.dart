@@ -78,9 +78,9 @@ class _MetricsRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text(cards[i].$0, style: Theme.of(context).textTheme.bodySmall),
+            Text(cards[i].$1, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 4),
-            Text(cards[i].$1, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Text(cards[i].$2, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
           ]),
         ),
       ),

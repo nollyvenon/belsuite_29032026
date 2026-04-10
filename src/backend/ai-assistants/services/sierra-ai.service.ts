@@ -12,6 +12,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AIGatewayService }             from '../../ai-gateway/ai-gateway.service';
 import { GatewayTask }                  from '../../ai-gateway/types/gateway.types';
+import type { ConversationMessage } from '../../ai-gateway/types/gateway.types';
 import { ConversationMemoryService }    from '../memory/conversation-memory.service';
 import { TaskExecutionEngine }          from '../engine/task-execution.engine';
 import {
@@ -63,6 +64,10 @@ export class SierrAIService {
     const history = await this.memory.getHistory(conversationId);
 
     // Call gateway (best_quality — Sierra is the strategy brain)
+    const conversationHistory: ConversationMessage[] = history
+      .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+      .map((m) => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content }));
+
     const response = await this.gateway.generate({
       organizationId,
       userId,
@@ -72,7 +77,7 @@ export class SierrAIService {
       systemPrompt,
       maxTokens: 1500,
       routing: { strategy: 'best_quality' },
-      conversationHistory: history.filter(m => m.role !== 'system'),
+      conversationHistory,
     });
 
     // Persist assistant reply

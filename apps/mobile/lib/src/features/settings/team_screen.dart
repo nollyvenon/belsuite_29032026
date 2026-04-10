@@ -30,7 +30,7 @@ class _TeamScreenState extends State<TeamScreen> {
         const Text('Manage profile, workspace, and team visibility.'),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: _workspace,
+          initialValue: _workspace,
           decoration: const InputDecoration(labelText: 'Workspace'),
           items: const ['Belsuite HQ', 'Acme Growth', 'Demo Workspace']
               .map((w) => DropdownMenuItem(value: w, child: Text(w)))

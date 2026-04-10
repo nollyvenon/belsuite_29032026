@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:belsuite/src/widgets/app_shell.dart';
 import '../store/app_session_store.dart';
-import '../services/api_client.dart';
 import '../services/api_modules.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key, required this.sessionStore});
+
+  final AppSessionStore sessionStore;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -23,7 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     apiClient = ApiClient(
       baseUrl: 'http://localhost:3000/api',
-      sessionStore: AppSessionStore.instance,
+      sessionStore: widget.sessionStore,
     );
     _loadDashboardData();
   }

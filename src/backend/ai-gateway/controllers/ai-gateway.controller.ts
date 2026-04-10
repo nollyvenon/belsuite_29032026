@@ -47,6 +47,9 @@ export class AIGatewayController {
   @Post('generate')
   @HttpCode(HttpStatus.OK)
   async generate(@Body() dto: GenerateTextDto) {
+    const routing = dto.routing
+      ? { strategy: dto.routing.strategy ?? 'balanced', ...dto.routing }
+      : undefined;
     const req: GatewayRequest = {
       organizationId: dto.organizationId,
       userId:         dto.userId,
@@ -58,7 +61,7 @@ export class AIGatewayController {
       temperature:    dto.temperature,
       useCache:       dto.useCache,
       cacheTtlSeconds: dto.cacheTtlSeconds,
-      routing:        dto.routing,
+      routing,
       metadata:       dto.metadata,
       conversationHistory: dto.conversationHistory,
     };
@@ -85,6 +88,7 @@ export class AIGatewayController {
     const results = await Promise.allSettled(
       dto.requests.map(r => this.gateway.generate({
         ...r,
+        routing: r.routing ? { strategy: r.routing.strategy ?? 'balanced', ...r.routing } : undefined,
         organizationId: dto.organizationId,
         userId:         dto.userId,
       })),
