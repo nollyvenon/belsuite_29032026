@@ -33,6 +33,7 @@ import { AIGatewayModule }     from './ai-gateway/ai-gateway.module';
 import { AIAssistantsModule }  from './ai-assistants/ai-assistants.module';
 import { IntegrationsModule }  from './integrations/integrations.module';
 import { BillingModule } from './billing/billing.module';
+import { OrchestrationModule } from './orchestration/orchestration.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { PrismaService } from './database/prisma.service';
@@ -124,6 +125,7 @@ class StorageModule {}
     // Integrations (Google, Social, Communication, OAuth, Webhooks)
     IntegrationsModule,
     BillingModule,
+    OrchestrationModule,
   ],
   providers: [
     DatabaseConfig,
