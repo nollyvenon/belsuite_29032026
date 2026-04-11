@@ -1,5 +1,10 @@
 import { createHmac, randomUUID } from 'crypto';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { WorkflowType } from '@prisma/client';
@@ -668,6 +673,9 @@ Return valid JSON only.`;
     signature?: string,
   ) {
     const isValidSignature = this.verifyTwilioSignature(callbackUrl, payload, signature);
+    if (process.env['TWILIO_AUTH_TOKEN'] && !isValidSignature) {
+      throw new UnauthorizedException('Invalid or missing Twilio signature');
+    }
 
     const providerMessageId =
       payload.MessageSid || payload.SmsSid || payload.CallSid;
@@ -722,20 +730,21 @@ Return valid JSON only.`;
     });
 
     await this.eventBus.publish({
-      id: `marketing-message-sent-${Date.now()}`,
-      type: 'marketing.automation.message_sent',
-      tenantId: params.organizationId,
-      userId: params.userId ?? undefined,
+      id: `marketing-provider-status-${Date.now()}`,
+      type: 'marketing.automation.provider_status',
+      tenantId: matchedEvent.organizationId,
+      userId: matchedEvent.userId ?? undefined,
       data: {
-        campaignId: params.campaignId,
-        campaignName: params.campaignName,
-        runId: params.runId,
-        stepId: params.stepId,
-        channel: params.channel,
-        status: params.status,
+        campaignId: messageProps.campaignId,
+        campaignName: messageProps.campaignName,
+        runId: messageProps.runId,
+        stepId: messageProps.stepId,
+        channel: messageProps.channel,
+        status: providerStatus,
+        providerMessageId,
       },
       timestamp: new Date(),
-      correlationId: params.runId,
+      correlationId: (messageProps.runId as string) || providerMessageId,
       version: 1,
       metadata: {
         environment: process.env['NODE_ENV'] ?? 'development',

@@ -87,14 +87,21 @@ export class RequestContextService {
   private readonly asyncLocalStorage = new AsyncLocalStorage<RequestContext>();
 
   /**
-   * Set context for current request
-   * This should be called in a middleware or guard that runs early in the request pipeline
+   * Run async work with request context bound for the whole async continuation
+   * (preferred over enterWith for long-lived servers — avoids context leaking across unrelated async work)
    */
-  setContext(context: RequestContext): void {
-    this.asyncLocalStorage.enterWith(context);
+  runWithContextAsync<T>(context: RequestContext, fn: () => Promise<T>): Promise<T> {
     this.logger.debug(
-      `Context set: tenantId=${context.tenantId}, userId=${context.userId}, correlationId=${context.correlationId}`,
+      `Context run (async): tenantId=${context.tenantId}, userId=${context.userId}, correlationId=${context.correlationId}`,
     );
+    return this.asyncLocalStorage.run(context, fn);
+  }
+
+  /**
+   * Synchronous ALS scope (use sparingly; prefer {@link runWithContextAsync} from interceptors)
+   */
+  runWithContextSync<T>(context: RequestContext, fn: () => T): T {
+    return this.asyncLocalStorage.run(context, fn);
   }
 
   /**

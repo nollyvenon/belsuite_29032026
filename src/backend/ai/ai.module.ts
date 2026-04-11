@@ -21,6 +21,10 @@ import { AIMonitoringService } from './services/ai-monitoring.service';
 import { DatabaseModule } from '../database/database.module';
 import { PaymentModule } from '../payments/payment.module';
 import { CommonModule } from '../common/common.module';
+import { AIContentStudioController } from '../ai-content-studio.controller';
+import { AIContentStudioService } from '../ai-content-studio.service';
+import { ContentVersioningService } from '../ai-content-versioning.service';
+import { AIContentAdminService } from '../ai-content-admin.service';
 
 @Module({
   imports: [
@@ -52,8 +56,11 @@ import { CommonModule } from '../common/common.module';
     ContentGenerationService,
     AIUsageLimitService,
     AIMonitoringService,
+    AIContentStudioService,
+    ContentVersioningService,
+    AIContentAdminService,
   ],
-  controllers: [AIController],
+  controllers: [AIController, AIContentStudioController],
   exports: [
     AIService,
     AIEngineService,

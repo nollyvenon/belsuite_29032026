@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { EventBus } from '../common/events/event.bus';
@@ -375,6 +380,9 @@ export class AICallingService {
       payload as Record<string, unknown>,
       signature,
     );
+    if (process.env['TWILIO_AUTH_TOKEN'] && !signatureValid) {
+      throw new UnauthorizedException('Invalid or missing Twilio signature');
+    }
 
     const providerCallSid = payload.CallSid;
     if (!providerCallSid) {
@@ -472,6 +480,9 @@ export class AICallingService {
       payload as Record<string, unknown>,
       signature,
     );
+    if (process.env['TWILIO_AUTH_TOKEN'] && !signatureValid) {
+      throw new UnauthorizedException('Invalid or missing Twilio signature');
+    }
 
     if (!payload.CallSid) {
       throw new BadRequestException('Missing CallSid in recording callback');

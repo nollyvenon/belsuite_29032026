@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Mail, Lock, Sparkles } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function LoginPage() {
+  const { setSession } = useAuthStore();
   const [isDark, setIsDark] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,11 +16,34 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Implement actual authentication
-    setTimeout(() => {
+    try {
+      const response = await apiFetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const raw: unknown = await response.json();
+      if (!response.ok) {
+        const err = raw as { message?: string };
+        throw new Error(err.message || 'Login failed');
+      }
+      const envelope = raw as { success?: boolean; data?: Record<string, string> };
+      const data = envelope.success && envelope.data ? envelope.data : (raw as Record<string, string>);
+      if (data?.accessToken && data?.refreshToken) {
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.setItem('token', data.accessToken);
+        if (data.organizationId) {
+          localStorage.setItem('organizationId', data.organizationId);
+        }
+        setSession(data.accessToken, data.refreshToken);
+      }
+      window.location.href = '/dashboard';
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Login failed');
+    } finally {
       setLoading(false);
-      alert('Login functionality coming soon');
-    }, 1000);
+    }
   };
 
   return (
@@ -52,7 +78,6 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            {/* Email Input */}
             <div>
               <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 Email Address
@@ -70,7 +95,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password Input */}
             <div>
               <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 Password
@@ -88,7 +112,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember & Forgot */}
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2">
                 <input type="checkbox" className="w-4 h-4 rounded" />
@@ -99,7 +122,6 @@ export default function LoginPage() {
               </a>
             </div>
 
-            {/* Login Button */}
             <button
               type="submit"
               disabled={loading}
@@ -110,7 +132,6 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Sign In'} {!loading && <ArrowRight size={20} />}
             </button>
 
-            {/* Divider */}
             <div className="relative">
               <div className={`absolute inset-0 flex items-center ${isDark ? 'border-orange-700/30' : 'border-orange-200'}`}>
                 <div className={`w-full border-t ${isDark ? 'border-orange-700/30' : 'border-orange-200'}`}></div>
@@ -120,7 +141,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Social Login */}
             <button
               type="button"
               className={`w-full py-3 rounded-xl font-semibold transition-colors border-2 flex items-center justify-center gap-2 ${
@@ -136,7 +156,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Sign Up Link */}
           <p className={`text-center mt-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Don&apos;t have an account?{' '}
             <Link href="/register" className="text-orange-600 hover:text-orange-700 font-bold">

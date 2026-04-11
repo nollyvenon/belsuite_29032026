@@ -12,7 +12,7 @@ import { TtsService } from '../services/tts.service';
 import { SubtitleService } from '../services/subtitle.service';
 import { StorageService } from '../services/storage.service';
 import { VideoJobPayload } from '../types/video.types';
-import { VideoJobStatus } from '@prisma/client';
+import { RenderStatus, VideoJobStatus } from '@prisma/client';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -73,6 +73,14 @@ export class VideoProcessor extends WorkerHost {
           data:  { status: VideoJobStatus.FAILED, errorMessage: msg },
         });
       }
+      if (job.data.type === 'render' && job.data.videoRenderId) {
+        await this.prisma.videoRender
+          .update({
+            where: { id: job.data.videoRenderId },
+            data: { status: RenderStatus.FAILED, progress: 0, errorMessage: msg },
+          })
+          .catch(() => {});
+      }
       throw err;
     }
   }
@@ -81,7 +89,21 @@ export class VideoProcessor extends WorkerHost {
 
   private async handleRender(job: Job<VideoJobPayload>): Promise<void> {
     if (job.data.type !== 'render') return;
-    const { projectId, organizationId, outputFormat, quality } = job.data;
+    const { projectId, organizationId, outputFormat, quality, videoRenderId } = job.data;
+
+    if (videoRenderId) {
+      const vr = await this.prisma.videoRender.findUnique({ where: { id: videoRenderId } });
+      if (vr?.status === RenderStatus.CANCELLED) {
+        this.logger.warn(`Skipping render job ${job.id}: VideoRender ${videoRenderId} was cancelled`);
+        return;
+      }
+      await this.prisma.videoRender
+        .update({
+          where: { id: videoRenderId },
+          data: { status: RenderStatus.PROCESSING, startedAt: new Date(), progress: 10 },
+        })
+        .catch(() => {});
+    }
 
     const project = await this.prisma.videoProject.findUnique({
       where:   { id: projectId },
@@ -135,6 +157,18 @@ export class VideoProcessor extends WorkerHost {
           status:       'READY',
         },
       });
+
+      if (videoRenderId) {
+        await this.prisma.videoRender.update({
+          where: { id: videoRenderId },
+          data: {
+            status: RenderStatus.COMPLETED,
+            progress: 100,
+            outputUrl: this.storage.publicUrl(renderKey),
+            completedAt: new Date(),
+          },
+        });
+      }
     } finally {
       try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
     }

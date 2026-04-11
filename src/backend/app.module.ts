@@ -41,13 +41,7 @@ import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionGuard } from './common/guards/permission.guard';
 import { BillingEnforcementGuard } from './common/guards/billing-enforcement.guard';
 import { CommonModule } from './common/common.module';
-
-// Stub modules (to be implemented in next phases)
-@Module({})
-class ContentModule {}
-
-@Module({})
-class StorageModule {}
+import { ContentModule } from './content/content.module';
 
 @Module({
   imports: [
@@ -66,11 +60,12 @@ class StorageModule {}
       },
     }),
 
+    // Multi-tenant middleware must run before RequestContextMiddleware so
+    // subdomain / DB-resolved tenant is on req before req.context is built.
+    MultiTenantModule,
+
     // Common infrastructure (event bus, request context, resilience)
     CommonModule,
-
-    // Multi-tenant infrastructure (global — must be before feature modules)
-    MultiTenantModule,
 
     // Core modules
     AuthModule,
@@ -85,7 +80,6 @@ class StorageModule {}
     AutomationModule,
     AnalyticsModule,
     AIModule,
-    StorageModule,
 
     // Video engine
     VideoModule,
@@ -146,17 +140,8 @@ class StorageModule {}
   ],
 })
 export class AppModule {
-  constructor(private prisma: PrismaService) {}
-
   // TenantMiddleware is applied inside MultiTenantModule.configure()
   configure(_consumer: MiddlewareConsumer) {
     // Intentionally empty — middleware wired in MultiTenantModule
-  }
-
-  async onModuleInit() {
-    process.on('SIGINT', async () => {
-      await this.prisma.$disconnect();
-      process.exit(0);
-    });
   }
 }

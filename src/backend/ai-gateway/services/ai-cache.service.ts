@@ -20,6 +20,10 @@ export class AICacheService {
   private readonly logger = new Logger(AICacheService.name);
   private readonly REDIS_PREFIX = 'belsuite:ai:cache:';
   private readonly DEFAULT_TTL_SECONDS = 24 * 60 * 60;   // 24 h
+  private readonly maxMemoryEntries = Math.max(
+    100,
+    parseInt(process.env['AI_GATEWAY_MEMORY_CACHE_MAX'] ?? '5000', 10) || 5000,
+  );
 
   // In-memory fallback
   private memoryCache = new Map<string, MemoryCacheEntry>();
@@ -98,6 +102,11 @@ export class AICacheService {
           savedUsd,
           expiresAt: Date.now() + ttlSeconds * 1000,
         });
+        while (this.memoryCache.size > this.maxMemoryEntries) {
+          const k = this.memoryCache.keys().next().value;
+          if (k === undefined) break;
+          this.memoryCache.delete(k);
+        }
       }
     } catch (err) {
       this.logger.error(`Cache set error: ${String(err)}`);

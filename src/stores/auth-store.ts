@@ -29,6 +29,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('accessToken');
       window.localStorage.removeItem('refreshToken');
+      window.localStorage.removeItem('organizationId');
+      window.localStorage.removeItem('token');
     }
 
     set({ accessToken: null, refreshToken: null, hydrated: true });

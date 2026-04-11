@@ -533,7 +533,22 @@ export const integrationsApi = {
 
 function getToken(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('auth_token') || '';
+  return (
+    localStorage.getItem('accessToken') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('auth_token') ||
+    ''
+  );
+}
+
+/** Relative or absolute URL fetch with bearer token when present. */
+export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers ?? {});
+  const token = typeof window !== 'undefined' ? getToken() : '';
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
 }
 
 export function useApi() {

@@ -133,6 +133,8 @@ export interface RenderJobPayload {
   organizationId: string;
   outputFormat: 'mp4' | 'webm';
   quality: 'low' | 'medium' | 'high';
+  /** When set (CapCut-style editor), worker updates this VideoRender row on completion/failure. */
+  videoRenderId?: string;
 }
 
 export interface TtsJobPayload {

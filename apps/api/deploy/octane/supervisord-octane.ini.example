@@ -1,0 +1,20 @@
+; Supervisord program for Laravel Octane (Swoole or RoadRunner).
+; Copy into /etc/supervisor/conf.d/belsuite-octane.conf and adjust paths/user.
+;
+; Install: sudo supervisorctl reread && sudo supervisorctl update
+
+[program:belsuite-octane]
+process_name=%(program_name)s_%(process_num)02d
+directory=/var/www/belsuite-api
+command=php /var/www/belsuite-api/artisan octane:start --server=swoole --host=0.0.0.0 --port=8080
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/var/www/belsuite-api/storage/logs/octane-supervisor.log
+stopwaitsecs=3600
+; Optional hard cap (Linux systemd also supports MemoryMax on the unit)
+; environment=OCTANE_PHP_MEMORY_LIMIT="512M"

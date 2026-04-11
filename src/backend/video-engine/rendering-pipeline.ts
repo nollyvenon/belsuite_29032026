@@ -45,7 +45,7 @@ export class VideoRenderingPipeline {
    * Worker process that continuously processes render queue
    */
   private startRenderWorker(): void {
-    setInterval(async () => {
+    const handle = setInterval(async () => {
       if (this.activeRenders < this.maxConcurrentRenders) {
         const nextJob = Array.from(this.renderQueue.values()).find(j => j.status === 'QUEUED');
 
@@ -55,6 +55,7 @@ export class VideoRenderingPipeline {
         }
       }
     }, 1000);
+    handle.unref();
   }
 
   /**

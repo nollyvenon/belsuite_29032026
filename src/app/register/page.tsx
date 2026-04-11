@@ -38,26 +38,37 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const response = await apiFetch('/api/auth/register', {
+      const response = await apiFetch('/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          company: formData.company,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          organization_name: formData.company || undefined,
         }),
       });
 
+      const raw: unknown = await response.json();
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const err = raw as { message?: string; data?: unknown };
+        const detail =
+          typeof err.data === 'object' && err.data !== null
+            ? JSON.stringify(err.data)
+            : err.message || 'Registration failed';
+        throw new Error(detail);
       }
 
-      const data = await response.json();
+      const envelope = raw as { success?: boolean; data?: Record<string, string> };
+      const data = envelope.success && envelope.data ? envelope.data : (raw as Record<string, string>);
       if (data?.accessToken && data?.refreshToken) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.setItem('token', data.accessToken);
+        if (data.organizationId) {
+          localStorage.setItem('organizationId', data.organizationId);
+        }
         setSession(data.accessToken, data.refreshToken);
       }
       window.location.href = '/dashboard';
@@ -194,6 +205,9 @@ export default function RegisterPage() {
                   required
                 />
               </div>
+              <p className={`mt-1 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                Use at least 12 characters with upper, lower, number, and symbol (same rules as the API).
+              </p>
             </div>
 
             {/* Confirm Password */}

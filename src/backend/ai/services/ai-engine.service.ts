@@ -23,9 +23,13 @@ export class AIEngineService {
   private readonly logger = new Logger(AIEngineService.name);
 
   /**
-   * In-memory cache.
+   * In-memory cache (bounded; use Redis at infra layer for shared cache across instances).
    */
   private cache: Map<string, { response: AIGenerationResponse; expiresAt: Date }> = new Map();
+  private readonly maxMemoryCacheEntries = Math.max(
+    100,
+    parseInt(process.env['AI_ENGINE_MEMORY_CACHE_MAX'] ?? '2000', 10) || 2000,
+  );
 
   /**
    * Model pricing per 1M tokens
@@ -319,6 +323,16 @@ export class AIEngineService {
   private cacheResponse(key: string, response: AIGenerationResponse, ttlHours: number = 24): void {
     const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
     this.cache.set(key, { response, expiresAt });
+    this.enforceMemoryCacheCap();
+  }
+
+  /** Drop oldest entries (Map insertion order) when over cap to reduce leak risk under load. */
+  private enforceMemoryCacheCap(): void {
+    while (this.cache.size > this.maxMemoryCacheEntries) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest === undefined) break;
+      this.cache.delete(oldest);
+    }
   }
 
   /**

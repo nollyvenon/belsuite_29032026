@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../database/prisma.service';
-import { VideoRenderingPipeline } from './rendering-pipeline';
+import { VIDEO_QUEUE } from '../video/processors/video.processor';
 import {
   VideoProject,
   VideoClip,
@@ -19,14 +20,11 @@ import {
 @Injectable()
 export class VideoEditorService {
   private readonly logger = new Logger(VideoEditorService.name);
-  private renderingPipeline: VideoRenderingPipeline;
 
   constructor(
     private prisma: PrismaService,
-    private config: ConfigService,
-  ) {
-    this.renderingPipeline = new VideoRenderingPipeline(this.config);
-  }
+    @InjectQueue(VIDEO_QUEUE) private readonly videoQueue: Queue,
+  ) {}
 
   // ── PROJECT MANAGEMENT ──────────────────────────────────────────────────
 
@@ -452,12 +450,31 @@ export class VideoEditorService {
       },
     } as any);
 
-    // Queue rendering job
-    this.renderingPipeline.queueRender(projectId, render.id, project, exportSettings).catch(err =>
-      this.logger.error(`Rendering failed: ${err.message}`),
+    const organizationId = (project as { organizationId: string }).organizationId;
+    const outputFormat = (exportSettings.format === 'webm' ? 'webm' : 'mp4') as 'mp4' | 'webm';
+    const quality = (['low', 'medium', 'high'].includes(exportSettings.quality)
+      ? exportSettings.quality
+      : 'medium') as 'low' | 'medium' | 'high';
+
+    await this.videoQueue.add(
+      `editor-render:${render.id}`,
+      {
+        type: 'render',
+        projectId,
+        organizationId,
+        outputFormat,
+        quality,
+        videoRenderId: render.id,
+      },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: 200,
+        removeOnFail: 200,
+      },
     );
 
-    this.logger.log(`Queued render job: ${render.id} for project: ${projectId}`);
+    this.logger.log(`Queued render job: ${render.id} for project: ${projectId} (BullMQ)`);
     return this.formatRender(render);
   }
 
@@ -546,11 +563,9 @@ export class VideoEditorService {
   async getRenderQueueStatus(organizationId: string): Promise<any> {
     const renders = await this.prisma.videoRender.findMany({
       where: {
-        project: {
-          organizationId,
-        },
+        status: { in: ['QUEUED', 'PROCESSING'] },
+        project: { organizationId },
       },
-      where: { status: { in: ['QUEUED', 'PROCESSING'] } },
     } as any);
 
     return {

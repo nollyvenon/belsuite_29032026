@@ -12,6 +12,7 @@ import {
   RequestContextService,
   RequestContextMiddleware,
   ResponseFormatterInterceptor,
+  RequestContextAlsInterceptor,
 } from './context';
 
 // Event bus
@@ -42,6 +43,11 @@ import { GlobalValidationPipe } from './pipes';
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseFormatterInterceptor,
+    },
+    // Outermost: binds ALS for the full handler + downstream interceptors (registered after = runs first)
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestContextAlsInterceptor,
     },
 
     // Global pipe for validation

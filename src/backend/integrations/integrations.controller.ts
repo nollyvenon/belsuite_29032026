@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Get, Delete, Body, Param, Query,
+  Controller, Post, Get, Put, Delete, Body, Param, Query,
   UseGuards, Request, RawBodyRequest, Req, Headers,
   HttpCode, Res, BadRequestException,
 } from '@nestjs/common';

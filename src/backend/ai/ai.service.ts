@@ -70,9 +70,13 @@ export class AIService {
     [AIModel.OLLAMA_MISTRAL, { input: 0, output: 0 }],
   ]);
 
-  // In-memory cache (in production, use Redis)
+  // In-memory cache (bounded; prefer Redis for multi-instance consistency)
   private cache: Map<string, CacheEntry> = new Map();
   private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly maxMemoryCacheEntries = Math.max(
+    100,
+    parseInt(process.env['AI_SERVICE_MEMORY_CACHE_MAX'] ?? '2000', 10) || 2000,
+  );
 
   constructor(
     private prisma: PrismaService,
@@ -354,6 +358,11 @@ export class AIService {
     };
 
     this.cache.set(hash, entry);
+    while (this.cache.size > this.maxMemoryCacheEntries) {
+      const k = this.cache.keys().next().value;
+      if (k === undefined) break;
+      this.cache.delete(k);
+    }
   }
 
   /**

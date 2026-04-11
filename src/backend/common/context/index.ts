@@ -9,6 +9,8 @@ export {
 
 export { RequestContextMiddleware } from './request-context.middleware';
 
+export { RequestContextAlsInterceptor } from './request-context.als.interceptor';
+
 export {
   ResponseFormatterInterceptor,
   formatErrorResponse,

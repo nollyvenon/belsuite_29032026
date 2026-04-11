@@ -6,7 +6,7 @@
 
 import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { RequestContextService, RequestContext } from './request-context.service';
+import { RequestContext } from './request-context.service';
 import { v4 as uuidv4 } from 'uuid';
 
 declare global {
@@ -20,8 +20,6 @@ declare global {
 @Injectable()
 export class RequestContextMiddleware implements NestMiddleware {
   private readonly logger = new Logger(RequestContextMiddleware.name);
-
-  constructor(private readonly contextService: RequestContextService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
     // Generate or extract correlation ID
@@ -50,10 +48,7 @@ export class RequestContextMiddleware implements NestMiddleware {
         userAgent: req.get('user-agent'),
       };
 
-      // Set context in service
-      this.contextService.setContext(context);
-
-      // Add to request for access in controllers/services
+      // Attach to request; AsyncLocalStorage is activated in RequestContextAlsInterceptor
       (req as any).context = context;
 
       // Add correlation ID and tenant ID to response headers
@@ -69,9 +64,10 @@ export class RequestContextMiddleware implements NestMiddleware {
       );
     }
 
-    // Hook into response finish to log metrics
+    // Hook into response finish to log metrics (use req.context — ALS may be cleared before finish)
     res.on('finish', () => {
-      const duration = this.contextService.getRequestDuration();
+      const ctx = (req as any).context as RequestContext | undefined;
+      const duration = ctx?.startTime ? Date.now() - ctx.startTime.getTime() : 0;
       this.logger.debug(
         `Request completed: ${req.method} ${req.path} (${res.statusCode}, ${duration}ms)`,
       );
@@ -99,10 +95,17 @@ export class RequestContextMiddleware implements NestMiddleware {
    * Priority: X-Tenant-ID header → tenantId query param → JWT claim
    */
   private extractTenantId(req: Request): string {
+    const r = req as Request & {
+      tenantId?: string;
+      tenant?: { organizationId?: string };
+    };
+    const user = (r as { user?: { tenantId?: string } }).user;
     const tenantId =
       req.get('X-Tenant-ID') ||
-      req.query.tenantId as string ||
-      (req as any).user?.tenantId;
+      (req.query.tenantId as string) ||
+      user?.tenantId ||
+      r.tenantId ||
+      r.tenant?.organizationId;
 
     return tenantId;
   }

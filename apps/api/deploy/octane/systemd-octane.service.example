@@ -1,0 +1,25 @@
+# /etc/systemd/system/belsuite-octane.service
+# sudo systemctl daemon-reload && sudo systemctl enable --now belsuite-octane
+
+[Unit]
+Description=Belsuite Laravel Octane (Swoole)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/belsuite-api
+ExecStart=/usr/bin/php artisan octane:start --server=swoole --host=0.0.0.0 --port=8080
+Restart=always
+RestartSec=5
+# Process + kernel-level guard against runaway workers
+MemoryMax=2G
+LimitNOFILE=65535
+Environment=APP_ENV=production
+Environment=OCTANE_WORKERS=auto
+Environment=OCTANE_MAX_REQUESTS=500
+Environment=OCTANE_PHP_MEMORY_LIMIT=512M
+
+[Install]
+WantedBy=multi-user.target
