@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeamDashboard from '@/components/teams/TeamDashboard';
 
@@ -9,16 +9,14 @@ export default function TeamsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/');
-      return;
-    }
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  if (loading && token) {
     setIsAuthenticated(true);
     setLoading(false);
-  }, [router]);
+  } else if (loading && !token) {
+    router.push('/');
+    setLoading(false);
+  }
 
   if (loading) {
     return (

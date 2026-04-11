@@ -392,7 +392,7 @@ export default function FunnelEnginePage() {
               onChange={(e) => setCaptureFormState((p) => ({ ...p, description: e.target.value }))}
             />
             <p className="text-xs text-slate-500">
-              Default template: First Name + Work Email with a "Get Access" CTA. Additional fields can be added via
+              Default template: First Name + Work Email with a &quot;Get Access&quot; CTA. Additional fields can be added via
               the API.
             </p>
             <button

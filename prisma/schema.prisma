@@ -3696,11 +3696,20 @@ model AIAssistantContext {
   id             String        @id @default(cuid())
   organizationId String
   assistantType  AssistantType
+  leadId         String?
+  lead           Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  dealId         String?
+  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contentId      String?
+  content        Content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
   contextData    Json          // facts, preferences, goals, recent actions
   updatedAt      DateTime      @updatedAt
 
   @@unique([organizationId, assistantType])
   @@index([organizationId])
+  @@index([leadId])
+  @@index([dealId])
+  @@index([contentId])
 }
 
 // Async tasks submitted by assistants (BullMQ-backed)
@@ -3709,6 +3718,12 @@ model AIAssistantTask {
   organizationId String
   userId         String?
   assistantType  AssistantType
+  leadId         String?
+  lead           Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  dealId         String?
+  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contentId      String?
+  content        Content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
   taskType       String        // GENERATE_CONTENT | SCHEDULE_POST | SEND_DM | CREATE_EVENT | etc.
   status         String        @default("PENDING") // PENDING | PROCESSING | DONE | FAILED | CANCELLED
   priority       Int           @default(5)
@@ -3727,6 +3742,9 @@ model AIAssistantTask {
   @@index([taskType])
   @@index([assistantType])
   @@index([scheduledAt])
+  @@index([leadId])
+  @@index([dealId])
+  @@index([contentId])
 }
 
 // YouTube end-to-end automation job
@@ -4165,6 +4183,8 @@ model IncomingWebhookLog {
   signatureValid Boolean @default(false)
   processed      Boolean @default(false)
   processingError String? @db.Text
+  attemptCount   Int     @default(1)
+  nextRetryAt    DateTime?
   receivedAt     DateTime @default(now())
 
   @@index([provider])
@@ -4172,6 +4192,7 @@ model IncomingWebhookLog {
   @@index([eventType])
   @@index([processed])
   @@index([receivedAt])
+  @@index([nextRetryAt])
 }
 
 // ============================================================================
@@ -5175,12 +5196,17 @@ model AICall {
   // Outcome
   outcome           CallOutcome?
   notes             String?  @db.Text
+  callSummary       String?  @db.Text
+  disposition       String?   @db.VarChar(64)
+  followUpTaskId    String?
+  followUpTask      Activity? @relation(fields: [followUpTaskId], references: [id], onDelete: SetNull)
 
   createdAt         DateTime @default(now())
 
   @@index([agentId])
   @@index([leadId])
   @@index([status])
+  @@index([followUpTaskId])
 }
 
 // ============================================================================

@@ -113,7 +113,7 @@ export class FeatureRecommenderEngine implements DecisionEngine {
   }
 
   private generateFeatureDescription(feature: any): string {
-    let reason = 'combination of ';
+    const reason = 'combination of ';
     const reasons: string[] = [];
 
     if (feature.adoptionRate > 0.7) reasons.push('high adoption');

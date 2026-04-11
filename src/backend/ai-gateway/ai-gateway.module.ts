@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CommonModule } from '../common/common.module';
 
 import { AIGatewayService }          from './ai-gateway.service';
 import { ModelRegistryService }       from './services/model-registry.service';
@@ -17,6 +18,7 @@ import { DatabaseModule }             from '../database/database.module';
   imports: [
     ConfigModule,   // provides ConfigService
     DatabaseModule, // provides PrismaService
+    CommonModule,
   ],
   controllers: [
     AIGatewayController,

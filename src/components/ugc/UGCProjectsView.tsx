@@ -95,7 +95,9 @@ export function UGCProjectsView() {
               <div className="mt-5 flex items-center justify-between gap-3">
                 <div className="text-xs text-zinc-600">Updated {new Date(project.updatedAt).toLocaleDateString()}</div>
                 <button
-                  onClick={() => deleteProject(project.id)}
+                  onClick={async () => {
+                    await deleteProject(project.id);
+                  }}
                   className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-red-400 hover:bg-red-400/10 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -172,8 +174,8 @@ export function UGCProjectsView() {
               </Field>
 
               <div className="mt-6 flex justify-end gap-3">
-                <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-xl border border-white/10 text-sm text-zinc-300 hover:bg-white/5 transition-colors">Cancel</button>
-                <button onClick={handleCreate} disabled={submitting || !form.title.trim()} className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-50">
+                <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 rounded-xl border border-white/10 text-sm text-zinc-300 hover:bg-white/5 transition-colors">Cancel</button>
+                <button type="button" onClick={handleCreate} disabled={submitting || !form.title.trim()} className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-50">
                   {submitting ? 'Creating...' : 'Create project'}
                 </button>
               </div>

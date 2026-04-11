@@ -1,6 +1,7 @@
 import { Module }       from '@nestjs/common';
 import { BullModule }   from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
+import { CommonModule } from '../common/common.module';
 
 // Engine & memory
 import { ASSISTANT_QUEUE, TaskExecutionEngine }    from './engine/task-execution.engine';
@@ -30,6 +31,7 @@ import { DatabaseModule }  from '../database/database.module';
 @Module({
   imports: [
     ConfigModule,
+    CommonModule,
     DatabaseModule,
     AIGatewayModule,   // provides AIGatewayService
     BullModule.registerQueue({ name: ASSISTANT_QUEUE }),

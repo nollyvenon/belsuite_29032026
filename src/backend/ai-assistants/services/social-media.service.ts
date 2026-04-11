@@ -9,6 +9,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { EventBus } from '../../common/events/event.bus';
 import { PrismaService }              from '../../database/prisma.service';
 import { AIGatewayService }           from '../../ai-gateway/ai-gateway.service';
 import { GatewayTask }                from '../../ai-gateway/types/gateway.types';
@@ -50,6 +51,7 @@ export class SocialMediaService {
     private readonly gateway:  AIGatewayService,
     private readonly memory:   ConversationMemoryService,
     private readonly tasks:    TaskExecutionEngine,
+    private readonly eventBus: EventBus,
   ) {}
 
   // ── Chat ───────────────────────────────────────────────────────────────
@@ -81,6 +83,21 @@ export class SocialMediaService {
       conversationId, 'assistant', response.text,
       { model: response.model, costUsd: response.costUsd },
     );
+
+    await this.eventBus.publish({
+      id: `social-chat-${messageId}`,
+      type: 'social.post.generated',
+      tenantId: organizationId,
+      userId,
+      data: { conversationId, messageId, reply: response.text, model: response.model },
+      timestamp: new Date(),
+      correlationId: conversationId,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'social-media',
+      },
+    });
 
     return {
       conversationId, messageId,

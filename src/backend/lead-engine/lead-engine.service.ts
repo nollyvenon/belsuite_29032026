@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventBus } from '../common/events/event.bus';
 import { PrismaService } from '../database/prisma.service';
 import { AIService } from '../ai/ai.service';
 import { AIModel } from '../ai/types/ai.types';
@@ -15,6 +16,7 @@ export class LeadEngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async ingestScrapedLeads(organizationId: string, userId: string, dto: ScrapeLeadsDto) {
@@ -44,6 +46,31 @@ export class LeadEngineService {
           },
         });
       }),
+    );
+
+    await Promise.all(
+      created.map((item, index) =>
+        this.eventBus.publish({
+          id: `lead-scraped-${item.id}`,
+          type: 'lead.scraped',
+          tenantId: organizationId,
+          userId,
+          data: {
+            leadId: item.id,
+            campaignName: dto.campaignName,
+            source: dto.prospects[index]?.source || dto.source || 'unknown',
+            leadScore: this.parseProperties(item.properties).leadScore || 0,
+            prospect: this.parseProperties(item.properties).prospect || {},
+          },
+          timestamp: now,
+          correlationId: item.id,
+          version: 1,
+          metadata: {
+            environment: process.env['NODE_ENV'] ?? 'development',
+            service: 'lead-engine',
+          },
+        }),
+      ),
     );
 
     return {
@@ -128,6 +155,27 @@ export class LeadEngineService {
       },
     });
 
+    await this.eventBus.publish({
+      id: `lead-enriched-${updated.id}`,
+      type: 'lead.enriched',
+      tenantId: organizationId,
+      userId,
+      data: {
+        leadId,
+        parentLeadId: leadId,
+        leadScore,
+        prospect,
+        enrichedAt: new Date().toISOString(),
+      },
+      timestamp: new Date(),
+      correlationId: updated.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'lead-engine',
+      },
+    });
+
     return {
       id: updated.id,
       parentLeadId: leadId,
@@ -189,6 +237,24 @@ Only return valid JSON.`;
           ...dto,
           capturedAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `lead-visitor-${event.id}`,
+      type: 'lead.visitor.tracked',
+      tenantId: organizationId,
+      userId,
+      data: {
+        ...dto,
+        capturedAt: new Date().toISOString(),
+      },
+      timestamp: new Date(),
+      correlationId: event.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'lead-engine',
       },
     });
 

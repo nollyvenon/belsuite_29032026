@@ -11,6 +11,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { EventBus } from '../../common/events/event.bus';
 import { PrismaService }                from '../../database/prisma.service';
 import { AIGatewayService }             from '../../ai-gateway/ai-gateway.service';
 import { GatewayTask }                  from '../../ai-gateway/types/gateway.types';
@@ -45,6 +46,7 @@ export class DonnaAIService {
     private readonly gateway:  AIGatewayService,
     private readonly memory:   ConversationMemoryService,
     private readonly tasks:    TaskExecutionEngine,
+    private readonly eventBus: EventBus,
   ) {}
 
   // ── Chat ───────────────────────────────────────────────────────────────
@@ -87,6 +89,13 @@ export class DonnaAIService {
       response.text,
       { model: response.model, costUsd: response.costUsd },
     );
+
+    await this.persistAssistantEvent(organizationId, userId, 'donna.chat.replied', {
+      conversationId,
+      messageId,
+      reply: response.text,
+      model: response.model,
+    });
 
     // Detect implicit task intents and auto-queue them
     const submittedTasks = await this.detectAndQueueTasks(
@@ -140,13 +149,18 @@ Include 4-8 concrete steps. Actions must be executable (send_email, post_social,
     userId:         string | undefined,
     workflowSpec:   WorkflowSpec,
   ): Promise<SubmittedTask> {
-    return this.tasks.submit({
+    const submitted = await this.tasks.submit({
       organizationId,
       userId,
       assistantType: 'DONNA',
       taskType:      'RUN_WORKFLOW',
       data:          { workflow: workflowSpec },
     });
+    await this.persistAssistantEvent(organizationId, userId, 'donna.workflow.queued', {
+      workflow: workflowSpec,
+      taskId: submitted.taskId,
+    });
+    return submitted;
   }
 
   // ── Campaign management ────────────────────────────────────────────────
@@ -185,6 +199,24 @@ Include 4-8 concrete steps. Actions must be executable (send_email, post_social,
       }, { priority: 3 });
       submittedTasks.push(t);
     }
+
+    await this.persistAssistantEvent(organizationId, userId, 'donna.campaign.created', {
+      campaignId: campaign.id,
+      name: spec.name,
+      channels: spec.channels,
+      tasks: submittedTasks.map((task) => task.taskId),
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId,
+        title: `Campaign created: ${spec.name}`,
+        description: spec.goal,
+        aiGenerated: true,
+        sourceEventType: 'donna.campaign.created',
+        sourceEventId: campaign.id,
+      } as any,
+    });
 
     return { campaign, tasks: submittedTasks };
   }
@@ -255,7 +287,36 @@ Higher number = higher priority.`;
       submitted.push(t);
     }
 
+    if (lower.includes('deal') || lower.includes('crm')) {
+      await this.persistAssistantEvent(organizationId, userId, 'donna.crm.suggestion', {
+        userMessage,
+        aiReply,
+      });
+    }
+
     return submitted;
+  }
+
+  private async persistAssistantEvent(
+    organizationId: string,
+    userId: string | undefined,
+    type: string,
+    data: Record<string, unknown>,
+  ) {
+    await this.eventBus.publish({
+      id: `${type}-${Date.now()}`,
+      type,
+      tenantId: organizationId,
+      userId,
+      data,
+      timestamp: new Date(),
+      correlationId: `${organizationId}-${Date.now()}`,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'donna-ai',
+      },
+    });
   }
 
   private parseJSON<T>(raw: string, fallback: T): T {

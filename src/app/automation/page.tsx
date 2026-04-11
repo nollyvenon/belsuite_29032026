@@ -51,8 +51,9 @@ export default function AutomationPage() {
       setType('TRIGGER_BASED');
       setTriggerJson(DEFAULT_TRIGGER);
       setActionsJson(DEFAULT_ACTIONS);
-    } catch (e: any) {
-      setFormError(e.message || 'Invalid JSON payload');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid JSON payload';
+      setFormError(message);
     } finally {
       setSaving(false);
     }

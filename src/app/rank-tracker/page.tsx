@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { KeywordRank, KeywordSuggestion, useRankTracker } from '../../hooks/useRankTracker';
 
 export default function RankTrackerPage() {
@@ -23,8 +23,6 @@ export default function RankTrackerPage() {
     setTotal(r.total);
     setStats(s);
   };
-
-  useEffect(() => { reload(); }, []);
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();

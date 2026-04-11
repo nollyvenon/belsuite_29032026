@@ -9,6 +9,7 @@
  */
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EventBus } from '../../common/events/event.bus';
 import { PrismaService }              from '../../database/prisma.service';
 import { AIGatewayService }           from '../../ai-gateway/ai-gateway.service';
 import { GatewayTask }                from '../../ai-gateway/types/gateway.types';
@@ -35,6 +36,7 @@ export class YouTubeAutomationService {
     private readonly gateway:  AIGatewayService,
     private readonly memory:   ConversationMemoryService,
     private readonly tasks:    TaskExecutionEngine,
+    private readonly eventBus: EventBus,
   ) {}
 
   // ── Conversational assistant ───────────────────────────────────────────
@@ -134,6 +136,24 @@ Return a JSON object (no markdown fences):
       },
     });
 
+    await this.eventBus.publish({
+      id: `youtube-script-${job.id}`,
+      type: 'video.script.generated',
+      tenantId: organizationId,
+      data: {
+        jobId: job.id,
+        title: script.title,
+        topic: spec.topic,
+      },
+      timestamp: new Date(),
+      correlationId: job.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'youtube-automation',
+      },
+    });
+
     return { job: { ...job, title: script.title, status: 'SCRIPT_READY' }, script };
   }
 
@@ -181,6 +201,25 @@ Return a JSON object (no markdown fences):
         seoDescription: seo.description,
         seoTags:        seo.tags,
         status:         'SEO_DONE',
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `youtube-seo-${jobId}`,
+      type: 'seo.content.generated',
+      tenantId: organizationId,
+      data: {
+        jobId,
+        title: seo.title,
+        category: seo.category,
+        tags: seo.tags,
+      },
+      timestamp: new Date(),
+      correlationId: jobId,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'youtube-automation',
       },
     });
 

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventBus } from '../common/events/event.bus';
 import { AIService } from '../ai/ai.service';
 import { AIModel } from '../ai/types/ai.types';
 import { PrismaService } from '../database/prisma.service';
@@ -41,6 +42,7 @@ export class CrmEngineService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
     private readonly emailService: EmailService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async importLeadToCrm(organizationId: string, userId: string, dto: ImportLeadToCrmDto) {
@@ -103,6 +105,28 @@ export class CrmEngineService {
       data: { properties: JSON.stringify(finalPayload) },
     });
 
+    await this.eventBus.publish({
+      id: `crm-lead-imported-${created.id}`,
+      type: 'crm.lead.imported',
+      tenantId: organizationId,
+      userId,
+      data: {
+        crmLeadId: created.id,
+        sourceLeadEventId: sourceLead?.id ?? null,
+        stage: initialStage,
+        score: finalPayload.score,
+        lead: finalPayload.lead,
+        notes: dto.notes ?? null,
+      },
+      timestamp: new Date(),
+      correlationId: created.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'crm-engine',
+      },
+    });
+
     return {
       crmLeadId: created.id,
       stage: initialStage,
@@ -155,6 +179,28 @@ export class CrmEngineService {
           reason: dto.reason,
           changedAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `crm-stage-changed-${event.id}`,
+      type: 'crm.pipeline.stage_changed',
+      tenantId: organizationId,
+      userId,
+      data: {
+        crmLeadId: dto.crmLeadId,
+        fromStage: exists ? this.readStage(this.parseProperties(await this.prisma.analyticsEvent.findFirst({
+          where: { id: dto.crmLeadId, organizationId, eventType: 'crm.lead.imported' },
+        })?.properties).stage) : 'new',
+        toStage: dto.toStage,
+        reason: dto.reason ?? null,
+      },
+      timestamp: new Date(),
+      correlationId: dto.crmLeadId,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'crm-engine',
       },
     });
 
@@ -232,6 +278,25 @@ Only return valid JSON.`;
           steps,
           startedAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `crm-sequence-started-${sequence.id}`,
+      type: 'crm.outreach.sequence_started',
+      tenantId: organizationId,
+      userId,
+      data: {
+        crmLeadId: dto.crmLeadId,
+        objective: dto.objective || 'nurture_to_conversion',
+        steps,
+      },
+      timestamp: new Date(),
+      correlationId: sequence.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'crm-engine',
       },
     });
 
@@ -320,6 +385,29 @@ Only return valid JSON.`;
       },
     });
 
+    await this.eventBus.publish({
+      id: `crm-outreach-sent-${event.id}`,
+      type: 'crm.outreach.message_sent',
+      tenantId: organizationId,
+      userId,
+      data: {
+        crmLeadId: dto.crmLeadId,
+        channel: dto.channel,
+        recipient,
+        subject,
+        message: dto.message,
+        status,
+        providerMessageId,
+      },
+      timestamp: new Date(),
+      correlationId: event.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'crm-engine',
+      },
+    });
+
     return {
       outreachEventId: event.id,
       crmLeadId: dto.crmLeadId,
@@ -359,6 +447,27 @@ Only return valid JSON.`;
           note: dto.note,
           markedAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `crm-conversion-marked-${event.id}`,
+      type: 'crm.conversion.marked',
+      tenantId: organizationId,
+      userId,
+      data: {
+        crmLeadId: dto.crmLeadId,
+        status: dto.status,
+        value: dto.value || 0,
+        currency: dto.currency || 'USD',
+        note: dto.note ?? null,
+      },
+      timestamp: new Date(),
+      correlationId: event.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'crm-engine',
       },
     });
 

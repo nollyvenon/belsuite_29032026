@@ -11,7 +11,11 @@ const NAV_LINKS = [
   { label: 'Features',     href: '#features' },
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Pricing',      href: '#pricing' },
+  { label: 'Content',      href: '/content' },
+  { label: 'AI Roles',     href: '/ai/customer-support' },
   { label: 'Live Demo',    href: '/demo', highlight: true },
+  { label: 'FAQ',          href: '/faq' },
+  { label: 'Contact',      href: '/contact' },
 ];
 
 export const Navbar = () => {

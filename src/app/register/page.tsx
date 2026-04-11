@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Mail, Lock, User, Building, Sparkles } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function RegisterPage() {
+  const { setSession } = useAuthStore();
   const [isDark, setIsDark] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -34,11 +37,35 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    // TODO: Implement actual registration
-    setTimeout(() => {
+    try {
+      const response = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          company: formData.company,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Registration failed');
+      }
+
+      const data = await response.json();
+      if (data?.accessToken && data?.refreshToken) {
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        setSession(data.accessToken, data.refreshToken);
+      }
+      window.location.href = '/dashboard';
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Registration failed');
+    } finally {
       setLoading(false);
-      alert('Registration functionality coming soon');
-    }, 1000);
+    }
   };
 
   return (

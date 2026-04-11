@@ -2,9 +2,9 @@
 // Version control logic for content (outline)
 // To be integrated with Content and ContentVersion models
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 declare const ContentVersion: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 declare const Content: any;
 
 export class ContentVersioningService {

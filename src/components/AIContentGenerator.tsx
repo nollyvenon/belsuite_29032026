@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Copy, DownloadCloud, Loader } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 
 export interface ContentGeneratorProps {
   type?: 'blog' | 'social' | 'ad' | 'email' | 'product' | 'video' | 'headlines' | 'image';
@@ -25,6 +26,7 @@ const ContentGenerator = ({ type, contentType, onGenerate }: ContentGeneratorPro
   const [isLoading, setIsLoading] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [error, setError] = useState('');
+  const { accessToken } = useAuthStore();
   const resolvedType = type ?? (contentType ? CONTENT_TYPE_MAP[contentType] : 'blog');
 
   // Display configuration by type
@@ -97,7 +99,7 @@ const ContentGenerator = ({ type, contentType, onGenerate }: ContentGeneratorPro
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify(formData),
       });
@@ -124,8 +126,8 @@ const ContentGenerator = ({ type, contentType, onGenerate }: ContentGeneratorPro
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedContent);
+  const copyToClipboard = async () => {
+    await navigator.clipboard.writeText(generatedContent);
   };
 
   return (
@@ -266,6 +268,7 @@ const ContentGenerator = ({ type, contentType, onGenerate }: ContentGeneratorPro
 
               <div className="flex gap-3">
                 <motion.button
+                  type="button"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={copyToClipboard}
@@ -276,8 +279,19 @@ const ContentGenerator = ({ type, contentType, onGenerate }: ContentGeneratorPro
                 </motion.button>
 
                 <motion.button
+                  type="button"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    if (!generatedContent) return;
+                    const blob = new Blob([generatedContent], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${resolvedType}-content.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
                   className="flex-1 px-4 py-2 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center gap-2"
                 >
                   <DownloadCloud className="w-4 h-4" />

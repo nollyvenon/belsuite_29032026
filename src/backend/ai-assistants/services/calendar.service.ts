@@ -9,6 +9,7 @@
  */
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EventBus } from '../../common/events/event.bus';
 import { PrismaService }              from '../../database/prisma.service';
 import { AIGatewayService }           from '../../ai-gateway/ai-gateway.service';
 import { GatewayTask }                from '../../ai-gateway/types/gateway.types';
@@ -35,6 +36,7 @@ export class CalendarService {
     private readonly gateway:  AIGatewayService,
     private readonly memory:   ConversationMemoryService,
     private readonly tasks:    TaskExecutionEngine,
+    private readonly eventBus: EventBus,
   ) {}
 
   // ── Chat ───────────────────────────────────────────────────────────────

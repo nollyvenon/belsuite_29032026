@@ -26,6 +26,11 @@ import { TikTokService }    from './providers/social/tiktok.service';
 import { WhatsAppService }  from './providers/communication/whatsapp.service';
 import { TelegramService }  from './providers/communication/telegram.service';
 import { SmsService }       from './providers/communication/sms.service';
+import { SlackService }    from './providers/communication/slack.service';
+import { ZapierService }   from './providers/communication/zapier.service';
+import { IntegrationEventsService } from './services/integration-events.service';
+import { IntegrationDeliveryQueryDto, IntegrationWebhookConfigDto, IntegrationRetryPolicyDto } from './dtos/integration-admin.dto';
+import { IntegrationEventTrigger } from './types/integration.types';
 
 // ────────────────────────────────────────────────────────────────────────────
 // OAuth Auth-URL endpoints (public — no JWT)
@@ -191,6 +196,9 @@ export class IntegrationsController {
     private readonly whatsapp: WhatsAppService,
     private readonly telegram: TelegramService,
     private readonly sms:      SmsService,
+    private readonly slack:    SlackService,
+    private readonly zapier:    ZapierService,
+    private readonly events:   IntegrationEventsService,
   ) {}
 
   // ── Status ───────────────────────────────────────────────────────────────
@@ -207,6 +215,12 @@ export class IntegrationsController {
       }),
     );
     return { data: results };
+  }
+
+  @Get('events')
+  @RequirePermission('read:integrations')
+  async integrationEvents(@Request() req: any, @Query('provider') provider?: string, @Query('limit') limit?: string) {
+    return { data: await this.events.listDeliveryLogs(req.user.organizationId, { provider, eventType: undefined, status: undefined }) };
   }
 
   @Delete(':provider')
@@ -431,5 +445,78 @@ export class IntegrationsController {
   @RequirePermission('use:integrations')
   async smsBulk(@Body() body: { messages: any[] }) {
     return this.sms.sendBulk(body.messages);
+  }
+
+  // ── Slack ───────────────────────────────────────────────────────────────
+
+  @Post('slack/message')
+  @RequirePermission('use:integrations')
+  async slackMessage(@Request() req: any, @Body() body: { channel: string; text: string; blocks?: unknown[] }) {
+    return this.slack.send({
+      channel: body.channel,
+      text: body.text,
+      blocks: body.blocks,
+      metadata: { organizationId: req.user.organizationId },
+    });
+  }
+
+  // ── Zapier-style connectors ─────────────────────────────────────────────
+
+  @Post('zapier/trigger')
+  @RequirePermission('use:integrations')
+  async zapierTrigger(@Request() req: any, @Body() body: { hookName: string; payload: Record<string, unknown> }) {
+    return this.zapier.trigger({
+      hookName: body.hookName,
+      payload: body.payload,
+      organizationId: req.user.organizationId,
+    });
+  }
+
+  @Get('webhooks')
+  @RequirePermission('read:integrations')
+  async listWebhookConfigs(@Request() req: any) {
+    return { data: await this.events.listWebhookConfigs(req.user.organizationId) };
+  }
+
+  @Put('webhooks')
+  @RequirePermission('manage:integrations')
+  async upsertWebhookConfig(@Request() req: any, @Body() dto: IntegrationWebhookConfigDto) {
+    return this.events.upsertWebhookConfig(req.user.organizationId, dto as any);
+  }
+
+  @Get('logs')
+  @RequirePermission('read:integrations')
+  async listLogs(@Request() req: any, @Query() query: IntegrationDeliveryQueryDto) {
+    return { data: await this.events.listDeliveryLogs(req.user.organizationId, query) };
+  }
+
+  @Get('retry-policy')
+  @RequirePermission('read:integrations')
+  async getRetryPolicy(@Request() req: any) {
+    return this.events.getRetryPolicy(req.user.organizationId);
+  }
+
+  @Put('retry-policy')
+  @RequirePermission('manage:integrations')
+  async updateRetryPolicy(@Request() req: any, @Body() dto: IntegrationRetryPolicyDto) {
+    return this.events.updateRetryPolicy(req.user.organizationId, dto as any);
+  }
+
+  @Post('logs/:provider/retry')
+  @RequirePermission('manage:integrations')
+  async retryLog(@Request() req: any, @Param('provider') provider: string, @Body() body: { eventType: string; payload: Record<string, unknown>; error: string; attempts: number }) {
+    await this.events.recordRetry(req.user.organizationId, provider.toUpperCase() as any, body.eventType, body.payload, body.error, body.attempts);
+    return { ok: true };
+  }
+
+  @Post('events/trigger')
+  @RequirePermission('use:integrations')
+  async triggerEvent(@Request() req: any, @Body() body: Omit<IntegrationEventTrigger, 'organizationId'>) {
+    return this.events.triggerEvent({
+      organizationId: req.user.organizationId,
+      eventType: body.eventType,
+      payload: body.payload,
+      channels: body.channels,
+    });
   }
 }

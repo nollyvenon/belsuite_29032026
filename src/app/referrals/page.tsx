@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ReferralLink, ReferralStats, useReferrals } from '../../hooks/useReferrals';
 
 export default function ReferralsPage() {
@@ -15,8 +15,6 @@ export default function ReferralsPage() {
     setLinks(l);
     setStats(s);
   };
-
-  useEffect(() => { reload(); }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

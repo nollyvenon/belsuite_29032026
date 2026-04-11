@@ -1,5 +1,7 @@
 import { Module }       from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
+import { CommonModule } from '../common/common.module';
 import { DatabaseModule } from '../database/database.module';
 
 // OAuth + Webhooks
@@ -23,6 +25,10 @@ import { TikTokService }    from './providers/social/tiktok.service';
 import { WhatsAppService }  from './providers/communication/whatsapp.service';
 import { TelegramService }  from './providers/communication/telegram.service';
 import { SmsService }       from './providers/communication/sms.service';
+import { SlackService }     from './providers/communication/slack.service';
+import { ZapierService }    from './providers/communication/zapier.service';
+import { IntegrationEventsService } from './services/integration-events.service';
+import { IntegrationDeliveryProcessor } from './processors/integration-delivery.processor';
 
 // Controllers
 import {
@@ -50,10 +56,21 @@ const PROVIDERS = [
   WhatsAppService,
   TelegramService,
   SmsService,
+  SlackService,
+  ZapierService,
+  IntegrationEventsService,
+  IntegrationDeliveryProcessor,
 ];
 
 @Module({
-  imports: [ConfigModule, DatabaseModule],
+  imports: [
+    CommonModule,
+    ConfigModule,
+    DatabaseModule,
+    BullModule.registerQueue({
+      name: 'integration-delivery',
+    }),
+  ],
   controllers: [
     IntegrationsOAuthController,
     IntegrationsWebhookController,

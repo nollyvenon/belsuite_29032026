@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { WorkflowType } from '@prisma/client';
+import { EventBus } from '../common/events/event.bus';
 import { AIService } from '../ai/ai.service';
 import { AIModel } from '../ai/types/ai.types';
 import { PrismaService } from '../database/prisma.service';
@@ -32,6 +33,7 @@ export class MarketingAutomationService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
     @InjectQueue(MARKETING_AUTOMATION_QUEUE) private readonly queue: Queue,
+    private readonly eventBus: EventBus,
   ) {}
 
   async createCampaign(
@@ -39,6 +41,7 @@ export class MarketingAutomationService {
     userId: string,
     dto: CreateMarketingAutomationCampaignDto,
   ) {
+    const audience = await this.buildAudienceFromContext(organizationId, dto.audience || {});
     const workflow = await this.prisma.workflow.create({
       data: {
         organizationId,
@@ -49,7 +52,7 @@ export class MarketingAutomationService {
           engine: 'marketing_automation',
           objective: dto.objective,
           trigger: dto.trigger,
-          audience: dto.audience || {},
+          audience,
           personalizationFields: dto.personalizationFields || [],
           abTestSettings: dto.abTestSettings || {},
           optimizeSendTime: dto.optimizeSendTime || false,
@@ -70,6 +73,26 @@ export class MarketingAutomationService {
         },
       },
       include: { actions: { orderBy: { order: 'asc' } } },
+    });
+
+    await this.eventBus.publish({
+      id: `marketing-campaign-created-${workflow.id}`,
+      type: 'marketing.campaign.created',
+      tenantId: organizationId,
+      userId,
+      data: {
+        campaignId: workflow.id,
+        name: workflow.name,
+        objective: dto.objective,
+        channels: this.extractChannels(dto.steps || []),
+      },
+      timestamp: new Date(),
+      correlationId: workflow.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'marketing-automation',
+      },
     });
 
     return this.mapCampaign(workflow);
@@ -143,7 +166,7 @@ export class MarketingAutomationService {
             ...existingTrigger,
             objective: dto.objective ?? existingTrigger.objective,
             trigger: dto.trigger ?? existingTrigger.trigger,
-            audience: dto.audience ?? existingTrigger.audience,
+            audience: dto.audience ? await this.buildAudienceFromContext(organizationId, dto.audience) : existingTrigger.audience,
             personalizationFields: dto.personalizationFields ?? existingTrigger.personalizationFields,
             abTestSettings: dto.abTestSettings ?? existingTrigger.abTestSettings,
             optimizeSendTime:
@@ -175,12 +198,62 @@ export class MarketingAutomationService {
     return this.getCampaign(organizationId, campaignId);
   }
 
+  private async buildAudienceFromContext(organizationId: string, audience: Record<string, unknown>) {
+    const payload = { ...audience };
+    const leadScore = this.readNumber(payload.leadScore);
+    const minScore = leadScore ?? 0;
+    const segments = Array.isArray(payload.segments) ? payload.segments : [];
+
+    const crmSegments = await this.prisma.analyticsEvent.findMany({
+      where: {
+        organizationId,
+        eventType: { in: ['crm.lead.imported', 'crm.pipeline.stage_changed', 'crm.conversion.marked'] },
+      },
+      orderBy: { timestamp: 'desc' },
+      take: 2000,
+    });
+
+    return {
+      ...payload,
+      minLeadScore: minScore,
+      segments,
+      crmSignals: crmSegments.map((event) => ({
+        id: event.id,
+        type: event.eventType,
+        timestamp: event.timestamp,
+      })),
+    };
+  }
+
+  private readNumber(value: unknown): number | undefined {
+    return typeof value === 'number' ? value : undefined;
+  }
+
   async setCampaignActive(organizationId: string, campaignId: string, isActive: boolean) {
     await this.getCampaignWorkflow(organizationId, campaignId);
     const workflow = await this.prisma.workflow.update({
       where: { id: campaignId },
       data: { isActive },
       include: { actions: { orderBy: { order: 'asc' } } },
+    });
+
+    await this.eventBus.publish({
+      id: `marketing-campaign-updated-${workflow.id}`,
+      type: 'marketing.campaign.updated',
+      tenantId: organizationId,
+      userId,
+      data: {
+        campaignId: workflow.id,
+        name: workflow.name,
+        isActive,
+      },
+      timestamp: new Date(),
+      correlationId: workflow.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'marketing-automation',
+      },
     });
     return this.mapCampaign(workflow);
   }
@@ -226,6 +299,26 @@ export class MarketingAutomationService {
           queuedJobs: queued,
           startedAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `marketing-run-started-${runId}`,
+      type: 'marketing.automation.run_started',
+      tenantId: organizationId,
+      userId,
+      data: {
+        campaignId,
+        campaignName: campaign.name,
+        runId,
+        contacts: dto.contacts.length,
+      },
+      timestamp: new Date(),
+      correlationId: runId,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'marketing-automation',
       },
     });
 
@@ -283,6 +376,28 @@ export class MarketingAutomationService {
             metadata: dto.metadata,
             triggeredAt: new Date().toISOString(),
           }),
+        },
+      });
+
+      await this.eventBus.publish({
+        id: `marketing-event-triggered-${runId}-${campaign.id}`,
+        type: 'marketing.automation.event_triggered',
+        tenantId: organizationId,
+        userId,
+        data: {
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          eventName: dto.eventName,
+          runId,
+          contact: dto.contact,
+          metadata: dto.metadata ?? {},
+        },
+        timestamp: new Date(),
+        correlationId: runId,
+        version: 1,
+        metadata: {
+          environment: process.env['NODE_ENV'] ?? 'development',
+          service: 'marketing-automation',
         },
       });
     }
@@ -603,6 +718,28 @@ Return valid JSON only.`;
           callbackPayload: payload,
           receivedAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `marketing-message-sent-${Date.now()}`,
+      type: 'marketing.automation.message_sent',
+      tenantId: params.organizationId,
+      userId: params.userId ?? undefined,
+      data: {
+        campaignId: params.campaignId,
+        campaignName: params.campaignName,
+        runId: params.runId,
+        stepId: params.stepId,
+        channel: params.channel,
+        status: params.status,
+      },
+      timestamp: new Date(),
+      correlationId: params.runId,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'marketing-automation',
       },
     });
 

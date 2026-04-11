@@ -713,7 +713,7 @@ export class AIGatewayService {
 
     if (anthropicKey) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+         
         const AnthropicClient = require('@anthropic-ai/sdk').default;
         this.anthropic = new AnthropicClient({ apiKey: anthropicKey });
         this.logger.log('Anthropic provider initialised');

@@ -266,7 +266,7 @@ export function PostsView({ accounts }: { accounts: SocialAccount[] }) {
               <PostCard
                 key={post.id}
                 post={post}
-                onCancel={() => cancelPost(post.id)}
+                onCancel={async () => { await cancelPost(post.id); }}
                 onReschedule={async (at) => {
                   await reschedule(post.id, at);
                 }}

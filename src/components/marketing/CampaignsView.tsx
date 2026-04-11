@@ -60,6 +60,7 @@ export function CampaignsView() {
         objective: form.objective as any,
         totalBudget: form.totalBudget ? parseFloat(form.totalBudget) : undefined,
         dailyBudget: form.dailyBudget ? parseFloat(form.dailyBudget) : undefined,
+        description: form.description || undefined,
       });
       setShowCreate(false);
       setForm({ name: '', objective: 'CONVERSIONS', totalBudget: '', dailyBudget: '', description: '' });
@@ -81,7 +82,7 @@ export function CampaignsView() {
   async function handleClone(id: string) {
     setCloningId(id);
     try {
-      await cloneCampaign(id);
+      await cloneCampaign(id, { name: `${campaigns.find((c) => c.id === id)?.name ?? 'Campaign'} Copy` });
       await reload();
     } catch {
       // ignore

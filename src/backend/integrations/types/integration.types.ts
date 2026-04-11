@@ -7,7 +7,14 @@ export type IntegrationProvider =
   | 'WHATSAPP'
   | 'TELEGRAM'
   | 'SMS_TWILIO'
-  | 'SMS_AFRICAS_TALKING';
+  | 'SMS_AFRICAS_TALKING'
+  | 'SLACK'
+  | 'ZAPIER'
+  | 'EMAIL_SENDGRID'
+  | 'EMAIL_MAILGUN'
+  | 'EMAIL_POSTMARK'
+  | 'EMAIL_SES'
+  | 'EMAIL_SMTP';
 
 export type IntegrationStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'ERROR';
 
@@ -140,4 +147,29 @@ export interface WebhookEvent {
   organizationId?: string;
   payload:       Record<string, unknown>;
   receivedAt:    Date;
+}
+
+export interface IntegrationDeliveryJob {
+  id: string;
+  organizationId: string;
+  provider: IntegrationProvider;
+  connectionId?: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'RETRYING';
+  attempts: number;
+  maxAttempts: number;
+  nextRetryAt?: Date | null;
+  lastError?: string | null;
+}
+
+export interface IntegrationEventTrigger {
+  organizationId: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  channels: Array<{
+    provider: IntegrationProvider | 'EMAIL' | 'SMS';
+    connectionId?: string | null;
+    channel?: string | null;
+  }>;
 }

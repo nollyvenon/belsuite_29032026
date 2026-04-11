@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { EventBus } from '../common/events/event.bus';
 import { PrismaService } from '../database/prisma.service';
 import { AIService } from '../ai/ai.service';
 import { ContentGenerationService } from '../ai/services/content-generation.service';
@@ -18,6 +19,7 @@ export class SeoEngineService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
     private readonly contentGenerationService: ContentGenerationService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async generateSeoContent(organizationId: string, userId: string, dto: GenerateSeoContentDto) {
@@ -60,6 +62,26 @@ export class SeoEngineService {
       },
     });
 
+    await this.eventBus.publish({
+      id: `seo-content-generated-${created.id}`,
+      type: 'seo.content.generated',
+      tenantId: organizationId,
+      userId,
+      data: {
+        contentId: created.id,
+        primaryKeyword: dto.primaryKeyword,
+        secondaryKeywords: dto.secondaryKeywords || [],
+        wordCount: dto.wordCount || 1800,
+      },
+      timestamp: new Date(),
+      correlationId: created.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'seo-engine',
+      },
+    });
+
     return {
       id: created.id,
       title: created.title,
@@ -82,6 +104,25 @@ export class SeoEngineService {
           qualityScore: quality,
           trackedAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `seo-backlink-created-${row.id}`,
+      type: 'seo.backlink.created',
+      tenantId: organizationId,
+      userId,
+      data: {
+        backlinkId: row.id,
+        ...dto,
+        qualityScore: quality,
+      },
+      timestamp: new Date(),
+      correlationId: row.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'seo-engine',
       },
     });
 

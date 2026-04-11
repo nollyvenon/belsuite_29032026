@@ -10,6 +10,8 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { EventBus } from '../../common/events/event.bus';
+import { PrismaService } from '../../database/prisma.service';
 import { AIGatewayService }             from '../../ai-gateway/ai-gateway.service';
 import { GatewayTask }                  from '../../ai-gateway/types/gateway.types';
 import type { ConversationMessage } from '../../ai-gateway/types/gateway.types';
@@ -39,6 +41,8 @@ export class SierrAIService {
     private readonly gateway: AIGatewayService,
     private readonly memory:  ConversationMemoryService,
     private readonly tasks:   TaskExecutionEngine,
+    private readonly prisma: PrismaService,
+    private readonly eventBus: EventBus,
   ) {}
 
   // ── Conversational chat ────────────────────────────────────────────────
@@ -87,6 +91,8 @@ export class SierrAIService {
       response.text,
       { model: response.model, costUsd: response.costUsd },
     );
+
+    await this.persistStrategyArtifact(organizationId, userId, conversationId, messageId, response.text);
 
     // Auto-title conversation from first exchange
     const msgCount = history.filter(m => m.role === 'user').length;
@@ -236,5 +242,56 @@ Return a JSON array (no markdown fences):
       this.logger.warn('Failed to parse Sierra JSON response');
       return fallback;
     }
+  }
+
+  private async persistStrategyArtifact(
+    organizationId: string,
+    userId: string | undefined,
+    conversationId: string,
+    messageId: string,
+    reply: string,
+  ) {
+    await this.prisma.analyticsEvent.create({
+      data: {
+        organizationId,
+        userId,
+        eventType: 'sierra.strategy.generated',
+        properties: JSON.stringify({
+          conversationId,
+          messageId,
+          reply,
+        }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `sierra-strategy-${messageId}`,
+      type: 'sierra.strategy.generated',
+      tenantId: organizationId,
+      userId,
+      data: {
+        conversationId,
+        messageId,
+        reply,
+      },
+      timestamp: new Date(),
+      correlationId: conversationId,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'sierra-ai',
+      },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId,
+        title: 'Strategy insight generated',
+        description: reply.slice(0, 500),
+        aiGenerated: true,
+        sourceEventType: 'sierra.strategy.generated',
+        sourceEventId: messageId,
+      } as any,
+    });
   }
 }

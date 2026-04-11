@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BoardView, Deal, DealStats, useDeals } from '../../hooks/useDeals';
 
 const STAGES = ['PROSPECTING', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'];
@@ -34,8 +34,6 @@ export default function DealsPage() {
     setBoard(b);
     setStats(s);
   };
-
-  useEffect(() => { reload(); }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

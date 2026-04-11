@@ -9,6 +9,9 @@ import { EmailSettingsPanel } from '@/components/admin/EmailSettingsPanel';
 import { SystemHealthPanel } from '@/components/admin/SystemHealthPanel';
 import { SmsSettingsPanel } from '@/components/admin/SmsSettingsPanel';
 import { CampaignChannelsPanel } from '@/components/admin/CampaignChannelsPanel';
+import { IntegrationsPanel } from '@/components/admin/IntegrationsPanel';
+import { WebhookSettingsPanel } from '@/components/admin/WebhookSettingsPanel';
+import { RetryPolicyPanel } from '@/components/admin/RetryPolicyPanel';
 import { TenantManagementPanel } from '@/components/admin/TenantManagementPanel';
 import { AutopilotSchedulePanel } from '@/components/admin/AutopilotSchedulePanel';
 import { useAdminPanel } from '@/hooks/useAdminPanel';
@@ -25,6 +28,10 @@ export default function AdminPage() {
     smsProviders,
     smsHealth,
     campaignChannelRoutes,
+    integrations,
+    integrationEvents,
+    webhooks,
+    retryPolicy,
     loading,
     saving,
     error,
@@ -33,6 +40,10 @@ export default function AdminPage() {
     saveSmsSettings,
     saveCampaignChannelRoute,
     removeCampaignChannelRoute,
+    sendSlackAlert,
+    triggerZapier,
+    saveWebhookConfig,
+    saveRetryPolicy,
     saveTenant,
   } = useAdminPanel();
   const {
@@ -114,6 +125,29 @@ export default function AdminPage() {
               onSave={saveCampaignChannelRoute}
               onDelete={removeCampaignChannelRoute}
             />
+          </SectionPanel>
+
+          <SectionPanel title="Real integrations" subtitle="Send Slack alerts, trigger Zapier-style connectors, and monitor integration activity.">
+            <IntegrationsPanel
+              integrations={integrations}
+              events={integrationEvents}
+              saving={saving}
+              onSendSlack={sendSlackAlert}
+              onTriggerZapier={triggerZapier}
+              onFireEvent={fireIntegrationEvent}
+            />
+          </SectionPanel>
+
+          <SectionPanel title="Webhook routes" subtitle="Register outbound webhook targets and control delivery endpoints for triggers and alerts.">
+            <WebhookSettingsPanel
+              webhooks={webhooks}
+              saving={saving}
+              onSave={saveWebhookConfig}
+            />
+          </SectionPanel>
+
+          <SectionPanel title="Retry policy" subtitle="Control automatic retry behavior for failed deliveries and listener events.">
+            <RetryPolicyPanel policy={retryPolicy} saving={saving} onSave={saveRetryPolicy} />
           </SectionPanel>
 
           <SectionPanel

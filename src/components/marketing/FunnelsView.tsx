@@ -183,8 +183,8 @@ export function FunnelsView() {
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => handleTogglePublish(funnel)}
+                  <button
+                    onClick={() => handleTogglePublish(funnel)}
                   disabled={publishingId === funnel.id}
                   className="p-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-colors disabled:opacity-50"
                   title={funnel.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}

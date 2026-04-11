@@ -210,7 +210,7 @@ const circuitBg = (state: string) => ({
 function StatCard({
   label, value, sub, icon: Icon, accent = false,
 }: {
-  label: string; value: string; sub?: string; icon: any; accent?: boolean;
+  label: string; value: string; sub?: string; icon: React.ElementType; accent?: boolean;
 }) {
   return (
     <div className={`rounded-xl border p-5 ${
@@ -1281,7 +1281,7 @@ export default function AIGatewayDashboard() {
 
                   <select
                     value={routeStrategy}
-                    onChange={(e) => setRouteStrategy(e.target.value)}
+                    onChange={(e) => setRouteStrategy(e.target.value as 'cheapest' | 'fastest' | 'best_quality' | 'balanced' | 'custom')}
                     className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
                   >
                     {['cheapest', 'fastest', 'best_quality', 'balanced', 'custom'].map((s) => (

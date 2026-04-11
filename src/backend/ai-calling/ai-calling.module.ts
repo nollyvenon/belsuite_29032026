@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { CommonModule } from '../common/common.module';
 import { AIModule } from '../ai/ai.module';
 import { PrismaService } from '../database/prisma.service';
 import { AI_CALLING_QUEUE, AICallingProcessor } from './processors/ai-calling.processor';
@@ -9,6 +10,7 @@ import { CallingProviderService } from './services/calling-provider.service';
 
 @Module({
   imports: [
+    CommonModule,
     AIModule,
     BullModule.registerQueue({
       name: AI_CALLING_QUEUE,

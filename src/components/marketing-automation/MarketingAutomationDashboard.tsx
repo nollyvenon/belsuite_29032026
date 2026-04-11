@@ -37,7 +37,7 @@ export function MarketingAutomationDashboard() {
           <h1 className="text-2xl font-semibold">Module 4 - Omni-Channel Marketing Automation</h1>
           <p className="text-sm text-zinc-400">Campaign builder backend, queue execution, provider callbacks, and AI copy automation.</p>
         </div>
-        <button onClick={reload} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm">
+        <button onClick={() => { void reload(); }} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm">
           Refresh
         </button>
       </header>

@@ -2,7 +2,7 @@
 // Admin Controls for AI Content Studio
 // Model selection, token limits, cost tracking
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 declare const UsageLog: any;
 
 export class AIContentAdminService {

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CommonModule } from '../common/common.module';
 import { AIModule } from '../ai/ai.module';
 import { PrismaService } from '../database/prisma.service';
 import { AnalyticsController } from './analytics.controller';
@@ -10,7 +11,7 @@ import { AnalyticsRecommendationService } from './services/analytics-recommendat
 import { AnalyticsTrackingService } from './services/analytics-tracking.service';
 
 @Module({
-  imports: [ConfigModule, AIModule],
+  imports: [CommonModule, ConfigModule, AIModule],
   controllers: [AnalyticsController],
   providers: [
     PrismaService,

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { OAuthButtons } from './OAuthButtons';
+import { apiFetch } from '@/lib/api';
 
 export interface LoginModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
 
     try {
       const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
@@ -62,7 +63,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
     setIsLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/auth/password/forgot', {
+      const response = await apiFetch('/api/auth/password/forgot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail || email }),
@@ -82,25 +83,16 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
     setIsLoading(true);
 
     try {
-      // Initialize OAuth flow based on provider
-      const clientId = process.env[`NEXT_PUBLIC_${provider.toUpperCase()}_CLIENT_ID`];
-      const redirectUri = `${window.location.origin}/oauth-callback`;
-
-      let authUrl = '';
-
-      switch (provider) {
-        case 'google':
-          authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile`;
-          break;
-        case 'apple':
-          authUrl = `https://appleid.apple.com/auth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&response_mode=form_post`;
-          break;
-        case 'facebook':
-          authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=email,public_profile`;
-          break;
+      const response = await apiFetch('/api/auth/oauth/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, redirectUri: `${window.location.origin}/oauth-callback` }),
+      });
+      const data = await response.json();
+      if (!data?.url) {
+        throw new Error('OAuth initialization failed');
       }
-
-      window.location.href = authUrl;
+      window.location.href = data.url;
     } catch {
       setError('OAuth initialization failed');
     } finally {

@@ -262,7 +262,7 @@ export default function ApiDocsPage() {
                   <code className="font-mono">POST /api/ai-calling/webhooks/twilio/recording</code> are publicly
                   accessible but validated against the Twilio HMAC-SHA1 signature using{' '}
                   <code className="font-mono">TWILIO_AUTH_TOKEN</code>. All requests from unknown origins are accepted
-                  but flagged with <code className="font-mono">"signatureValid": false</code>.
+                  but flagged with <code className="font-mono">&quot;signatureValid&quot;: false</code>.
                 </p>
               </div>
             </div>

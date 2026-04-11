@@ -6,6 +6,7 @@ const tenantClient = createApiClient('/api/tenants');
 const adminEmailClient = createApiClient('/api/admin/email');
 const adminSmsClient = createApiClient('/api/admin/sms');
 const adminCampaignChannelsClient = createApiClient('/api/admin/campaign-channels');
+const integrationsClient = createApiClient('/api/integrations');
 const aiGatewayAdminClient = createApiClient('/admin/ai-gateway');
 
 export interface TenantSummary {
@@ -82,6 +83,41 @@ export interface SmsProviderConfig {
   requiredFields: string[];
 }
 
+export interface IntegrationConnection {
+  id: string;
+  provider: string;
+  accountName?: string;
+  accountEmail?: string;
+  accountId?: string;
+  accountHandle?: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'ERROR';
+  scopes: string[];
+}
+
+export interface IntegrationEventLog {
+  provider: string;
+  eventType: string;
+  status?: string;
+  attempts?: number;
+  payload?: Record<string, unknown>;
+  error?: string;
+}
+
+export interface IntegrationWebhookConfig {
+  provider: string;
+  enabled?: boolean;
+  targetUrl?: string;
+  secret?: string;
+  notes?: string;
+}
+
+export interface IntegrationRetryPolicy {
+  enabled?: boolean;
+  maxAttempts?: number;
+  retryDelayMs?: number;
+  retryableStatuses?: string[];
+}
+
 export interface CampaignChannelRoute {
   objective: 'awareness' | 'engagement' | 'conversion' | 'retention';
   channel: 'email' | 'sms' | 'whatsapp' | 'voice' | 'ai_voice_agent';
@@ -138,6 +174,50 @@ export async function upsertCampaignChannelRoute(payload: CampaignChannelRoute) 
 
 export async function deleteCampaignChannelRoute(objective: CampaignChannelRoute['objective']) {
   return adminCampaignChannelsClient.delete<{ deleted: boolean; objective: string }>(`/routes/${objective}`);
+}
+
+export async function getIntegrations() {
+  return integrationsClient.get<{ data: IntegrationConnection[] }>('/');
+}
+
+export async function sendSlackMessage(payload: { channel: string; text: string; blocks?: unknown[] }) {
+  return integrationsClient.post('/slack/message', payload);
+}
+
+export async function triggerZapierHook(payload: { hookName: string; payload: Record<string, unknown> }) {
+  return integrationsClient.post('/zapier/trigger', payload);
+}
+
+export async function getIntegrationEvents(provider?: string, limit = 50) {
+  return integrationsClient.get<{ data: IntegrationEventLog[] }>('/logs', { provider, limit });
+}
+
+export async function listIntegrationWebhooks() {
+  return integrationsClient.get<{ data: IntegrationWebhookConfig[] }>('/webhooks');
+}
+
+export async function upsertIntegrationWebhook(payload: IntegrationWebhookConfig) {
+  return integrationsClient.put<IntegrationWebhookConfig>('/webhooks', payload);
+}
+
+export async function retryIntegrationDelivery(provider: string, payload: { eventType: string; payload: Record<string, unknown>; error: string; attempts: number }) {
+  return integrationsClient.post('/logs/' + provider + '/retry', payload);
+}
+
+export async function getIntegrationRetryPolicy() {
+  return integrationsClient.get<IntegrationRetryPolicy>('/retry-policy');
+}
+
+export async function updateIntegrationRetryPolicy(payload: IntegrationRetryPolicy) {
+  return integrationsClient.put<IntegrationRetryPolicy>('/retry-policy', payload);
+}
+
+export async function triggerIntegrationEvent(payload: {
+  eventType: string;
+  payload: Record<string, unknown>;
+  channels: Array<{ provider: string; connectionId?: string | null; channel?: string | null }>;
+}) {
+  return integrationsClient.post('/events/trigger', payload);
 }
 
 export interface AIGatewayControlProfile {

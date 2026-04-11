@@ -5,6 +5,10 @@ import {
   getEmailHealth,
   getEmailProviders,
   getEmailSettings,
+  getIntegrationEvents,
+  getIntegrations,
+  getIntegrationRetryPolicy,
+  listIntegrationWebhooks,
   getSmsHealth,
   getSmsProviders,
   getSmsSettings,
@@ -12,6 +16,11 @@ import {
   listTenants,
   deleteCampaignChannelRoute,
   upsertCampaignChannelRoute,
+  sendSlackMessage,
+  upsertIntegrationWebhook,
+  updateIntegrationRetryPolicy,
+  triggerIntegrationEvent,
+  triggerZapierHook,
   updateEmailSettings,
   updateSmsSettings,
   updateTenant,
@@ -19,6 +28,10 @@ import {
   type AdminEmailSettings,
   type AdminSmsSettings,
   type EmailProviderConfig,
+  type IntegrationConnection,
+  type IntegrationEventLog,
+  type IntegrationWebhookConfig,
+  type IntegrationRetryPolicy,
   type SmsProviderConfig,
   type TenantSummary,
 } from '@/lib/api/modules/admin';
@@ -32,6 +45,10 @@ export function useAdminPanel() {
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [smsHealth, setSmsHealth] = useState<Record<string, unknown> | null>(null);
   const [campaignChannelRoutes, setCampaignChannelRoutes] = useState<CampaignChannelRoute[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
+  const [integrationEvents, setIntegrationEvents] = useState<IntegrationEventLog[]>([]);
+  const [webhooks, setWebhooks] = useState<IntegrationWebhookConfig[]>([]);
+  const [retryPolicy, setRetryPolicy] = useState<IntegrationRetryPolicy | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +57,7 @@ export function useAdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [tenantData, emailSettings, emailProviders, emailHealth, smsCfg, smsProviderCatalog, smsHealthPayload, channelRoutes] = await Promise.all([
+      const [tenantData, emailSettings, emailProviders, emailHealth, smsCfg, smsProviderCatalog, smsHealthPayload, channelRoutes, integrationPayload, integrationEventPayload, webhookPayload, retryPolicyPayload] = await Promise.all([
         listTenants(),
         getEmailSettings(),
         getEmailProviders(),
@@ -49,6 +66,10 @@ export function useAdminPanel() {
         getSmsProviders(),
         getSmsHealth(),
         getCampaignChannelRoutes(),
+        getIntegrations(),
+        getIntegrationEvents(),
+        listIntegrationWebhooks(),
+        getIntegrationRetryPolicy(),
       ]);
 
       setTenants(tenantData.tenants);
@@ -59,6 +80,10 @@ export function useAdminPanel() {
       setSmsProviders(smsProviderCatalog);
       setSmsHealth(smsHealthPayload);
       setCampaignChannelRoutes(channelRoutes);
+      setIntegrations(integrationPayload.data);
+      setIntegrationEvents(integrationEventPayload.data);
+      setWebhooks(webhookPayload.data);
+      setRetryPolicy(retryPolicyPayload);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -130,6 +155,61 @@ export function useAdminPanel() {
     }
   }, []);
 
+  const sendSlackAlert = useCallback(async (payload: { channel: string; text: string; blocks?: unknown[] }) => {
+    setSaving(true);
+    try {
+      return await sendSlackMessage(payload);
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const triggerZapier = useCallback(async (payload: { hookName: string; payload: Record<string, unknown> }) => {
+    setSaving(true);
+    try {
+      return await triggerZapierHook(payload);
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const saveWebhookConfig = useCallback(async (payload: IntegrationWebhookConfig) => {
+    setSaving(true);
+    try {
+      const next = await upsertIntegrationWebhook(payload);
+      setWebhooks((current) => {
+        const idx = current.findIndex((item) => item.provider === next.provider);
+        if (idx < 0) return [...current, next];
+        const copy = [...current];
+        copy[idx] = next;
+        return copy;
+      });
+      return next;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const saveRetryPolicy = useCallback(async (payload: IntegrationRetryPolicy) => {
+    setSaving(true);
+    try {
+      const next = await updateIntegrationRetryPolicy(payload);
+      setRetryPolicy(next);
+      return next;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const fireIntegrationEvent = useCallback(async (payload: { eventType: string; payload: Record<string, unknown>; channels: Array<{ provider: string; connectionId?: string | null; channel?: string | null }> }) => {
+    setSaving(true);
+    try {
+      return await triggerIntegrationEvent(payload);
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
   return {
     tenants,
     settings,
@@ -137,6 +217,10 @@ export function useAdminPanel() {
     smsSettings,
     smsProviders,
     campaignChannelRoutes,
+    integrations,
+    integrationEvents,
+    webhooks,
+    retryPolicy,
     health,
     smsHealth,
     loading,
@@ -147,6 +231,11 @@ export function useAdminPanel() {
     saveSmsSettings,
     saveCampaignChannelRoute,
     removeCampaignChannelRoute,
+    sendSlackAlert,
+    triggerZapier,
+    saveWebhookConfig,
+    saveRetryPolicy,
+    fireIntegrationEvent,
     saveTenant,
   };
 }

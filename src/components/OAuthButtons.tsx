@@ -22,6 +22,7 @@ export const OAuthButtons = ({
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
+        type="button"
         onClick={onGoogleClick}
         disabled={isLoading}
         className="flex items-center justify-center w-full gap-3 px-4 py-3 border transition-all rounded-lg border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -39,6 +40,7 @@ export const OAuthButtons = ({
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
+        type="button"
         onClick={onAppleClick}
         disabled={isLoading}
         className="flex items-center justify-center w-full gap-3 px-4 py-3 border transition-all rounded-lg border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -51,6 +53,7 @@ export const OAuthButtons = ({
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
+        type="button"
         onClick={onFacebookClick}
         disabled={isLoading}
         className="flex items-center justify-center w-full gap-3 px-4 py-3 border transition-all rounded-lg border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"

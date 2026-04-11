@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { EventBus } from '../common/events/event.bus';
 import { AIService } from '../ai/ai.service';
 import { AIModel } from '../ai/types/ai.types';
 import { PrismaService } from '../database/prisma.service';
@@ -22,9 +23,17 @@ export class AICallingService {
     private readonly aiService: AIService,
     private readonly providerService: CallingProviderService,
     @InjectQueue(AI_CALLING_QUEUE) private readonly queue: Queue,
+    private readonly eventBus: EventBus,
   ) {}
 
   async createVoiceAgent(organizationId: string, userId: string, dto: CreateVoiceAgentDto) {
+    const agentProps = {
+      objective: dto.objective || 'book_appointments',
+      industry: dto.industry,
+      style: dto.style || 'consultative',
+      objectionPlaybook: dto.objectionPlaybook || [],
+      qualificationQuestions: dto.qualificationQuestions || [],
+    };
     const event = await this.prisma.analyticsEvent.create({
       data: {
         organizationId,
@@ -32,14 +41,28 @@ export class AICallingService {
         eventType: 'ai.voice_agent.created',
         properties: JSON.stringify({
           name: dto.name,
-          objective: dto.objective || 'book_appointments',
-          industry: dto.industry,
-          style: dto.style || 'consultative',
-          objectionPlaybook: dto.objectionPlaybook || [],
-          qualificationQuestions: dto.qualificationQuestions || [],
+          ...agentProps,
           memoryConfig: dto.memoryConfig || { retainTurns: 24 },
           createdAt: new Date().toISOString(),
         }),
+      },
+    });
+
+    await this.eventBus.publish({
+      id: `ai-call-created-${event.id}`,
+      type: 'ai.call.created',
+      tenantId: organizationId,
+      userId,
+      data: {
+        callId: event.id,
+        voiceAgentId: dto.voiceAgentId,
+      },
+      timestamp: new Date(),
+      correlationId: event.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'ai-calling',
       },
     });
 
@@ -96,6 +119,38 @@ export class AICallingService {
           createdAt: new Date().toISOString(),
         }),
       },
+    });
+
+    await this.eventBus.publish({
+      id: `ai-call-dispatched-${call.id}`,
+      type: 'ai.call.dispatched',
+      tenantId: organizationId,
+      userId,
+      data: {
+        callId: call.id,
+        status: 'queued',
+        objective: agentProps.objective,
+      },
+      timestamp: new Date(),
+      correlationId: call.id,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'ai-calling',
+      },
+    });
+
+    await this.persistCrmCallLink(organizationId, userId, call.id, dto.lead, {
+      objective: dto.objective || agentProps.objective || 'book_appointment',
+      voiceAgentId: dto.voiceAgentId,
+      status: 'queued',
+    });
+
+    await this.writeCrmActivity(organizationId, userId, dto.lead.leadId, {
+      title: `AI call queued for ${dto.lead.fullName || dto.lead.phone}`,
+      description: `Objective: ${dto.objective || agentProps.objective || 'book_appointment'}`,
+      sourceEventType: 'ai.call.created',
+      sourceEventId: call.id,
     });
 
     await this.queue.add(
@@ -185,6 +240,7 @@ export class AICallingService {
       throw new BadRequestException('Missing transcript or text input');
     }
 
+    const agentProps = this.parse(call.properties);
     await this.prisma.analyticsEvent.create({
       data: {
         organizationId,
@@ -198,6 +254,14 @@ export class AICallingService {
           createdAt: new Date().toISOString(),
         }),
       },
+    });
+
+    await this.persistCrmFollowUp(organizationId, userId, callId, customerText, aiReply, qualification);
+    await this.writeCrmActivity(organizationId, userId, props.lead?.leadId, {
+      title: `AI call follow-up for ${props.lead?.fullName || props.lead?.phone || callId}`,
+      description: aiReply,
+      sourceEventType: 'ai.call.turn.agent',
+      sourceEventId: callId,
     });
 
     const memory = await this.getConversationMemory(organizationId, callId, 12);
@@ -263,6 +327,34 @@ export class AICallingService {
           bookedAt: new Date().toISOString(),
         }),
       },
+    });
+
+    await this.eventBus.publish({
+      id: `ai-call-booked-${dto.callId}`,
+      type: 'ai.call.appointment.booked',
+      tenantId: organizationId,
+      userId,
+      data: {
+        callId: dto.callId,
+        appointmentAt: dto.appointmentAt,
+        timezone: dto.timezone || 'UTC',
+        notes: dto.notes,
+      },
+      timestamp: new Date(),
+      correlationId: dto.callId,
+      version: 1,
+      metadata: {
+        environment: process.env['NODE_ENV'] ?? 'development',
+        service: 'ai-calling',
+      },
+    });
+
+    await this.persistAppointmentOutcome(organizationId, userId, dto.callId, dto.appointmentAt, dto.notes);
+    await this.writeCrmActivity(organizationId, userId, this.findLeadIdForCall(dto.callId), {
+      title: 'Appointment booked from AI call',
+      description: `Booked for ${dto.appointmentAt}`,
+      sourceEventType: 'ai.call.appointment.booked',
+      sourceEventId: dto.callId,
     });
 
     return {
@@ -341,6 +433,22 @@ export class AICallingService {
           confidence: payload.Confidence,
           source: 'twilio_voice_webhook',
         },
+      });
+    }
+
+    if (payload.CallStatus === 'completed' || payload.CallStatus === 'no-answer' || payload.CallStatus === 'busy') {
+      await this.persistCallCompletion(
+        dispatched.organizationId,
+        dispatched.userId,
+        callId,
+        payload.CallStatus,
+        payload.RecordingUrl,
+      );
+      await this.writeCrmActivity(dispatched.organizationId, dispatched.userId, this.findLeadIdForCall(callId), {
+        title: `AI call ${payload.CallStatus}`,
+        description: payload.RecordingUrl ? `Recording: ${payload.RecordingUrl}` : `Status: ${payload.CallStatus}`,
+        sourceEventType: 'ai.call.provider.status',
+        sourceEventId: callId,
       });
     }
 
@@ -427,6 +535,14 @@ export class AICallingService {
         },
       );
     }
+
+    await this.persistRecordingOutcome(
+      dispatched.organizationId,
+      dispatched.userId,
+      callId,
+      payload.RecordingUrl,
+      payload.RecordingDuration,
+    );
 
     return {
       accepted: true,
@@ -683,5 +799,126 @@ Only return JSON.`;
         return { raw };
       }
     }
+  }
+
+  private async persistCrmCallLink(
+    organizationId: string,
+    userId: string,
+    callId: string,
+    lead: Record<string, unknown>,
+    details: Record<string, unknown>,
+  ) {
+    await this.prisma.analyticsEvent.create({
+      data: {
+        organizationId,
+        userId,
+        eventType: 'crm.call.linked',
+        properties: JSON.stringify({ callId, lead, details, linkedAt: new Date().toISOString() }),
+      },
+    });
+  }
+
+  private async persistCrmFollowUp(
+    organizationId: string,
+    userId: string,
+    callId: string,
+    customerText: string,
+    aiReply: string,
+    qualification: Record<string, unknown>,
+  ) {
+    await this.prisma.analyticsEvent.create({
+      data: {
+        organizationId,
+        userId,
+        eventType: 'crm.call.follow_up_created',
+        properties: JSON.stringify({
+          callId,
+          customerText,
+          aiReply,
+          qualification,
+          createdAt: new Date().toISOString(),
+        }),
+      },
+    });
+  }
+
+  private async persistAppointmentOutcome(
+    organizationId: string,
+    userId: string,
+    callId: string,
+    appointmentAt: string,
+    notes?: string,
+  ) {
+    await this.prisma.analyticsEvent.create({
+      data: {
+        organizationId,
+        userId,
+        eventType: 'crm.call.appointment_booked',
+        properties: JSON.stringify({ callId, appointmentAt, notes, bookedAt: new Date().toISOString() }),
+      },
+    });
+  }
+
+  private async persistCallCompletion(
+    organizationId: string,
+    userId: string | undefined,
+    callId: string,
+    status: string,
+    recordingUrl?: string | null,
+  ) {
+    await this.prisma.analyticsEvent.create({
+      data: {
+        organizationId,
+        userId,
+        eventType: 'crm.call.completed',
+        properties: JSON.stringify({ callId, status, recordingUrl, completedAt: new Date().toISOString() }),
+      },
+    });
+  }
+
+  private async persistRecordingOutcome(
+    organizationId: string,
+    userId: string | undefined,
+    callId: string,
+    recordingUrl?: string | null,
+    duration?: string | null,
+  ) {
+    await this.prisma.analyticsEvent.create({
+      data: {
+        organizationId,
+        userId,
+        eventType: 'crm.call.recording_received',
+        properties: JSON.stringify({ callId, recordingUrl, duration, receivedAt: new Date().toISOString() }),
+      },
+    });
+  }
+
+  private async writeCrmActivity(
+    organizationId: string,
+    userId: string | undefined,
+    leadId: string | undefined,
+    details: {
+      title: string;
+      description?: string;
+      sourceEventType: string;
+      sourceEventId: string;
+    },
+  ) {
+    if (!leadId) return;
+    await this.prisma.activity.create({
+      data: {
+        organizationId,
+        leadId,
+        title: details.title,
+        description: details.description ?? null,
+        sourceEventType: details.sourceEventType,
+        sourceEventId: details.sourceEventId,
+        aiGenerated: true,
+      } as any,
+    });
+  }
+
+  private findLeadIdForCall(callId: string) {
+    return undefined;
   }
 }

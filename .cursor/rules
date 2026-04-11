@@ -1,0 +1,5 @@
+MODE: FAST
+- no explanations
+- minimal tokens
+- diffs only
+- strict output format

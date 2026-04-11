@@ -19,33 +19,51 @@ export default function Home() {
           {/* Badge */}
           <div className={`inline-block mb-8 px-4 py-2 rounded-full border ${isDark ? 'bg-orange-900/20 border-orange-700' : 'bg-orange-50 border-orange-200'}`}>
             <span className="text-orange-600 dark:text-orange-400 text-sm font-semibold flex items-center gap-2">
-              <Zap size={16} /> AI-Powered Business Operating System
+              <Zap size={16} /> AI systems for content, CRM, automation, and growth
             </span>
           </div>
 
           {/* Headline */}
           <h1 className="text-6xl md:text-7xl lg:text-8xl font-black mb-6 leading-tight">
-            Run Your <span className="text-orange-600">Entire Business</span>
+            Run Your <span className="text-orange-600">Business Systems</span>
             <br />on Autopilot
           </h1>
 
           {/* Subheadline */}
           <p className={`text-xl md:text-2xl ${isDark ? 'text-gray-300' : 'text-gray-600'} mb-8 max-w-3xl mx-auto leading-relaxed`}>
-            Create videos, generate leads, manage deals, automate campaigns, and close customers — all from one AI platform. <span className="font-bold text-orange-600">One dashboard. All your business systems. Zero headcount.</span>
+            AI content, CRM + deals, marketing automation, AI calling, and growth autopilot in one platform. <span className="font-bold text-orange-600">One system. Clear outcomes. Less software.</span>
           </p>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <button className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-8 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg`}>
+            <a href="/billing" className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-8 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg`}>
               Start Free Trial <ArrowRight size={20} />
-            </button>
-            <button className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-8 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
+            </a>
+            <a href="/demo" className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-8 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
               <Play size={20} /> Watch Demo
-            </button>
+            </a>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
+            <a href="/content" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+              Content system
+            </a>
+            <a href="/ai/customer-support" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+              Support agent
+            </a>
+            <a href="/ai/sales-closer" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+              Sales closer
+            </a>
+            <a href="/ai/operations-manager" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+              Ops manager
+            </a>
+            <a href="/ai/influencer" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+              AI influencer
+            </a>
           </div>
 
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            ✓ No credit card • ✓ 14-day free trial • ✓ Setup in 2 minutes
+            ✓ No credit card • ✓ 14-day free trial • ✓ Built for teams
           </p>
 
           {/* Social Proof Metrics */}
@@ -71,21 +89,21 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
-              <h2 className={`text-4xl font-black mb-8 ${isDark ? 'text-white' : 'text-black'}`}>
-                Stop Using 10 Different Tools
+                <h2 className={`text-4xl font-black mb-8 ${isDark ? 'text-white' : 'text-black'}`}>
+                Stop Managing 10 Different Tools
               </h2>
               <div className="space-y-4">
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-red-900/20 border border-red-700/50' : 'bg-red-50 border border-red-200'}`}>
-                  <p className={`font-semibold ${isDark ? 'text-red-300' : 'text-red-600'}`}>❌ Content tool, CRM tool, email tool, SMS tool...</p>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Too many subscriptions. Too much switching.</p>
+                  <p className={`font-semibold ${isDark ? 'text-red-300' : 'text-red-600'}`}>❌ Separate apps for content, CRM, campaigns, and calls</p>
+                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Too many handoffs. Too much switching.</p>
                 </div>
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-red-900/20 border border-red-700/50' : 'bg-red-50 border border-red-200'}`}>
-                  <p className={`font-semibold ${isDark ? 'text-red-300' : 'text-red-600'}`}>❌ Manual follow-ups and lost leads</p>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No automation. Missed opportunities.</p>
+                  <p className={`font-semibold ${isDark ? 'text-red-300' : 'text-red-600'}`}>❌ Manual follow-ups and disconnected pipelines</p>
+                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Leads slip, deals stall, campaigns drift.</p>
                 </div>
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-red-900/20 border border-red-700/50' : 'bg-red-50 border border-red-200'}`}>
-                  <p className={`font-semibold ${isDark ? 'text-red-300' : 'text-red-600'}`}>❌ Hiring expensive team members</p>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>High salaries. Training. Turnover.</p>
+                  <p className={`font-semibold ${isDark ? 'text-red-300' : 'text-red-600'}`}>❌ Paying for tools that do one job each</p>
+                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>You buy software, then still need people to connect it.</p>
                 </div>
               </div>
             </div>
@@ -97,15 +115,15 @@ export default function Home() {
               <div className="space-y-4">
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-green-900/20 border border-green-700/50' : 'bg-green-50 border border-green-200'}`}>
                   <p className={`font-semibold flex items-center gap-2 ${isDark ? 'text-green-300' : 'text-green-600'}`}>
-                    <CheckCircle size={20} /> One platform. Everything inside.
+                    <CheckCircle size={20} /> One system. All your growth workflows.
                   </p>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Content, CRM, marketing, calls, all connected.</p>
+                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Content, CRM, deals, automation, and calls work together.</p>
                 </div>
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-green-900/20 border border-green-700/50' : 'bg-green-50 border border-green-200'}`}>
                   <p className={`font-semibold flex items-center gap-2 ${isDark ? 'text-green-300' : 'text-green-600'}`}>
                     <CheckCircle size={20} /> AI follows up automatically
                   </p>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>AI handles email, SMS, calls, lead scoring 24/7.</p>
+                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>AI handles email, SMS, calls, lead scoring, and routing 24/7.</p>
                 </div>
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-green-900/20 border border-green-700/50' : 'bg-green-50 border border-green-200'}`}>
                   <p className={`font-semibold flex items-center gap-2 ${isDark ? 'text-green-300' : 'text-green-600'}`}>
@@ -125,7 +143,7 @@ export default function Home() {
           <div className="text-center mb-20">
             <h2 className="text-5xl font-black mb-4">Your Complete AI Business System</h2>
             <p className={`text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              Four integrated engines powering your entire business. Content • Growth • Sales • Automation.
+              Four systems powering outcomes. Content • CRM + deals • Marketing automation • Autopilot growth.
             </p>
           </div>
 
@@ -135,14 +153,14 @@ export default function Home() {
               <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                 <Sparkles size={28} className="text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">AI Content & Video Engine</h3>
+              <h3 className="text-2xl font-bold mb-3">AI Content System</h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Generate blog posts, scripts, and professional videos in seconds. Edit with AI. Publish everywhere.
+                Generate blog posts, scripts, and videos in seconds. Edit with AI. Publish everywhere.
               </p>
               <ul className="space-y-3">
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>AI video creation & editing (CapCut-level)</span>
+                  <span>AI video creation & editing</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
@@ -157,7 +175,7 @@ export default function Home() {
                   <span>Content calendar & auto-publishing</span>
                 </li>
               </ul>
-              <p className="mt-6 font-bold text-orange-600">→ Professional content without the team</p>
+              <p className="mt-6 font-bold text-orange-600">→ Content output without a content team</p>
             </div>
 
             {/* System 2: Lead Generation & Sales */}
@@ -165,18 +183,18 @@ export default function Home() {
               <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                 <BarChart3 size={28} className="text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">Lead Generation & Sales Engine</h3>
+              <h3 className="text-2xl font-bold mb-3">CRM + Deals System</h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Generate leads, enrich data, score prospects, manage deals, and close customers. Your growth engine working 24/7.
+                Capture leads, score prospects, manage deals, and move opportunities through the pipeline automatically.
               </p>
               <ul className="space-y-3">
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Lead generation & web scraping</span>
+                  <span>Lead capture & enrichment</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Lead enrichment & verification (0-100 scoring)</span>
+                  <span>Lead scoring & qualification</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
@@ -187,7 +205,7 @@ export default function Home() {
                   <span>Visitor tracking & email identification</span>
                 </li>
               </ul>
-              <p className="mt-6 font-bold text-orange-600">→ Never miss a sales opportunity</p>
+              <p className="mt-6 font-bold text-orange-600">→ Deals move forward without manual chasing</p>
             </div>
 
             {/* System 3: Marketing & Automation */}
@@ -195,14 +213,14 @@ export default function Home() {
               <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                 <Mail size={28} className="text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">Marketing Automation Engine</h3>
+              <h3 className="text-2xl font-bold mb-3">Marketing Automation System</h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Multi-channel campaigns (email, SMS, voice, AI calls) with intelligent workflows that nurture at scale.
+                Multi-channel campaigns with intelligent workflows that nurture at scale.
               </p>
               <ul className="space-y-3">
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
-                  <span>Email, SMS, voice & AI calling campaigns</span>
+                  <span>Email, SMS, voice, and AI calling campaigns</span>
                 </li>
                 <li className="flex gap-3">
                   <CheckCircle size={20} className="text-orange-600 flex-shrink-0 mt-1" />
@@ -217,7 +235,7 @@ export default function Home() {
                   <span>Campaign analytics & ROI tracking</span>
                 </li>
               </ul>
-              <p className="mt-6 font-bold text-orange-600">→ Your campaigns run themselves</p>
+              <p className="mt-6 font-bold text-orange-600">→ Campaigns run with less manual work</p>
             </div>
 
             {/* System 4: Business Autopilot */}
@@ -225,9 +243,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                 <Zap size={28} className="text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">🤖 AI Business Autopilot (The Game Changer)</h3>
+              <h3 className="text-2xl font-bold mb-3">Autopilot Growth System</h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Your AI team runs your business 24/7. Generate leads, follow up automatically, close deals, and optimize growth — all without you lifting a finger.
+                Your AI team runs follow-up, outreach, optimization, and reporting 24/7.
               </p>
               <div className="grid md:grid-cols-4 gap-4">
                 <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-100'}`}>
@@ -244,19 +262,19 @@ export default function Home() {
                 </div>
                 <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-100'}`}>
                   <p className="font-bold flex items-center gap-2 mb-2">
-                    <Phone size={18} /> AI Caller
+                    <Phone size={18} /> AI Calling
                   </p>
-                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Follow-ups & bookings via voice</p>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Follow-ups and bookings via voice</p>
                 </div>
                 <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-100'}`}>
                   <p className="font-bold flex items-center gap-2 mb-2">
-                    <TrendingUp size={18} /> AI Optimizer
+                    <TrendingUp size={18} /> Growth Optimizer
                   </p>
-                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Auto-optimize all campaigns</p>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Auto-optimize campaigns and routing</p>
                 </div>
               </div>
               <p className="mt-8 text-lg font-bold text-orange-600">
-                → Your business grows 24/7 while you sleep
+                → Run growth on autopilot
               </p>
             </div>
           </div>
@@ -266,14 +284,14 @@ export default function Home() {
       {/* How It Works */}
       <section className={`${isDark ? 'bg-black' : 'bg-white'} py-24`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-5xl font-black text-center mb-20">How It Works in 4 Steps</h2>
+            <h2 className="text-5xl font-black text-center mb-20">How It Works in 4 Steps</h2>
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { step: 1, title: 'Create', desc: 'AI generates videos, blogs, ads, and campaigns in seconds', icon: '✨' },
-              { step: 2, title: 'Generate', desc: 'AI captures leads, enriches data, scores prospects 24/7', icon: '🎯' },
-              { step: 3, title: 'Convert', desc: 'AI automates email, SMS, calls, and follow-ups', icon: '🔄' },
-              { step: 4, title: 'Scale', desc: 'AI optimizes deals, campaigns, and growth metrics', icon: '📈' },
+              { step: 1, title: 'Create', desc: 'AI generates content and video fast', icon: '✨' },
+              { step: 2, title: 'Capture', desc: 'CRM captures and scores leads automatically', icon: '🎯' },
+              { step: 3, title: 'Convert', desc: 'Automation handles email, SMS, calls, and follow-ups', icon: '🔄' },
+              { step: 4, title: 'Scale', desc: 'Autopilot improves deals, campaigns, and growth', icon: '📈' },
             ].map((item) => (
               <div key={item.step} className="text-center">
                 <div className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl mb-6 mx-auto ${isDark ? 'bg-orange-900/30 border border-orange-700' : 'bg-orange-100 border border-orange-300'}`}>
@@ -437,261 +455,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Live Demo Section */}
-      <section id="demo" className={`${isDark ? 'bg-orange-900/10 border-y border-orange-700/30' : 'bg-orange-50 border-y border-orange-200'} py-24`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-5xl font-black mb-4">See Belsuite in Action</h2>
-            <p className={`text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              Watch your AI team work in real-time
-            </p>
-          </div>
-
-          {/* Demo Tabs */}
-          <div className="flex justify-center gap-4 mb-12 flex-wrap">
-            {['crm', 'video', 'campaigns', 'calls', 'assistant'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                  activeTab === tab
-                    ? isDark
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-orange-500 text-white'
-                    : isDark
-                    ? 'bg-orange-900/20 text-gray-300 hover:bg-orange-900/30'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {tab === 'crm' && '💼 CRM Dashboard'}
-                {tab === 'video' && '🎬 Video Editor'}
-                {tab === 'campaigns' && '📧 Campaigns'}
-                {tab === 'calls' && '📞 AI Calling'}
-                {tab === 'assistant' && '🤖 AI Assistant'}
-              </button>
-            ))}
-          </div>
-
-          {/* Demo Content */}
-          <div className={`rounded-2xl border-2 p-8 ${isDark ? 'bg-black border-orange-700/50' : 'bg-white border-orange-200'} overflow-hidden`}>
-            {activeTab === 'video' && (
-              <div>
-                <h3 className="font-bold mb-4 text-lg">AI Video Editor</h3>
-                <div className={`mb-6 rounded-lg overflow-hidden ${isDark ? 'bg-black border border-orange-700/50' : 'bg-gray-100 border border-orange-200'}`}>
-                  <div className={`w-full h-64 flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-200'}`}>
-                    <div className="text-center">
-                      <div className="text-5xl mb-3">▶️</div>
-                      <p className={`font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Timeline Editor Preview</p>
-                      <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Drag • Drop • Auto-Caption • Effects</p>
-                    </div>
-                  </div>
-                </div>
-                <div className={`grid md:grid-cols-2 gap-6 ${isDark ? 'text-gray-300' : ''}`}>
-                  <div>
-                    <p className="font-bold mb-3">Features</p>
-                    <ul className="space-y-2 text-sm">
-                      <li>✓ Drag & drop timeline editing</li>
-                      <li>✓ Auto-generated captions (speech-to-text)</li>
-                      <li>✓ Scene detection & highlights</li>
-                      <li>✓ Background removal (1 click)</li>
-                      <li>✓ Silence auto-removal</li>
-                      <li>✓ Transitions & effects library</li>
-                      <li>✓ Multi-format export</li>
-                    </ul>
-                  </div>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
-                    <p className="font-bold mb-3">Recent Project</p>
-                    <div className="space-y-2 text-sm">
-                      <div>📹 <strong>Product Demo Video</strong></div>
-                      <div className={isDark ? 'text-gray-400' : 'text-gray-600'}>Duration: 2:35 • Format: 9:16 (Reels)</div>
-                      <div className="mt-3 w-full h-2 rounded-full bg-orange-600"></div>
-                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Rendering: 87% complete</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'crm' && (
-              <div>
-                <h3 className="font-bold mb-4 text-lg">CRM Dashboard</h3>
-                <div className={`grid md:grid-cols-3 gap-4 mb-6 ${isDark ? 'text-gray-300' : ''}`}>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Leads</p>
-                    <p className="text-3xl font-bold text-orange-600">1,247</p>
-                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>↑ 34% this month</p>
-                  </div>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Conversion Rate</p>
-                    <p className="text-3xl font-bold text-orange-600">12.4%</p>
-                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>↑ 3x better than average</p>
-                  </div>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active Deals</p>
-                    <p className="text-3xl font-bold text-orange-600">47</p>
-                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>→ $187K pipeline</p>
-                  </div>
-                </div>
-                <table className={`w-full text-sm ${isDark ? 'text-gray-300' : ''}`}>
-                  <thead className={`${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
-                    <tr>
-                      <th className="p-3 text-left">Lead Name</th>
-                      <th className="p-3 text-left">Stage</th>
-                      <th className="p-3 text-left">AI Score</th>
-                      <th className="p-3 text-left">Next Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className={`border-b ${isDark ? 'border-orange-700/30' : 'border-orange-100'}`}>
-                      <td className="p-3">Sarah Chen (Hot)</td>
-                      <td className="p-3"><span className="px-2 py-1 bg-green-900/50 text-green-300 rounded">Qualified</span></td>
-                      <td className="p-3"><span className="font-bold text-orange-600">94/100</span></td>
-                      <td className="p-3"><span className="text-xs px-2 py-1 bg-orange-900/50 text-orange-300 rounded">Demo Call 2pm</span></td>
-                    </tr>
-                    <tr className={`border-b ${isDark ? 'border-orange-700/30' : 'border-orange-100'}`}>
-                      <td className="p-3">Marcus Johnson</td>
-                      <td className="p-3"><span className="px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded">Nurturing</span></td>
-                      <td className="p-3"><span className="font-bold text-orange-600">72/100</span></td>
-                      <td className="p-3"><span className="text-xs px-2 py-1 bg-blue-900/50 text-blue-300 rounded">Email Sequence</span></td>
-                    </tr>
-                    <tr>
-                      <td className="p-3">Emma Rodriguez</td>
-                      <td className="p-3"><span className="px-2 py-1 bg-purple-900/50 text-purple-300 rounded">Contacted</span></td>
-                      <td className="p-3"><span className="font-bold text-orange-600">58/100</span></td>
-                      <td className="p-3"><span className="text-xs px-2 py-1 bg-orange-900/50 text-orange-300 rounded">AI Follow-up Call</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {activeTab === 'campaigns' && (
-              <div>
-                <h3 className="font-bold mb-4 text-lg">Campaign Performance</h3>
-                <div className={`grid md:grid-cols-2 gap-6 ${isDark ? 'text-gray-300' : ''}`}>
-                  <div>
-                    <p className="font-bold mb-4">Email Campaign: "Summer Sale 2024"</p>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span>Sent</span>
-                          <span>12,450</span>
-                        </div>
-                        <div className={`h-2 rounded-full ${isDark ? 'bg-orange-900/30' : 'bg-orange-100'}`}></div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span>Opened</span>
-                          <span className="text-orange-600 font-bold">42.3%</span>
-                        </div>
-                        <div className={`h-2 rounded-full ${isDark ? 'bg-orange-900/30' : 'bg-orange-100'}`} style={{width: '42.3%'}}></div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span>Clicked</span>
-                          <span className="text-orange-600 font-bold">18.7%</span>
-                        </div>
-                        <div className={`h-2 rounded-full ${isDark ? 'bg-orange-900/30' : 'bg-orange-100'}`} style={{width: '18.7%'}}></div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span>Converted</span>
-                          <span className="text-orange-600 font-bold">8.2%</span>
-                        </div>
-                        <div className={`h-2 rounded-full ${isDark ? 'bg-orange-900/30' : 'bg-orange-100'}`} style={{width: '8.2%'}}></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'}`}>
-                    <p className="font-bold mb-3">AI Insights</p>
-                    <ul className="space-y-2 text-sm">
-                      <li>✓ Subject line "URGENT" = 34% higher open rate</li>
-                      <li>✓ Best send time: Tuesday 10am</li>
-                      <li>✓ Recommend A/B test: 40-char subject lines</li>
-                      <li>✓ Increase send volume to segment D</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'calls' && (
-              <div>
-                <h3 className="font-bold mb-4 text-lg">AI Calling Activity</h3>
-                <div className={`space-y-4 ${isDark ? 'text-gray-300' : ''}`}>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'} border ${isDark ? 'border-orange-700/30' : 'border-orange-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-bold">Sarah Chen</p>
-                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Demo Followup Call</p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>2 hours ago • 12 min call</p>
-                      </div>
-                      <span className="px-3 py-1 bg-green-900/50 text-green-300 rounded text-sm">✓ Booked Demo</span>
-                    </div>
-                  </div>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'} border ${isDark ? 'border-orange-700/30' : 'border-orange-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-bold">Marcus Johnson</p>
-                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Objection Handling</p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>4 hours ago • 8 min call</p>
-                      </div>
-                      <span className="px-3 py-1 bg-yellow-900/50 text-yellow-300 rounded text-sm">Pending</span>
-                    </div>
-                  </div>
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-orange-900/20' : 'bg-orange-50'} border ${isDark ? 'border-orange-700/30' : 'border-orange-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-bold">Emma Rodriguez</p>
-                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>First Contact</p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>6 hours ago • 14 min call</p>
-                      </div>
-                      <span className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded text-sm">→ Nurture</span>
-                    </div>
-                  </div>
-                </div>
-                <div className={`mt-6 p-4 rounded-lg ${isDark ? 'bg-green-900/20' : 'bg-green-50'} border ${isDark ? 'border-green-700/30' : 'border-green-200'}`}>
-                  <p className={`text-sm ${isDark ? 'text-green-300' : 'text-green-600'}`}>
-                    <span className="font-bold">This Month:</span> 127 calls • 43% booked • $12,400 pipeline
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'assistant' && (
-              <div>
-                <h3 className="font-bold mb-4 text-lg">AI Assistant Chat</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-100'} max-w-xs`}>
-                    <p className="text-sm">What's our top performing campaign this week?</p>
-                  </div>
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-orange-900/30 border border-orange-700' : 'bg-orange-100 border border-orange-300'} max-w-md ml-auto`}>
-                    <p className="text-sm font-semibold">Your "Summer Sale" email campaign is crushing it:</p>
-                    <ul className="text-sm mt-2 space-y-1">
-                      <li>📧 42.3% open rate (industry avg: 21%)</li>
-                      <li>🎯 8.2% conversion rate (industry avg: 2%)</li>
-                      <li>💰 Generated $4,200 revenue</li>
-                      <li>💡 Recommend scaling budget by 40%</li>
-                    </ul>
-                  </div>
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-100'} max-w-xs`}>
-                    <p className="text-sm">Which leads should I focus on today?</p>
-                  </div>
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-orange-900/30 border border-orange-700' : 'bg-orange-100 border border-orange-300'} max-w-md ml-auto`}>
-                    <p className="text-sm font-semibold">Top 3 leads to contact today:</p>
-                    <ol className="text-sm mt-2 space-y-2">
-                      <li><strong>1. Sarah Chen</strong> - AI score 94/100 - Schedule 2pm demo</li>
-                      <li><strong>2. Marcus Johnson</strong> - AI score 72/100 - Send social proof case study</li>
-                      <li><strong>3. Emma Rodriguez</strong> - AI score 58/100 - AI call at 4pm</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
       {/* Testimonials */}
       <section className={`${isDark ? 'bg-black' : 'bg-white'} py-24`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -710,7 +473,7 @@ export default function Home() {
                   ))}
                 </div>
                 <p className={`mb-6 text-lg leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  "{testimonial.quote}"
+                  &quot;{testimonial.quote}&quot;
                 </p>
                 <div>
                   <p className="font-bold">{testimonial.name}</p>
@@ -726,17 +489,17 @@ export default function Home() {
       <section id="pricing" className={`${isDark ? 'bg-orange-900/10 border-y border-orange-700/30' : 'bg-orange-50 border-y border-orange-200'} py-24`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-5xl font-black mb-4">Your Entire AI Team</h2>
+            <h2 className="text-5xl font-black mb-4">Simple Pricing for the Full System</h2>
             <p className={`text-2xl ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              Less than hiring <span className="text-orange-600 font-bold">one employee</span>
+              Content, CRM, automation, AI calling, and autopilot growth for less than one hire
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { name: 'Starter', price: '$99', users: '1 user', features: ['AI Video Editor', 'Content Generator', 'Basic CRM (50 contacts)', 'Email campaigns', 'Up to 500 leads/mo'] },
-              { name: 'Professional', price: '$299', users: '5 users', features: ['All Starter +', 'AI Calling (100 calls/mo)', 'SMS campaigns', 'Lead enrichment', 'AI Workflows', 'Up to 5K leads/mo', 'AI Receptionist'], popular: true },
-              { name: 'Enterprise', price: 'Custom', users: 'Unlimited', features: ['Everything +', 'Unlimited calls & leads', 'Priority support', 'Custom workflows', 'Dedicated account manager', 'API access'] },
+              { name: 'Starter', price: '$99', users: '1 user', features: ['Content system', 'Basic CRM + deals', 'Email automation', 'AI assistant', 'Up to 500 leads/mo'] },
+              { name: 'Professional', price: '$299', users: '5 users', features: ['Everything in Starter', 'Marketing automation', 'AI calling', 'Lead scoring', 'Autopilot workflows', 'Up to 5K leads/mo'], popular: true },
+              { name: 'Enterprise', price: 'Custom', users: 'Unlimited', features: ['Everything in Pro', 'Custom systems', 'Advanced routing', 'Dedicated support', 'Custom integrations', 'API access'] },
             ].map((plan, idx) => (
               <div
                 key={idx}
@@ -788,30 +551,8 @@ export default function Home() {
               <span className="font-bold text-lg text-orange-600">Complete Platform Included:</span>
             </p>
             <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
-              <span className="font-bold">Content & Video • AI Video Editor • Lead Generation • CRM & Deals • Email • SMS • AI Calling • Marketing Automation • Workflows • AI Assistant • Analytics</span>
+              <span className="font-bold">Content System • CRM + Deals • Marketing Automation • AI Calling • Autopilot Growth • AI Assistant • Analytics</span>
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className={`${isDark ? 'bg-black' : 'bg-white'} py-24`}>
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-black text-center mb-16">Common Questions</h2>
-
-          <div className="space-y-6">
-            {[
-              { q: 'How long does setup take?', a: 'Under 2 minutes. Connect your email, add your first lead, and AI takes it from there.' },
-              { q: 'Can I integrate with my existing tools?', a: 'Yes. We integrate with Stripe, Zapier, Slack, and 500+ tools. Full API available.' },
-              { q: 'Do you offer a money-back guarantee?', a: '100%. Try free for 14 days. If not satisfied, full refund. No questions.' },
-              { q: 'What if I need custom features?', a: 'Enterprise plan includes custom integrations and dedicated support.' },
-              { q: 'Is my data secure?', a: 'Bank-level security. GDPR compliant. Daily backups. SOC 2 certified.' },
-            ].map((item, idx) => (
-              <div key={idx} className={`p-6 rounded-xl border ${isDark ? 'bg-orange-900/10 border-orange-700/30 hover:border-orange-600' : 'bg-orange-50 border-orange-200 hover:border-orange-400'} transition-all`}>
-                <p className="font-bold text-lg mb-2">{item.q}</p>
-                <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>{item.a}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -827,12 +568,12 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <button className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-10 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-2xl`}>
+            <a href="/billing" className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-10 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-2xl`}>
               Start Free Trial <ArrowRight size={20} />
-            </button>
-            <button className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-10 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
-              <Play size={20} /> Watch 2-Min Demo
-            </button>
+            </a>
+            <a href="/contact" className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-10 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
+              <Play size={20} /> Contact Us
+            </a>
           </div>
 
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>

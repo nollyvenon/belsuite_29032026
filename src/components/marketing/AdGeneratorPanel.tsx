@@ -269,7 +269,7 @@ export function AdGeneratorPanel() {
 
             {/* Creative prompts */}
             <div className="flex gap-2">
-              <button onClick={handleGetPrompts} disabled={promptsLoading} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs px-3 py-2 rounded-lg transition-colors disabled:opacity-50">
+          <button type="button" onClick={handleGetPrompts} disabled={promptsLoading} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs px-3 py-2 rounded-lg transition-colors disabled:opacity-50">
                 {promptsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
                 Get Image Prompts
               </button>
@@ -290,7 +290,7 @@ export function AdGeneratorPanel() {
             {/* Save to campaign */}
             <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 flex gap-2 items-center">
               <input value={campaignId} onChange={(e) => setCampaignId(e.target.value)} placeholder="Campaign ID to save ads to" className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/20" />
-              <button onClick={handleSave} disabled={saving || !campaignId.trim()} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-2 rounded-lg transition-colors disabled:opacity-50 shrink-0">
+              <button type="button" onClick={handleSave} disabled={saving || !campaignId.trim()} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-2 rounded-lg transition-colors disabled:opacity-50 shrink-0">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveSuccess ? <><Check className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save</>}
               </button>
             </div>

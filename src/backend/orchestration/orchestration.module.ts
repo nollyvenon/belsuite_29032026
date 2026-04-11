@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
+import { CommonModule } from '../common/common.module';
 import { AIGatewayModule } from '../ai-gateway/ai-gateway.module';
 import { ORCHESTRATION_QUEUE } from './orchestration.types';
 import { OrchestrationController } from './orchestration.controller';
@@ -13,10 +14,12 @@ import { WorkflowStorageService } from './services/workflow-storage.service';
 import { WorkflowProcessor } from './processors/workflow.processor';
 import { ChannelAdapterService } from './services/channel-adapter.service';
 import { ChannelDeliveryService } from './services/channel-delivery.service';
+import { CrmEventSubscriberService } from './services/crm-event-subscriber.service';
 
 @Module({
   imports: [
     ConfigModule,
+    CommonModule,
     AIGatewayModule,
     BullModule.registerQueue({
       name: ORCHESTRATION_QUEUE,
@@ -38,6 +41,7 @@ import { ChannelDeliveryService } from './services/channel-delivery.service';
     WorkflowProcessor,
     ChannelAdapterService,
     ChannelDeliveryService,
+    CrmEventSubscriberService,
   ],
   exports: [WorkflowEngineService],
 })

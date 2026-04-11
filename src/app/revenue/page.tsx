@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { RevenueMetrics, useRevenue } from '../../hooks/useRevenue';
 
 const PERIODS = [
@@ -32,8 +32,6 @@ export default function RevenuePage() {
     const m = await getMetrics(days);
     setMetrics(m);
   };
-
-  useEffect(() => { reload(period); }, [period]);
 
   const maxRevenue = metrics ? Math.max(...metrics.dailyRevenue.map((d) => d.revenue), 1) : 1;
 

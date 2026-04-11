@@ -52,6 +52,11 @@ export default function AdminControlCenterPage() {
 
   const enabledModels = useMemo(() => models.filter((m) => m.isEnabled), [models]);
 
+  const handleReload = async () => {
+    await reload();
+    setBanner(null);
+  };
+
   return (
     <AppShell activeRoute="admin">
       <PageHeader
@@ -60,7 +65,7 @@ export default function AdminControlCenterPage() {
         description="Switch provider mode, enforce usage/model limits, monitor health, and tune system behavior from one console."
         actions={
           <button
-            onClick={reload}
+            onClick={handleReload}
             className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 hover:bg-white/10"
           >
             <RefreshCw className="h-4 w-4" /> Refresh
@@ -375,7 +380,7 @@ export default function AdminControlCenterPage() {
                   <select
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
                     value={routeStrategy}
-                    onChange={(e) => setRouteStrategy(e.target.value as any)}
+                    onChange={(e) => setRouteStrategy(e.target.value as 'cheapest' | 'fastest' | 'best_quality' | 'balanced' | 'custom')}
                   >
                     {['cheapest', 'fastest', 'best_quality', 'balanced', 'custom'].map((s) => (
                       <option key={s} value={s}>{s}</option>

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Wand2, Download, Loader, AlertCircle } from 'lucide-react';
 import { passthroughImageLoader } from '@/lib/image-loader';
+import { useAuthStore } from '@/stores/auth-store';
 
 export interface ImageGeneratorProps {
   onGenerated?: (urls: string[]) => void;
@@ -18,6 +19,7 @@ export const ImageGenerator = ({ onGenerated }: ImageGeneratorProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const { accessToken } = useAuthStore();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -33,7 +35,7 @@ export const ImageGenerator = ({ onGenerated }: ImageGeneratorProps) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           prompt,
@@ -146,6 +148,7 @@ export const ImageGenerator = ({ onGenerated }: ImageGeneratorProps) => {
 
           {/* Generate Button */}
           <motion.button
+            type="button"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleGenerate}

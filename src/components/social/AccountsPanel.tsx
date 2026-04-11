@@ -190,7 +190,7 @@ export function AccountsPanel({
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={onRefresh}
+            onClick={() => { void onRefresh(); }}
             className="p-2 rounded-lg border border-white/10 text-zinc-500 hover:text-white hover:bg-white/5 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
