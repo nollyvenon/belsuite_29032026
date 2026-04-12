@@ -2,13 +2,13 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
-  testMatch: ['<rootDir>/src/backend/**/*.spec.ts'],
-  moduleFileExtensions: ['ts', 'js', 'json'],
+  testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/src/**/*.test.ts'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
   transform: {
-    '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'src/backend/tsconfig.json' }],
+    '^.+\\.(t|j)sx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  collectCoverageFrom: ['src/backend/**/*.ts', '!src/backend/**/*.spec.ts'],
+  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.spec.ts', '!src/**/*.test.ts'],
 };

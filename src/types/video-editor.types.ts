@@ -7,6 +7,13 @@
 // API RESPONSE TYPES
 // ============================================================================
 
+export interface VideoProjectVersion {
+  id: string;
+  label?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface VideoProject {
   id: string;
   organizationId: string;

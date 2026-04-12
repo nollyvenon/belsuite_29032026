@@ -1,8 +1,6 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
     "module": "ESNext",
     "baseUrl": ".",
     "lib": [
@@ -42,7 +40,6 @@
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "src/backend/**/*"
+    "dist"
   ]
 }

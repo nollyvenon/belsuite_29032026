@@ -42,6 +42,7 @@ export default function AdminPage() {
     removeCampaignChannelRoute,
     sendSlackAlert,
     triggerZapier,
+    fireIntegrationEvent,
     saveWebhookConfig,
     saveRetryPolicy,
     saveTenant,

@@ -181,7 +181,7 @@ export function useAdminControlCenter() {
     setSaving(true);
     try {
       const next = await setTaskRoute(task, payload);
-      setTaskRoutes((prev) => ({ ...prev, [task]: next }));
+      setTaskRoutes((prev) => ({ ...prev, [task]: next as AITaskRouteEntry }));
     } finally {
       setSaving(false);
     }

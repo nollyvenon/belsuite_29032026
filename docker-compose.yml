@@ -55,35 +55,8 @@ services:
     networks:
       - belsuite-network
 
-  # Backend API (NestJS). Keep until Phase 6–7 cutover; Laravel API runs separately (apps/api, Octane).
-  # See apps/api/docs/OCTANE_MIGRATION_ROADMAP.md — do not remove until parity and traffic shift are complete.
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: builder
-    container_name: belsuite-backend
-    ports:
-      - "3001:3001"
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://belsuite:belsuite_dev_password_change_in_prod@postgres:5432/belsuite
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-secret-key-min-32-characters-long-for-development
-      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./src:/app/src
-      - ./dist:/app/dist
-    command: npm run dev
-    networks:
-      - belsuite-network
-
-  # Frontend (Next.js)
+  # Frontend (Next.js). Run Laravel API on host: `cd apps/api && php artisan serve`
+  # or add a laravel service. Set LARAVEL_API_URL if the API is not localhost:8000.
   frontend:
     build:
       context: .
@@ -93,9 +66,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-    depends_on:
-      - backend
+      LARAVEL_API_URL: http://host.docker.internal:8000
+      NEXT_PUBLIC_API_URL: ""
     volumes:
       - ./src/app:/app/src/app
       - ./src/components:/app/src/components

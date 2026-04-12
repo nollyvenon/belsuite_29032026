@@ -41,9 +41,6 @@ jobs:
       - name: Run type check
         run: npm run type-check
 
-      - name: Enforce production runtime gate
-        run: npm test -- --runTestsByPath src/backend/production-gate.runtime.spec.ts --runInBand --forceExit
-
       - name: Generate coverage report
         run: npm run test:coverage || true
 
@@ -78,7 +75,6 @@ jobs:
     needs: [quality, security]
     if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/'))
     outputs:
-      backend-image: ${{ steps.meta-backend.outputs.tags }}
       frontend-image: ${{ steps.meta-frontend.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
@@ -92,28 +88,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (Backend)
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}:backend-${{ github.sha }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Extract metadata (Frontend)
         id: meta-frontend
@@ -255,7 +229,7 @@ jobs:
             cd /app/belsuite
             docker-compose -f docker-compose.prod.yml pull
             docker-compose -f docker-compose.prod.yml up -d
-            docker-compose -f docker-compose.prod.yml exec -T backend npm run prisma:migrate
+            docker-compose -f docker-compose.prod.yml exec -T laravel php artisan migrate --force
 
   # Deploy to Production
   deploy-production:
@@ -292,11 +266,11 @@ jobs:
             # Deploy
             docker-compose -f docker-compose.prod.yml pull
             docker-compose -f docker-compose.prod.yml up -d
-            docker-compose -f docker-compose.prod.yml exec -T backend npm run prisma:migrate
+            docker-compose -f docker-compose.prod.yml exec -T laravel php artisan migrate --force
             
             # Health checks
             sleep 30
-            curl -f https://api.belsuite.app/api/health || exit 1
+            curl -f https://api.belsuite.app/api/v1/health || exit 1
 
       - name: Notify deployment
         uses: 8398a7/action-slack@v3

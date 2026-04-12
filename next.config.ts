@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Type-checking for Next.js frontend is run separately via `tsc --noEmit`.
-  // Backend (NestJS) and legacy pages/ have their own tsconfig files.
+  // API is served by Laravel (`apps/api`); Next rewrites `/api/*` to it.
   typescript: { ignoreBuildErrors: true },
   images: {
     remotePatterns: [
@@ -15,10 +15,7 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    // Strangler order matters: specific Laravel paths first, then Nest catch-all `/api/:path*`.
-    // Phase 6 cutover: ensure all migrated prefixes stay above Nest; then shrink or remove the Nest rule.
-    // See apps/api/docs/OCTANE_MIGRATION_ROADMAP.md and apps/api/docs/migration-map.md.
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3201';
+    // Strangler order: specific rules first, then catch-all to Laravel.
     const laravelApiUrl = process.env.LARAVEL_API_URL || 'http://localhost:8000';
     return [
       {
@@ -39,15 +36,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
-      },
-      {
-        source: '/admin/ai-gateway/:path*',
-        destination: `${backendUrl}/admin/ai-gateway/:path*`,
-      },
-      {
-        source: '/ai-gateway/:path*',
-        destination: `${backendUrl}/ai-gateway/:path*`,
+        destination: `${laravelApiUrl}/api/v1/:path*`,
       },
     ];
   },

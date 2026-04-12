@@ -4,7 +4,8 @@
  * Demo mode uses mock data; production uses real API calls
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+/** Base for API calls. Empty string = same-origin (Next rewrites `/api/*` to Laravel). */
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 
 // ============================================

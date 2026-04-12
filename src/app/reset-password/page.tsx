@@ -5,7 +5,7 @@ import { Suspense, useState } from 'react';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
-  const [token, setToken] = useState(searchParams.get('token') ?? '');
+  const [token, setToken] = useState(searchParams?.get('token') ?? '');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

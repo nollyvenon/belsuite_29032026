@@ -13,7 +13,7 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - laravel
     networks:
       - belsuite-network
     healthcheck:
@@ -29,23 +29,29 @@ services:
         max-file: "3"
         labels: "service=frontend"
 
-  # Backend - NestJS
-  backend:
-    image: belsuite:backend-latest
-    container_name: belsuite-backend-prod
+  # Laravel API (apps/api)
+  laravel:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    image: belsuite:laravel-api-latest
+    container_name: belsuite-laravel-prod
     restart: always
     environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: postgresql://belsuite:${DB_PASSWORD}@postgres:5432/belsuite?schema=public
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: 24h
-      API_URL: https://api.belsuite.app
-      LOG_LEVEL: info
-      PROMETHEUS_ENABLED: "true"
+      APP_ENV: production
+      APP_KEY: ${LARAVEL_APP_KEY}
+      APP_DEBUG: "false"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: belsuite
+      DB_USERNAME: belsuite
+      DB_PASSWORD: ${DB_PASSWORD}
+      CACHE_STORE: file
+      SESSION_DRIVER: cookie
+      QUEUE_CONNECTION: sync
     ports:
-      - "3001:3001"
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,17 +60,17 @@ services:
     networks:
       - belsuite-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/api/v1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-        labels: "service=backend"
+        labels: "service=laravel"
 
   # PostgreSQL Database
   postgres:
@@ -274,7 +280,7 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - frontend
-      - backend
+      - laravel
     networks:
       - belsuite-network
     logging:
