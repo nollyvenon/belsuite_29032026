@@ -45,6 +45,13 @@ Tuning tips:
 - **Memory-heavy:** lower `OCTANE_WORKERS` and/or lower `OCTANE_PHP_MEMORY_LIMIT`; enforce **systemd `MemoryMax`** or container memory limits.
 - **Leaks / unknown extensions:** keep `OCTANE_MAX_REQUESTS` between **500–5000**; lower is safer.
 
+### Queues vs Octane HTTP workers
+
+Octane workers are long-lived; queue behavior matters more than under `php-fpm`.
+
+- **`QUEUE_AFTER_COMMIT`** (default **true** in `config/queue.php`): dispatch jobs only after the DB transaction commits, avoiding jobs that reference rolled-back rows. See [`octane-performance.md`](./octane-performance.md) for details and test overrides.
+- Run **`queue:work` / Horizon** in **separate** processes; do not rely on HTTP workers for heavy async work.
+
 ## 3. Auto-reload
 
 | Environment | Command |
@@ -110,6 +117,7 @@ composer run octane:reload    # graceful worker reload
 ## 8. Pre-flight checklist
 
 - [ ] `php artisan config:cache` && `php artisan route:cache` in production CI/CD.
+- [ ] `QUEUE_AFTER_COMMIT=true` in production (unless a narrow test profile needs `false`).
 - [ ] Queue workers run **separate** processes (`queue:work`), not inside Octane workers only.
 - [ ] `APP_ENV=production`, `APP_DEBUG=false`.
 - [ ] Redis/DB connection limits ≥ `(OCTANE_WORKERS × app instances) + queue workers`.

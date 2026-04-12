@@ -122,9 +122,6 @@ export class SocialAccountService {
     const accounts = await this.prisma.socialAccount.findMany({
       where: { organizationId: orgId, isActive: true },
       orderBy: { createdAt: 'desc' },
-      include: {
-        _count: { select: { posts: true } },
-      },
     });
 
     return accounts.map((a) => this.sanitizeAccount(a));

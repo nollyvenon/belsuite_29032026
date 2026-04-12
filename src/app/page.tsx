@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { ArrowRight, CheckCircle, Play, Shield, Users, TrendingUp, Zap, Brain, Phone, MessageSquare, BarChart3, Lock, Headphones, Calendar, Mail, Sparkles, Clock, Workflow, AlertCircle } from 'lucide-react';
 import Navbar from './components/navbar';
 
@@ -36,30 +37,30 @@ export default function Home() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <a href="/billing" className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-8 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg`}>
+            <Link href="/register" className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-8 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg`}>
               Start Free Trial <ArrowRight size={20} />
-            </a>
-            <a href="/demo" className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-8 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
+            </Link>
+            <Link href="/demo" className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-8 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
               <Play size={20} /> Watch Demo
-            </a>
+            </Link>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
-            <a href="/content" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+            <Link href="/content" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
               Content system
-            </a>
-            <a href="/ai/customer-support" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+            </Link>
+            <Link href="/ai/customer-support" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
               Support agent
-            </a>
-            <a href="/ai/sales-closer" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+            </Link>
+            <Link href="/ai/sales-closer" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
               Sales closer
-            </a>
-            <a href="/ai/operations-manager" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+            </Link>
+            <Link href="/ai/operations-manager" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
               Ops manager
-            </a>
-            <a href="/ai/influencer" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
+            </Link>
+            <Link href="/ai/influencer" className={`px-4 py-2 rounded-full border ${isDark ? 'border-orange-700 text-orange-300' : 'border-orange-200 text-orange-600'}`}>
               AI influencer
-            </a>
+            </Link>
           </div>
 
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -444,13 +445,16 @@ export default function Home() {
             <p className={`text-lg font-semibold mb-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Your complete AI team is ready to work for you
             </p>
-            <button className={`px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 inline-block ${
-              isDark
-                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                : 'bg-orange-500 hover:bg-orange-600 text-white'
-            }`}>
+            <Link
+              href="/demo"
+              className={`px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 inline-block ${
+                isDark
+                  ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white'
+              }`}
+            >
               See How It Works →
-            </button>
+            </Link>
           </div>
         </div>
       </section>
@@ -523,17 +527,20 @@ export default function Home() {
                 <h3 className="text-2xl font-black mb-2">{plan.name}</h3>
                 <p className={`text-4xl font-black text-orange-600 mb-2`}>{plan.price}</p>
                 <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{plan.users}</p>
-                <button className={`w-full py-3 rounded-xl font-bold mb-8 transition-all ${
-                  plan.popular
-                    ? isDark
-                      ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                      : 'bg-orange-500 hover:bg-orange-600 text-white'
-                    : isDark
-                    ? 'bg-orange-600/20 text-orange-400 hover:bg-orange-600/30'
-                    : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-                }`}>
+                <Link
+                  href="/register"
+                  className={`block w-full text-center py-3 rounded-xl font-bold mb-8 transition-all ${
+                    plan.popular
+                      ? isDark
+                        ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                        : 'bg-orange-500 hover:bg-orange-600 text-white'
+                      : isDark
+                      ? 'bg-orange-600/20 text-orange-400 hover:bg-orange-600/30'
+                      : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                  }`}
+                >
                   Start Free Trial
-                </button>
+                </Link>
                 <ul className="space-y-3">
                   {plan.features.map((feature, fidx) => (
                     <li key={fidx} className="flex gap-3">
@@ -558,7 +565,7 @@ export default function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className={`${isDark ? 'bg-gradient-to-b from-black via-black to-orange-900/20' : 'bg-gradient-to-b from-white to-orange-50'} py-32`}>
+      <section id="contact" className={`${isDark ? 'bg-gradient-to-b from-black via-black to-orange-900/20' : 'bg-gradient-to-b from-white to-orange-50'} py-32`}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-6xl font-black mb-6">
             Stop <span className="text-orange-600">Doing Everything Manually</span>
@@ -568,12 +575,12 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <a href="/billing" className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-10 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-2xl`}>
+            <Link href="/register" className={`${isDark ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-10 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-2xl`}>
               Start Free Trial <ArrowRight size={20} />
-            </a>
-            <a href="/contact" className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-10 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
+            </Link>
+            <Link href="/contact" className={`border-2 ${isDark ? 'border-orange-600 text-orange-400 hover:bg-orange-900/20' : 'border-orange-300 text-orange-600 hover:bg-orange-50'} px-10 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2`}>
               <Play size={20} /> Contact Us
-            </a>
+            </Link>
           </div>
 
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -589,41 +596,41 @@ export default function Home() {
             <div>
               <p className="font-bold mb-4">Product</p>
               <ul className={`space-y-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Features</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Pricing</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Security</a></li>
+                <li><Link href="/#systems" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Features</Link></li>
+                <li><Link href="/#pricing" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Pricing</Link></li>
+                <li><Link href="/faq" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Security & FAQ</Link></li>
               </ul>
             </div>
             <div>
               <p className="font-bold mb-4">Company</p>
               <ul className={`space-y-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>About</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Blog</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Careers</a></li>
+                <li><Link href="/content" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>About</Link></li>
+                <li><Link href="/marketing" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Blog</Link></li>
+                <li><Link href="/contact" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Careers</Link></li>
               </ul>
             </div>
             <div>
               <p className="font-bold mb-4">Resources</p>
               <ul className={`space-y-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Docs</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>API</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Integrations</a></li>
+                <li><Link href="/api-docs" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Docs</Link></li>
+                <li><Link href="/api-docs" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>API</Link></li>
+                <li><Link href="/integrations" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Integrations</Link></li>
               </ul>
             </div>
             <div>
               <p className="font-bold mb-4">Legal</p>
               <ul className={`space-y-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Terms</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Privacy</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Cookies</a></li>
+                <li><Link href="/faq" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Terms</Link></li>
+                <li><Link href="/faq" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Privacy</Link></li>
+                <li><Link href="/faq" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Cookies</Link></li>
               </ul>
             </div>
             <div>
               <p className="font-bold mb-4">Connect</p>
               <ul className={`space-y-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Twitter</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>LinkedIn</a></li>
-                <li><a href="#" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Discord</a></li>
+                <li><a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Twitter</a></li>
+                <li><a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>LinkedIn</a></li>
+                <li><Link href="/contact" className={isDark ? 'hover:text-orange-400' : 'hover:text-orange-600'}>Contact</Link></li>
               </ul>
             </div>
           </div>
@@ -633,9 +640,9 @@ export default function Home() {
               © 2024 Belsuite. All rights reserved. | Your AI Business Operating System
             </p>
             <div className="flex gap-6 mt-6 md:mt-0">
-              <a href="#" className={`text-sm ${isDark ? 'text-gray-400 hover:text-orange-400' : 'text-gray-600 hover:text-orange-600'}`}>Twitter</a>
-              <a href="#" className={`text-sm ${isDark ? 'text-gray-400 hover:text-orange-400' : 'text-gray-600 hover:text-orange-600'}`}>LinkedIn</a>
-              <a href="#" className={`text-sm ${isDark ? 'text-gray-400 hover:text-orange-400' : 'text-gray-600 hover:text-orange-600'}`}>GitHub</a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className={`text-sm ${isDark ? 'text-gray-400 hover:text-orange-400' : 'text-gray-600 hover:text-orange-600'}`}>Twitter</a>
+              <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" className={`text-sm ${isDark ? 'text-gray-400 hover:text-orange-400' : 'text-gray-600 hover:text-orange-600'}`}>LinkedIn</a>
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className={`text-sm ${isDark ? 'text-gray-400 hover:text-orange-400' : 'text-gray-600 hover:text-orange-600'}`}>GitHub</a>
             </div>
           </div>
         </div>

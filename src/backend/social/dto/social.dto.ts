@@ -19,7 +19,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { SocialPlatform } from '@prisma/client';
+import { PostStatus, SocialPlatform } from '@prisma/client';
 
 // ── Account ───────────────────────────────────────────────────────────────────
 
@@ -268,12 +268,12 @@ export class SchedulePreviewDto {
 
 export class ListPostsQueryDto {
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(PostStatus)
+  status?: PostStatus;
 
   @IsOptional()
-  @IsString()
-  platform?: string;
+  @IsEnum(SocialPlatform)
+  platform?: SocialPlatform;
 
   @IsOptional()
   @IsDateString()

@@ -122,9 +122,6 @@ export class BulkPostService {
       where: { organizationId: orgId },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      include: {
-        _count: { select: { posts: true } },
-      },
     });
   }
 }

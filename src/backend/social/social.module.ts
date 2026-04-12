@@ -7,6 +7,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
 
+import { RequireOrgContextGuard } from '../common/guards/require-org-context.guard';
 import { PrismaService } from '../database/prisma.service';
 import { AppConfig } from '../config/app.config';
 
@@ -53,6 +54,7 @@ import { WhatsAppPublisher } from './services/publishers/whatsapp.publisher';
   providers: [
     PrismaService,
     AppConfig,
+    RequireOrgContextGuard,
 
     // Platform publishers
     InstagramPublisher,

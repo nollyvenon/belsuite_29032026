@@ -55,7 +55,8 @@ services:
     networks:
       - belsuite-network
 
-  # Backend API (NestJS)
+  # Backend API (NestJS). Keep until Phase 6–7 cutover; Laravel API runs separately (apps/api, Octane).
+  # See apps/api/docs/OCTANE_MIGRATION_ROADMAP.md — do not remove until parity and traffic shift are complete.
   backend:
     build:
       context: .

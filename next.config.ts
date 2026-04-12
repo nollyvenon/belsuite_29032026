@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
+    // Strangler order matters: specific Laravel paths first, then Nest catch-all `/api/:path*`.
+    // Phase 6 cutover: ensure all migrated prefixes stay above Nest; then shrink or remove the Nest rule.
+    // See apps/api/docs/OCTANE_MIGRATION_ROADMAP.md and apps/api/docs/migration-map.md.
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3201';
     const laravelApiUrl = process.env.LARAVEL_API_URL || 'http://localhost:8000';
     return [

@@ -18,3 +18,19 @@ stdout_logfile=/var/www/belsuite-api/storage/logs/octane-supervisor.log
 stopwaitsecs=3600
 ; Optional hard cap (Linux systemd also supports MemoryMax on the unit)
 ; environment=OCTANE_PHP_MEMORY_LIMIT="512M"
+
+; Queue workers: separate group from Octane HTTP (see docs/octane-production.md).
+[program:belsuite-queue-default]
+process_name=%(program_name)s_%(process_num)02d
+directory=/var/www/belsuite-api
+command=php /var/www/belsuite-api/artisan queue:work redis --sleep=1 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/var/www/belsuite-api/storage/logs/queue-default.log
+stopwaitsecs=3600
+; environment=QUEUE_AFTER_COMMIT="true",REDIS_QUEUE_RETRY_AFTER="960"

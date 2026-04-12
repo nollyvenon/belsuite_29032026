@@ -6,6 +6,29 @@ Gradual path from **PHP-FPM / `artisan serve`** to **Octane (Swoole or RoadRunne
 
 ---
 
+## Laravel API modules (`apps/api`)
+
+All of these share the same Octane worker pool and **must stay stateless** between requests (no per-request data on singletons; use `request()->attributes`, jobs, or cache).
+
+| Module | Typical `/api/v1` surface |
+|--------|---------------------------|
+| **AI** | `ai/generate`, `ai/jobs/{jobId}` |
+| **Auth** | `auth/register`, `auth/login`, `auth/refresh`, `auth/me`, `auth/logout` |
+| **Accounting** | `accounting/subscriptions`, `invoices`, `payments` |
+| **CRM** | `crm/deals/*` |
+| **Content** | `content/*` |
+| **HR** | `hr/teams`, `hr/members` |
+| **Inventory** | `inventory/assets` |
+| **Integration** | `integrations/*` (Nest bridge + native `deliver`) |
+| **Marketing** | `marketing/workflows/*`, `marketing/webhook` |
+| **Scheduling** | `scheduling/posts/*` |
+| **Video** | `video/projects/*`, render + job status |
+| **Misc** | `user` (current user JSON), `health` |
+
+If you meant **additional** modules (e.g. billing-only, analytics), name them and we can map routes or Nest vs Laravel ownership.
+
+---
+
 ## Phase 0 — Repository & CI gates (no runtime change)
 
 **Goal:** Every change stays mergeable with production-style boot checks.
@@ -91,16 +114,59 @@ Gradual path from **PHP-FPM / `artisan serve`** to **Octane (Swoole or RoadRunne
 
 ---
 
+## Phase 6 — NestJS strangler: final cutover (after parity is proven)
+
+**Goal:** All traffic that today proxies to Nest for **migrated** domains is served by Laravel Octane only; Nest becomes optional, then archived.
+
+**Entry criteria (all must be true):**
+
+| Gate | Evidence |
+|------|----------|
+| **Contract parity** | `tests/Feature/Api/V1/ContractParityTest.php` (and any module-specific suites) green against Laravel in CI; golden JSON or OpenAPI diff signed off. |
+| **Route map** | `docs/migration-map.md` lists every former Nest path with Laravel owner; no “unknown” critical paths. |
+| **Runtime toggles** | Staging ran with `NEST_FALLBACK_ENABLED=false` (or equivalent) for **two** release windows without SLO burn. |
+| **Queues & webhooks** | All async producers/consumers that used Nest queues/webhooks are migrated or dual-published with idempotency keys verified. |
+| **Observability** | Correlation IDs and tenant headers flow through Laravel logs, metrics, and traces at parity with Nest dashboards. |
+
+**Cutover sequence (production):**
+
+| Step | Action | Validate |
+|------|--------|----------|
+| 6.1 | **Freeze** Nest feature work except hotfixes; branch `nest-legacy-freeze` tag for rollback | Tag recorded in runbook |
+| 6.2 | Next.js / gateway: point `BACKEND_URL` / rewrites so **no** user-facing path hits Nest for migrated modules (keep a **single** emergency bypass URL if required) | Smoke + k6 on top flows |
+| 6.3 | Drain Nest workers (Bull/Redis) for migrated queues; run Laravel `queue:work` / Horizon for those queues only | Queue depth → 0, no duplicate consumers |
+| 6.4 | Remove or 404 Nest routes for migrated surface; keep read-only Nest instance **one** release for forensic diff | 4xx/5xx within error budget |
+| 6.5 | Decommission Nest deploy units (containers, systemd, DNS); archive repo or mark read-only | Cost / alert noise down |
+| 6.6 | Update `next.config.ts` (and any API gateway) to remove dead rewrites; document final architecture | PR reviewed by platform |
+
+**Post-cutover:** Retain **read-only** export of Nest OpenAPI + migration map for compliance; delete secrets and CI deploy keys for Nest when finance/legal sign off.
+
+---
+
+## Phase 7 — NestJS deprecation (end-of-life)
+
+**Goal:** No production dependency on Nest; engineering uses Laravel as the only long-lived API runtime.
+
+| Step | Action | Validate |
+|------|--------|----------|
+| 7.1 | Run `docs/deprecation-playbook.md` final section (archive, rollback snapshot) | Artifact stored |
+| 7.2 | Remove Nest from `docker-compose`, Helm, Terraform, and developer `npm run dev` if it only existed for API | `grep -R` clean in CI |
+| 7.3 | Retrain on-call runbooks (incident commands, dashboards, deploy playbooks) | Dry-run tabletop |
+
+---
+
 ## Non-negotiables (every phase)
 
 1. **Run** `composer run validate:octane-migration-phase1` (or CI equivalent) before merge.  
 2. **No** new long-lived static state in `app/` (Octane workers are long-lived).  
 3. **Use** existing integration safeguards: `FlushRequestScopedContainerBindings`, Octane HTTP clients (`IntegrationHttp`), `OCTANE_MAX_REQUESTS`.  
-4. **Nest** remains source of truth for paths under `/api/*` not rewritten to Laravel—do not remove until explicitly migrated.
+4. **Nest** remains source of truth for paths under `/api/*` not rewritten to Laravel—do not remove until **Phase 6** gates pass and cutover is executed.
 
 ---
 
 ## References
 
 - `docs/octane-production.md` — install, env, safeguards, process managers  
+- `docs/octane-performance.md` — Redis/cache, `QUEUE_AFTER_COMMIT`, benchmarks  
+- `docs/deprecation-playbook.md` — Nest toggles, rollback, archive  
 - `deploy/octane/` — example env, systemd, supervisord  

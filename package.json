@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "next dev -p 3000",
-    "dev:backend": "nest start --watch",
+    "dev:backend": "tsx watch --tsconfig src/backend/tsconfig.json src/backend/main.ts",
     "build": "npm run build:prisma && npm run build:backend && npm run build:frontend",
     "build:prisma": "prisma generate",
     "build:backend": "nest build",

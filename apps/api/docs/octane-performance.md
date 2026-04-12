@@ -83,3 +83,15 @@ Replace the placeholder row with your actual `benchmark:octane` output. For CRM-
 ## Queue workers (separate from Octane HTTP)
 
 See [`queue-workers.md`](queue-workers.md) and `deploy/supervisor/belsuite-queue-workers.conf` for Octane-safe **stateless jobs**, retries, cleanup middleware, and Supervisor programs.
+
+### Queue safety with Octane (HTTP workers)
+
+| Setting | Purpose |
+|---------|---------|
+| `QUEUE_AFTER_COMMIT` (default **true** in `config/queue.php`) | Pushes jobs **after** the surrounding DB transaction commits, so rollbacks never leave “ghost” jobs that reference uncommitted rows. |
+| `REDIS_QUEUE_RETRY_AFTER` | Must exceed the **longest** job timeout on that connection (already high default for AI/video). |
+| `REDIS_QUEUE_BLOCK_FOR` | Optional positive integer for Redis `blpop`-style blocking; omit unless you understand worker count vs latency tradeoffs. |
+| Separate `queue:work` / Horizon processes | **Never** run long CPU/IO work on the Octane HTTP worker; dispatch jobs and return `202` / job id where appropriate. |
+| `Queue::failing` (see `AppServiceProvider`) | Central structured log for failed jobs (`queue.worker.failing`) — wire `QUEUE_MONITOR_LOG_CHANNEL` to your on-call stack. |
+
+For local tests that dispatch jobs **without** a wrapping transaction and expect immediate side effects, you can set `QUEUE_AFTER_COMMIT=false` in `.env.testing` only.

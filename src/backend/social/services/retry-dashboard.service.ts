@@ -18,6 +18,26 @@ import { PrismaService } from '../../database/prisma.service';
 import { SOCIAL_QUEUE } from '../processors/social-post.processor';
 import { PublishJobPayload } from '../types/social.types';
 
+const FAILED_LIST_SORT_FIELDS = [
+  'createdAt',
+  'attemptCount',
+  'platform',
+  'nextRetryAt',
+] as const;
+
+type FailedListSortField = (typeof FAILED_LIST_SORT_FIELDS)[number];
+
+function normalizeFailedListSort(
+  sortBy?: string,
+  sortOrder?: string,
+): { sortBy: FailedListSortField; sortOrder: 'asc' | 'desc' } {
+  const order = sortOrder === 'asc' ? 'asc' : 'desc';
+  const by = FAILED_LIST_SORT_FIELDS.includes(sortBy as FailedListSortField)
+    ? (sortBy as FailedListSortField)
+    : 'createdAt';
+  return { sortBy: by, sortOrder: order };
+}
+
 @Injectable()
 export class RetryDashboardService {
   private readonly logger = new Logger(RetryDashboardService.name);
@@ -38,12 +58,19 @@ export class RetryDashboardService {
     sortBy: 'createdAt' | 'attemptCount' | 'platform' | 'nextRetryAt' = 'createdAt',
     sortOrder: 'asc' | 'desc' = 'desc',
   ) {
-    const orderByMap: Record<string, any> = {
-      createdAt: { createdAt: sortOrder },
-      attemptCount: { attemptCount: sortOrder },
-      platform: { account: { platform: sortOrder } },
-      nextRetryAt: [{ nextRetryAt: { sort: sortOrder, nulls: 'last' as const } }],
-    };
+    const { sortBy: safeSortBy, sortOrder: safeOrder } = normalizeFailedListSort(
+      sortBy,
+      sortOrder,
+    );
+
+    const orderBy =
+      safeSortBy === 'attemptCount'
+        ? { attemptCount: safeOrder }
+        : safeSortBy === 'platform'
+          ? { account: { platform: safeOrder } }
+          : safeSortBy === 'nextRetryAt'
+            ? { nextRetryAt: { sort: safeOrder, nulls: 'last' as const } }
+            : { createdAt: safeOrder };
 
     const results = await this.prisma.postPublishResult.findMany({
       where: {
@@ -51,7 +78,7 @@ export class RetryDashboardService {
         status: PublishStatus.FAILED,
         dismissedAt: null,
       },
-      orderBy: orderByMap[sortBy],
+      orderBy,
       take: 50,
       include: {
         post: {
@@ -185,30 +212,35 @@ export class RetryDashboardService {
           createdAt: { gte: since },
         },
       }),
-      // Group by platform via account join
-      this.prisma.$queryRaw<Array<{ platform: string; status: string; count: bigint }>>`
-        SELECT sa.platform, ppr.status, COUNT(*) as count
-        FROM "PostPublishResult" ppr
-        JOIN "ScheduledPost" sp ON ppr."postId" = sp.id
-        JOIN "SocialAccount" sa ON ppr."accountId" = sa.id
-        WHERE sp."organizationId" = ${orgId}
-          AND ppr."createdAt" >= ${since}
-        GROUP BY sa.platform, ppr.status
-        ORDER BY sa.platform, ppr.status
-      `,
+      // Denormalized `platform` on PostPublishResult — avoids raw SQL / table-name drift
+      this.prisma.postPublishResult.groupBy({
+        by: ['platform', 'status'],
+        where: {
+          post: { organizationId: orgId },
+          createdAt: { gte: since },
+        },
+        _count: { _all: true },
+      }),
     ]);
 
-    const platformBreakdown: Record<string, { success: number; failed: number; pending: number }> =
-      {};
+    const platformBreakdown: Record<
+      string,
+      { success: number; failed: number; pending: number }
+    > = {};
 
     for (const row of byPlatform) {
-      if (!platformBreakdown[row.platform]) {
-        platformBreakdown[row.platform] = { success: 0, failed: 0, pending: 0 };
+      const platformKey = row.platform;
+      if (!platformBreakdown[platformKey]) {
+        platformBreakdown[platformKey] = { success: 0, failed: 0, pending: 0 };
       }
-      const n = Number(row.count);
-      if (row.status === 'SUCCESS') platformBreakdown[row.platform].success += n;
-      else if (row.status === 'FAILED') platformBreakdown[row.platform].failed += n;
-      else if (row.status === 'PENDING') platformBreakdown[row.platform].pending += n;
+      const n = row._count._all;
+      if (row.status === PublishStatus.SUCCESS) {
+        platformBreakdown[platformKey].success += n;
+      } else if (row.status === PublishStatus.FAILED) {
+        platformBreakdown[platformKey].failed += n;
+      } else if (row.status === PublishStatus.PENDING) {
+        platformBreakdown[platformKey].pending += n;
+      }
     }
 
     return {

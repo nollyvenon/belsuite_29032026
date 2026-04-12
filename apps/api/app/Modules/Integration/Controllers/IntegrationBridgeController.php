@@ -5,6 +5,7 @@ namespace App\Modules\Integration\Controllers;
 use App\Http\Controllers\BaseController;
 use App\Services\Integrations\IntegrationDeliveryService;
 use App\Services\LegacyNestBridgeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -19,8 +20,29 @@ class IntegrationBridgeController extends BaseController
     ) {
     }
 
+    /**
+     * When {@see config('strangler.nest_fallback_enabled')} is false, Nest HTTP relays must not run
+     * (staging gate for Phase 6 cutover).
+     */
+    private function nestRelayBlockedResponse(): ?JsonResponse
+    {
+        if (config('strangler.nest_fallback_enabled') !== false) {
+            return null;
+        }
+
+        return $this->fail(
+            'Nest relay is disabled (NEST_FALLBACK_ENABLED=false). Use native Laravel endpoints.',
+            ['code' => 'nest_relay_disabled'],
+            503
+        );
+    }
+
     public function aiAssistant(Request $request)
     {
+        if ($blocked = $this->nestRelayBlockedResponse()) {
+            return $blocked;
+        }
+
         $result = $this->bridge->forward('assistants/donna/chat', $request->all(), [
             'X-Tenant-ID' => (string) $request->attributes->get('tenant_id', ''),
             'X-Correlation-ID' => (string) $request->attributes->get('correlation_id', ''),
@@ -31,6 +53,10 @@ class IntegrationBridgeController extends BaseController
 
     public function billing(Request $request)
     {
+        if ($blocked = $this->nestRelayBlockedResponse()) {
+            return $blocked;
+        }
+
         $result = $this->bridge->forward('api/v1/credit-billing/usage', $request->all(), [
             'X-Tenant-ID' => (string) $request->attributes->get('tenant_id', ''),
             'X-Correlation-ID' => (string) $request->attributes->get('correlation_id', ''),
@@ -41,6 +67,10 @@ class IntegrationBridgeController extends BaseController
 
     public function crm(Request $request)
     {
+        if ($blocked = $this->nestRelayBlockedResponse()) {
+            return $blocked;
+        }
+
         $result = $this->bridge->forward('api/crm-engine/stats', $request->all(), [
             'X-Tenant-ID' => (string) $request->attributes->get('tenant_id', ''),
             'X-Correlation-ID' => (string) $request->attributes->get('correlation_id', ''),

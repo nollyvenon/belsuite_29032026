@@ -32,7 +32,9 @@ import { SocialPlatform } from '@prisma/client';
 
 // Auth imports — pulled from the common guards/decorators used by the video module
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
+import { RequireOrgContextGuard } from '../common/guards/require-org-context.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 // Services
 import { SocialAccountService } from './services/social-account.service';
@@ -64,7 +66,7 @@ interface AuthUser {
 }
 
 @Controller('api/social')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RequireOrgContextGuard)
 export class SocialController {
   constructor(
     private readonly accounts: SocialAccountService,
@@ -243,11 +245,13 @@ export class SocialController {
       throw new BadRequestException('"from" and "to" query parameters are required');
     }
 
-    return this.scheduler.getCalendar(
-      user.orgId,
-      new Date(from),
-      new Date(to),
-    );
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    if (!Number.isFinite(fromDate.getTime()) || !Number.isFinite(toDate.getTime())) {
+      throw new BadRequestException('Invalid "from" or "to" date');
+    }
+
+    return this.scheduler.getCalendar(user.orgId, fromDate, toDate);
   }
 
   // ── Scheduler policy ─────────────────────────────────────────────────────
@@ -343,8 +347,8 @@ export class SocialController {
    * On success: redirects to {redirectUri}?success=true&platform={platform}
    * On failure: redirects to {redirectUri}?error={message}
    */
+  @Public()
   @Get('oauth/callback/:platform')
-  @UseGuards() // Override class-level guard — no auth needed here
   async handleOAuthCallback(
     @Param('platform') platform: SocialPlatform,
     @Query('code') code: string,

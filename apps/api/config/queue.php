@@ -41,7 +41,8 @@ return [
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
             'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
-            'after_commit' => false,
+            // When true, jobs are only pushed after the DB transaction commits (avoids orphan jobs on rollback).
+            'after_commit' => filter_var(env('QUEUE_AFTER_COMMIT', true), FILTER_VALIDATE_BOOLEAN),
         ],
 
         'beanstalkd' => [
@@ -50,7 +51,7 @@ return [
             'queue' => env('BEANSTALKD_QUEUE', 'default'),
             'retry_after' => (int) env('BEANSTALKD_QUEUE_RETRY_AFTER', 90),
             'block_for' => 0,
-            'after_commit' => false,
+            'after_commit' => filter_var(env('QUEUE_AFTER_COMMIT', true), FILTER_VALIDATE_BOOLEAN),
         ],
 
         'sqs' => [
@@ -61,7 +62,7 @@ return [
             'queue' => env('SQS_QUEUE', 'default'),
             'suffix' => env('SQS_SUFFIX'),
             'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
-            'after_commit' => false,
+            'after_commit' => filter_var(env('QUEUE_AFTER_COMMIT', true), FILTER_VALIDATE_BOOLEAN),
         ],
 
         'redis' => [
@@ -69,8 +70,11 @@ return [
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 960),
-            'block_for' => null,
-            'after_commit' => false,
+            'block_for' => (($bf = env('REDIS_QUEUE_BLOCK_FOR')) !== null && $bf !== '' && (int) $bf > 0)
+                ? (int) $bf
+                : null,
+            // Prefer true in production: jobs dispatch only after commit; set QUEUE_AFTER_COMMIT=false for legacy/tests if needed.
+            'after_commit' => filter_var(env('QUEUE_AFTER_COMMIT', true), FILTER_VALIDATE_BOOLEAN),
         ],
 
         'deferred' => [

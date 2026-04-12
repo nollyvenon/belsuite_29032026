@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { PostStatus, SocialPlatform } from '@prisma/client';
+import { PostStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { OptimalTimeService } from './optimal-time.service';
 import { SOCIAL_QUEUE } from '../processors/social-post.processor';
@@ -142,6 +142,10 @@ export class PostSchedulerService {
   // ── Read ──────────────────────────────────────────────────────────────────
 
   async listPosts(orgId: string, filters: ListPostsQueryDto) {
+    if (!orgId) {
+      throw new BadRequestException('Missing organization id');
+    }
+
     const { status, platform, from, to, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
@@ -150,7 +154,7 @@ export class PostSchedulerService {
     if (status) where.status = status;
 
     if (platform) {
-      where.accounts = { some: { account: { platform: platform as SocialPlatform } } };
+      where.accounts = { some: { account: { platform } } };
     }
 
     if (from || to) {
@@ -182,7 +186,6 @@ export class PostSchedulerService {
               errorMessage: true,
             },
           },
-          _count: { select: { reposts: true } },
         },
       }),
       this.prisma.scheduledPost.count({ where }),
